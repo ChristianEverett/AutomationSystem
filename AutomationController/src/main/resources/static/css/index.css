@@ -1,0 +1,120 @@
+body
+{
+    width: 850px;
+    margin: 0 auto;
+    background-color: rgb(25, 25, 25);
+}
+legend
+{
+    color: #75abff;
+    font-size: x-large;
+}
+fieldset
+{
+    border-color: #093ac8;
+}
+#color_slider .ui-slider-handle
+{
+    height: 60px;
+}
+.sp-container
+{
+    float: left;
+}
+.sp-picker-container
+{
+    width: 400px;
+    height: 350px;
+}
+#color_table
+{
+    margin-left:auto;
+    margin-right:auto;
+}
+#color_table td
+{
+    opacity: .8;
+    font-size: 50px;
+    width: 100px;
+    height: 50px;
+    border: 2px solid black;
+}
+#color_table td:hover
+{
+    opacity: 1;
+}
+#lock_indicator
+{
+    float: right;
+}
+#lock_indicator_img
+{
+    display:block;
+    margin:auto;
+}
+#unlock_button, #lock_button, #radio label
+{
+    width: 49%;
+}
+#unlock_button, #lock_button
+{
+    display: inline-block;
+}
+#lock_selector label
+{
+    width: 25%;
+}
+.button
+{
+    height: 100px;
+}
+.ui-button-text
+{
+    text-align: center;
+}
+#timer, #set_timer
+{
+    width: 49%;
+}
+#timer
+{
+    height: 100px;
+}
+.ui-button-text
+{
+    color: red;
+    text-align: center;
+}
+.sp-picker-container
+{
+    background-color: black;
+}
+.sp-input
+{
+    color: red;
+}
+.sp-button-container
+{
+    display: none;
+    visibility: hidden;
+}
+#timers_table
+{
+    border-collapse: collapse;
+}
+#timers_table td
+{
+    border: 1px solid #75abff;
+    text-align: center;
+    font-size: 40px;
+    color: red;
+    width: 35%;
+}
+#timers_table td:hover
+{
+    color: orange;
+}
+#Black
+{
+    color: red;
+}

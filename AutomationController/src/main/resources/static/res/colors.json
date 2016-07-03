@@ -1,0 +1,64 @@
+{
+  "colorsArray": [
+    {
+      "colorName": "Red",
+      "hexValue": "#FF0000"
+    },
+    {
+      "colorName": "Green",
+      "hexValue": "#00FF00"
+    },
+    {
+      "colorName": "Blue",
+      "hexValue": "#0000FF"
+    },
+    {
+      "colorName": "Cyan",
+      "hexValue": "#00FFFF"
+    },
+    {
+      "colorName": "Magenta",
+      "hexValue": "#FF00FF"
+    },
+    {
+      "colorName": "Yellow",
+      "hexValue": "#FFFF00"
+    },
+    {
+      "colorName": "Violet",
+      "hexValue": "#EE82EE"
+    },
+    {
+      "colorName": "Orange",
+      "hexValue": "#ff40F0"
+    },
+    {
+      "colorName": "White",
+      "hexValue": "#FFFFFF"
+    },
+    {
+      "colorName": "Pink",
+      "hexValue": "#ffB6Fa"
+    },
+    {
+      "colorName": "Purple",
+      "hexValue": "#800080"
+    },
+    {
+      "colorName": "Brown",
+      "hexValue": "#A52A2A"
+    },
+    {
+      "colorName": "Aqua",
+      "hexValue": "#00FFFF"
+    },
+    {
+      "colorName": "Fuchsia",
+      "hexValue": "#FF00FF"
+    },
+    {
+      "colorName": "Black",
+      "hexValue": "#000000"
+    }
+  ]
+}
