@@ -3,9 +3,9 @@
  */
 package com.pi.backgroundprocessor;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -14,14 +14,17 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.springframework.data.repository.CrudRepository;
-
 import com.pi.Application;
+import com.pi.devices.Led;
+import com.pi.devices.Outlet;
+import com.pi.devices.Switch;
+import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.Device;
+import com.pi.infrastructure.DeviceLoader;
+import com.pi.infrastructure.PropertiesLoader;
 import com.pi.repository.Action;
-import com.pi.repository.RepositoryContainer;
-import com.pi.repository.StateRepository;
 import com.pi.repository.Timer;
-import com.pi.repository.TimerRepository;
+
 
 /**
  * @author Christian Everett
@@ -32,62 +35,56 @@ public class Processor extends Thread
 {
 	private static Processor singleton = null;
 	private Queue<Action> processingQueue = new ConcurrentLinkedQueue<>();
-	ExecutorService executorService = Executors.newFixedThreadPool(10);
-	ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
-	
-	private GPIOController gpioController = null;
+	private ExecutorService executorService = Executors.newFixedThreadPool(10);
+	private ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
+	private HashMap<String, Device> deviceMap = new HashMap<>();
 	private PersistenceManager persistenceManager;
 
 	private Processor() 
 	{
 		try
 		{
-			persistenceManager = new PersistenceManager();		
-			processLastKnowStates();
+			PropertiesLoader properties = PropertiesLoader.getInstance();
+			DeviceLoader deviceLoader = DeviceLoader.getInstance();
 			
-			Application.LOGGER.info("Loading GPIO Controller");
-			gpioController = GPIOController.loadGPIOController();
+			Application.LOGGER.info("Loading Devices");
+			deviceLoader.populateDeviceMap(deviceMap);
+			
+			Application.LOGGER.info("Loading Device States");
+			persistenceManager = PersistenceManager.loadPersistanceManager();		
+			processLastKnowStates(persistenceManager.getAllStates());
+			
+			Application.LOGGER.info("Scheduling Tasks");
 		    
-			exec.scheduleAtFixedRate(new Runnable()
+			exec.scheduleAtFixedRate(() ->
 			{
-				@Override
-				public void run()
+				try
 				{
-					try
-					{
-						timerEvaluator();
-					}
-					catch (SQLException e)
-					{
-						Application.LOGGER.severe(e.getMessage());
-					}
+					timerEvaluator();
+				}
+				catch (SQLException e)
+				{
+					Application.LOGGER.severe(e.getMessage());
 				}
 			}, 1, 2, TimeUnit.SECONDS);
 			
-			exec.scheduleAtFixedRate(new Runnable()
+			exec.scheduleAtFixedRate(() ->
 			{
-				@Override
-				public void run()
+				try
 				{
-					try
-					{
-						persistenceManager.commit();
-					}
-					catch (SQLException e)
-					{
-						Application.LOGGER.severe(e.getMessage());
-					}
+					persistenceManager.commit();
+					Application.LOGGER.info("Timer/State Commit");
 				}
-			}, 1, 1, TimeUnit.HOURS);
+				catch (SQLException e)
+				{
+					Application.LOGGER.severe(e.getMessage());
+				}
+			}, 1, 2, TimeUnit.HOURS);
 			
-			exec.scheduleAtFixedRate(new Runnable()
+			exec.scheduleAtFixedRate(() ->
 			{
-				@Override
-				public void run()
-				{
-					NetworkConnectionPoller.checkConnection();
-				}
-			}, 1, 10, TimeUnit.MINUTES);
+				NetworkConnectionPoller.checkConnection();
+			}, 1, 20, TimeUnit.MINUTES);
 			
 			Runtime.getRuntime().addShutdownHook(new Thread()
 	        {
@@ -126,68 +123,56 @@ public class Processor extends Thread
 		catch (IllegalStateException e)
 		{
 			Application.LOGGER.severe(e.getMessage());
-			shutdownBackgroundProcessor();
 		}
 		catch (UnsupportedOperationException | InterruptedException e)
 		{
 			Application.LOGGER.severe(e.getMessage());
+			Application.LOGGER.severe("Restarting Processor");
+			this.run();
 		}
+		
+		shutdownBackgroundProcessor();
 	}
 	
-	private void processAction(Action result) throws UnsupportedOperationException
+	private void processAction(Action action) throws UnsupportedOperationException
 	{
 		try
 		{
-			if(result != null)
+			if(action != null)
 			{
-				String command = result.getCommand();
-				String state = result.getData();
+				String command = action.getCommand();
+				Device device =  deviceMap.get(command);
 				
-				switch (command)
+				if(device == null)
 				{
-				case ACTIONS.LED1:			
-				case ACTIONS.LED2:
-					
-					int RED, GREEN, BLUE;
-					
-					if(state == "")
-					{
-						RED = GREEN = BLUE = 0;
-					}
-					else
-					{
-						String[] splited = state.split("\\s+");
+					switch (command)
+					{	
+					case DeviceType.RUN_ECHO_SERVER:
+						ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
+						process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+						process.start();
+						break;
 						
-						RED = Integer.parseInt(splited[0]);
-						GREEN = Integer.parseInt(splited[1]);
-						BLUE = Integer.parseInt(splited[2]);
-					}
-		
-					gpioController.pulseWidthModulate(command, RED, GREEN, BLUE);
-					persistenceManager.saveState(result);
-					break;
-					
-				case ACTIONS.SWITCH_ONE:			
-				case ACTIONS.SWITCH_TWO:				
-				case ACTIONS.SWITCH_THREE:	
-				case ACTIONS.SWITCH_FOUR:
-					gpioController.setPin(command, !Boolean.parseBoolean(state));
-					persistenceManager.saveState(result);
-					break;
-					
-				case ACTIONS.RUN_ECHO_SERVER:
-					ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
-					//process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-					process.start();
-					break;
-					
-				case ACTIONS.SHUTDOWN:
-					shutdownBackgroundProcessor();
-					break;
+					case DeviceType.RELOAD_DEVICES:
+						deviceMap.forEach((k, v) -> v.close());
+						deviceMap.clear();
+						DeviceLoader.getInstance().populateDeviceMap(deviceMap);
+						Application.LOGGER.info("Reloaded Devices");
+						break;
+						
+					case DeviceType.SHUTDOWN:
+						shutdownBackgroundProcessor();
+						break;
 
-				default:
-					Application.LOGGER.severe("Action not Supported");
-					break;
+					default:
+						Application.LOGGER.severe("Action not Supported");
+						break;
+					}
+				}
+				else
+				{
+					if(device.performAction(action) == true)
+						persistenceManager.saveState(action);
 				}
 			}	
 		}
@@ -195,7 +180,6 @@ public class Processor extends Thread
 		{
 			throw new UnsupportedOperationException("Invalid Action");
 		}
-		
 	}
 	
 	private void timerEvaluator() throws SQLException
@@ -203,11 +187,9 @@ public class Processor extends Thread
 		int day = Calendar.getInstance().get(Calendar.DAY_OF_WEEK);
 		int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
 		int minute = Calendar.getInstance().get(Calendar.MINUTE);
-
-		String time = hour + ":" + (minute < 10 ? "0" + minute : minute);
 		
 		//set hour for day divide when reseting timers during 11:00pm
-		hour = (hour == 0) ? 24 : hour;
+		int previousHour = ((hour == 0) ? 24 : hour) - 1;
 		
 		Iterator<Timer> timers = persistenceManager.getAllTimers();
 		
@@ -215,14 +197,14 @@ public class Processor extends Thread
 		{
 			Timer timer = timers.next();
 			
-			if(timer.getTime().equalsIgnoreCase(time) && !timer.getEvaluated())
+			if(timer.getHour() == hour && timer.getMinute() == minute && !timer.getEvaluated())
 			{
 				scheduleAction(new Action(timer.getCommand(), timer.getData()));
 				timer.setEvaluated(true);
 				persistenceManager.saveTimer(timer);
 				Application.LOGGER.info("Timer Triggered: " + timer.getCommand() + " Time: " + timer.getTime());
 			}
-			else if(timer.getTime() == ((hour - 1) + ":" + (minute < 10 ? "0" + minute : minute)))
+			else if(timer.getHour() == previousHour)
 			{
 				timer.setEvaluated(false);
 				persistenceManager.saveTimer(timer);
@@ -230,10 +212,8 @@ public class Processor extends Thread
 		}
 	}
 	
-	private void processLastKnowStates()
+	private void processLastKnowStates(Iterator<Action> states)
 	{
-		Iterator<Action> states = persistenceManager.getAllStates();
-		
 		while(states.hasNext())
 		{
 			scheduleAction(states.next());
@@ -251,17 +231,19 @@ public class Processor extends Thread
 		{
 			Application.LOGGER.severe("System Shutting down!");
 			//rt.exec("java -jar EmailModule.jar christian.everett1@gmail.com pi 'The pi controller has shutdown'");
+			
+			//Shutdown all devices
+			Application.LOGGER.info("Shutting down all devices");
+			deviceMap.forEach((k, v) -> v.close());
+			
 			persistenceManager.close();
 		}
-		catch (SQLException e)
+		catch (Exception e)
 		{
 			Application.LOGGER.severe(e.getMessage());
 		}
 		finally 
 		{
-			//Shutdown all relays
-			gpioController.close();
-			
 			System.exit(1);
 		}    
 	}
@@ -272,18 +254,5 @@ public class Processor extends Thread
 			singleton = new Processor();
 		
 		return singleton;
-	}
-	
-	//supported actions
-	private interface ACTIONS
-	{
-		public static final String RUN_ECHO_SERVER = "run_echo_server";
-		public static final String LED1 = "led1";
-		public static final String LED2 = "led2";
-		public static final String SWITCH_ONE = "switch1";
-		public static final String SWITCH_TWO = "switch2";
-		public static final String SWITCH_THREE = "switch3";
-		public static final String SWITCH_FOUR = "switch4";
-		public static final String SHUTDOWN = "shutdown";
 	}
 }

@@ -15,9 +15,19 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.rest.webmvc.config.RepositoryRestMvcConfiguration;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+
 import com.pi.backgroundprocessor.Processor;
+import com.pi.devices.thermostat.ThermostatHandler;
+import com.pi.infrastructure.HttpClient;
 import com.pi.repository.StateRepository;
 
+import junit.framework.Test;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.util.logging.*;
 
 /**
@@ -48,9 +58,6 @@ import java.util.logging.*;
 //@Import(OAuth2SecurityConfiguration.class)
 public class Application extends WebMvcAutoConfiguration
 {
-	/**
-	 * @param args
-	 */
 	public static final Logger LOGGER = Logger.getLogger("SystemLogger");
 	
 	public static void main(String[] args)
@@ -59,7 +66,7 @@ public class Application extends WebMvcAutoConfiguration
 		{
 			if(args.length != 0)
 				LOGGER.setUseParentHandlers(false);
-			LOGGER.addHandler(new FileHandler("../log"));
+			LOGGER.addHandler(new FileHandler("./log"));
 		}
 		catch(Exception e)
 		{
@@ -73,6 +80,7 @@ public class Application extends WebMvcAutoConfiguration
 		
 		//Run the background processor
 		Processor processor = Processor.getBackgroundProcessor();
+		processor.setPriority(Thread.MAX_PRIORITY);
 		processor.start();
 	}
 	

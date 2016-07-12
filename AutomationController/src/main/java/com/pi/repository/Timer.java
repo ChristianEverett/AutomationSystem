@@ -3,11 +3,14 @@
  */
 package com.pi.repository;
 
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
+
 
 /**
  * @author Christian Everett
@@ -19,7 +22,7 @@ public class Timer
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private long id;
-	private String time;//TODO change to date
+	private String time;
 	private boolean evaluated;
 	private String command;
 	private String data;
@@ -77,5 +80,14 @@ public class Timer
 	{
 		this.data = data;
 	}
-
+	
+	public int getHour()
+	{
+		return Integer.parseInt(time.substring(0, time.indexOf(":")));
+	}
+	
+	public int getMinute()
+	{
+		return Integer.parseInt(time.substring(time.indexOf(":") + 1, time.length()));
+	}
 }

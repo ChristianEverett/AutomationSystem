@@ -13,6 +13,7 @@ import java.util.Iterator;
 import org.springframework.data.repository.CrudRepository;
 
 import com.pi.Application;
+import com.pi.infrastructure.MySQLHandler;
 import com.pi.repository.Action;
 import com.pi.repository.RepositoryContainer;
 import com.pi.repository.StateRepository;
@@ -33,7 +34,17 @@ class PersistenceManager
 	private TimerRepository timerRepository = RepositoryContainer.getRepositorycontainer().buildTimerRepository();
 	private StateRepository stateRepository = RepositoryContainer.getRepositorycontainer().buildStateRepository();
 	
-	public PersistenceManager() throws Exception
+	private static PersistenceManager singleton = null;
+	
+	public static PersistenceManager loadPersistanceManager() throws Exception
+	{
+		if(singleton == null)
+			singleton = new PersistenceManager();
+		
+		return singleton;
+	}
+	
+	private PersistenceManager() throws Exception
 	{
 		dbHandler = new MySQLHandler();
 		dbHandler.loadDatabase(TABLES.DATABASE);
@@ -128,51 +139,23 @@ class PersistenceManager
 		Iterator<Timer> timers = timerRepository.findAll().iterator();
 		Iterator<Action> states = stateRepository.findAll().iterator();
 
-		ResultSet timerResult = dbHandler.SELECT(timerStatement, TIMER_TABLE_COLUMNS.ID, TABLES.TIMER_TABLE, null);
-		ResultSet stateResult = dbHandler.SELECT(stateStatement, STATE_TABLE_COLUMNS.COMMAND, TABLES.TIMER_TABLE, null);
-		
-		boolean found = false;
+		dbHandler.clearTable(TABLES.TIMER_TABLE);
+		dbHandler.clearTable(TABLES.STATES_TABLE);
 		
 		while(timers.hasNext())
 		{
 			Timer timer = timers.next();
 			
-			while(timerResult.next())
-			{
-				if(timer.getId() == timerResult.getLong(TIMER_TABLE_COLUMNS.ID))
-				{
-					found = true;
-					break;
-				}
-			}
-			
-			if(!found)
-				dbHandler.INSERT(TABLES.TIMER_TABLE, Long.toString(timer.getId()), toMySqlString(timer.getTime()), 
-						"false", toMySqlString(timer.getCommand()), toMySqlString(timer.getData()));
+			dbHandler.INSERT(TABLES.TIMER_TABLE, Long.toString(timer.getId()), toMySqlString(timer.getTime()), 
+					"false", toMySqlString(timer.getCommand()), toMySqlString(timer.getData()));
 		}
-		
-		found = false;
 		
 		while(states.hasNext())
 		{
 			Action action = states.next();
-			
-			while(stateResult.next())
-			{
-				if(action.getCommand().equalsIgnoreCase(stateResult.getString(STATE_TABLE_COLUMNS.COMMAND)))
-				{
-					dbHandler.UPDATE(TABLES.STATES_TABLE, STATE_TABLE_COLUMNS.DATA, toMySqlString(action.getData()), null);
-					found = true;
-				}
-			}
-			
-			if(!found)
-				dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(action.getCommand()), toMySqlString(action.getData()));
+
+			dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(action.getCommand()), toMySqlString(action.getData()));
 		}
-		
-		
-		timerResult.close();
-		stateResult.close();
 	}
 	
 	private String toMySqlString(String string)

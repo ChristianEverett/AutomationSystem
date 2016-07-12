@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo java -jar AutomationController.jar
+sudo java -jar AutomationController.jar &

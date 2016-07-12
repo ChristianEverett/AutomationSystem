@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<devices>
+	<device device-type="led" device-name="led1">
+		<red>13</red>
+		<green>19</green>
+		<blue>26</blue>
+	</device>
+	
+	<device device-type="led" device-name="led2">
+		<red>20</red>
+		<green>16</green>
+		<blue>21</blue>
+	</device>
+	
+	<device device-type="switch" device-name="switch4">
+		<header>11</header>
+		<name>19</name>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet1">
+		<header>16</header>
+		<onCode>5264691</onCode>
+		<offCode>5264700</offCode>
+	</device>
+</devices>

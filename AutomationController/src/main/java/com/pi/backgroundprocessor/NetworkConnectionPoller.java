@@ -44,7 +44,7 @@ class NetworkConnectionPoller
 			catch (Exception e2) 
 			{
 				connected = false;
-				Application.LOGGER.severe(e.getMessage());
+				Application.LOGGER.severe("Lost Network Connection");
 			}
 
 		}
