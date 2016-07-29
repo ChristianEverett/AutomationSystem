@@ -23,14 +23,14 @@ import org.apache.http.client.utils.URLEncodedUtils;
  */
 public class HttpClient
 {
-	private String url = null;
+	private String baseUrl = null;
 	
 	public HttpClient(String host) throws MalformedURLException
 	{
 		if(host == null)
 			throw new MalformedURLException();
 		
-		this.url = host;
+		this.baseUrl = host;
 	}
 	
 	/**
@@ -38,11 +38,9 @@ public class HttpClient
 	 * @return Response body
 	 * @throws IOException 
 	 */
-	public Response sendGet(String queryParams) throws IOException
+	public Response sendGet(String queryParams, String path) throws IOException
 	{
-		queryParams = (queryParams == null?"":queryParams);
-		
-		HttpURLConnection connection = (HttpURLConnection) new URL(url + "?" + queryParams).openConnection();
+		HttpURLConnection connection = createHTTPConnection(queryParams, path);
 		
 		connection.setRequestMethod("GET");
 		
@@ -56,12 +54,9 @@ public class HttpClient
 	 * @param body of Post
 	 * @throws IOException 
 	 */
-	public Response sendPost(String queryParams, String resquestBody) throws IOException
+	public Response sendPost(String queryParams, String path, String resquestBody) throws IOException
 	{
-		queryParams = (queryParams == null?"":queryParams);
-		resquestBody = (resquestBody == null?"":resquestBody);
-		
-		HttpURLConnection connection = (HttpURLConnection) new URL(url + "?" + queryParams).openConnection();
+		HttpURLConnection connection = createHTTPConnection(queryParams, path);
 		
 		connection.setRequestMethod("POST");
 		connection.setDoOutput(true);
@@ -74,6 +69,22 @@ public class HttpClient
 		String responseBody = sendRequest(connection);
 		
 		return new Response(responseBody, connection.getResponseCode());
+	}
+	
+	/**
+	 * @param queryParams
+	 * @param path
+	 * @return
+	 * @throws IOException
+	 * @throws MalformedURLException
+	 */
+	private HttpURLConnection createHTTPConnection(String queryParams, String path) throws IOException, MalformedURLException
+	{
+		String url = (path == null?baseUrl:baseUrl + path);
+		url += (queryParams == null?"": "?" + queryParams);
+		
+		HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+		return connection;
 	}
 	
 	private String sendRequest(HttpURLConnection connection) throws IOException
@@ -93,12 +104,19 @@ public class HttpClient
 		default:
 			break;
 		}
+		body.close();
+		
 		return responseBody;
 	}
 	
 	public static List<NameValuePair> parseURLEncodedData(String data)
 	{
 		return URLEncodedUtils.parse(data, Charset.forName("utf8"));
+	}
+	
+	public static String URLEncodeData(List<NameValuePair> params)
+	{
+		return URLEncodedUtils.format(params, Charset.forName("utf8"));
 	}
 	
 	public class Response
@@ -125,6 +143,11 @@ public class HttpClient
 		public int getStatusCode()
 		{
 			return statusCode;
+		}
+		
+		public List<NameValuePair> parseURLEncodedData()
+		{
+			return URLEncodedUtils.parse(reponseBody, Charset.forName("utf8"));
 		}
 	}
 }

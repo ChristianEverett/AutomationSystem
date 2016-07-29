@@ -3,10 +3,17 @@
  */
 package com.pi.devices;
 
+import java.awt.Color;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
 
 import com.pi.Application;
 import com.pi.infrastructure.Device;
+import com.pi.infrastructure.HttpClient;
 import com.pi.repository.Action;
 
 
@@ -20,35 +27,54 @@ public class Led extends Device
 	private final int GREEN_PIN;
 	private final int BLUE_PIN;
 
-	public Led(int red, int green, int blue) throws IOException
+	private Color currentColor = new Color(0, 0, 0);
+	
+	public Led(String name, int red, int green, int blue) throws IOException
 	{
+		super(name);
 		this.RED_PIN = red;
 		this.GREEN_PIN = green;
 		this.BLUE_PIN = blue;
 	}
 
 	@Override
-	public boolean performAction(Action action) throws IOException
+	public void performAction(Action action)
 	{
 		if(isClosed)
-			return false;
+			return;
+		try
+		{
+			int red = 0, green = 0, blue = 0;
+			
+			for(NameValuePair pair : HttpClient.parseURLEncodedData(action.getData()))
+			{
+				switch (pair.getName())
+				{
+				case QueryParams.RED:
+					red = Integer.parseInt(pair.getValue());
+					break;
+				case QueryParams.GREEN:
+					green = Integer.parseInt(pair.getValue());
+					break;
+				case QueryParams.BLUE:
+					blue = Integer.parseInt(pair.getValue());
+					break;
+	
+				default:
+					break;
+				}
+			}
 		
-		int RED, GREEN, BLUE;
-
-		String[] splited = action.getData().split("\\s+");
-		
-		if(splited.length != 3)
-			return false;
-		
-		RED = Integer.parseInt(splited[0]);
-		GREEN = Integer.parseInt(splited[1]);
-		BLUE = Integer.parseInt(splited[2]);
-
-		rt.exec("pigs p " + RED_PIN + " " + (255 - RED) + " &");
-		rt.exec("pigs p " + GREEN_PIN + " " + (255 - GREEN) + " &");
-		rt.exec("pigs p " + BLUE_PIN + " " + (255 - BLUE) + " &");
-		
-		return true;
+			rt.exec("pigs p " + RED_PIN + " " + (255 - red) + " &");
+			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green) + " &");
+			rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue) + " &");
+			
+			currentColor = new Color(red, green, blue);
+		}
+		catch (IOException e)
+		{
+			Application.LOGGER.severe(e.getMessage());
+		}
 	}
 
 	@Override
@@ -59,10 +85,32 @@ public class Led extends Device
 			rt.exec("pigs p " + RED_PIN + " " + (255 - 0) + " &");
 			rt.exec("pigs p " + GREEN_PIN + " " + (255 - 0) + " &");
 			rt.exec("pigs p " + BLUE_PIN + " " + (255 - 0) + " &");
+			isClosed = true;
 		}
 		catch (IOException e)
 		{
 			Application.LOGGER.severe(e.getMessage());
 		}
+	}
+
+	@Override
+	public Action getState()
+	{
+		if(isClosed)
+			return null;
+		
+		List<NameValuePair> params = new ArrayList<>();
+		params.add(new BasicNameValuePair(QueryParams.RED, String.valueOf(currentColor.getRed())));
+		params.add(new BasicNameValuePair(QueryParams.GREEN, String.valueOf(currentColor.getGreen())));
+		params.add(new BasicNameValuePair(QueryParams.BLUE, String.valueOf(currentColor.getBlue())));
+		
+		return new Action(name, HttpClient.URLEncodeData(params));
+	}
+	
+	private interface QueryParams
+	{
+		public static final String RED = "red";
+		public static final String GREEN = "green";
+		public static final String BLUE = "blue";
 	}
 }

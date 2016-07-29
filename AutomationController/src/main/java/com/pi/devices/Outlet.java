@@ -20,10 +20,12 @@ public class Outlet extends Device
 	private final int ON;
 	private final int OFF;
 	private final int IR_PIN;
-	private int signalRedundancy = 2;
+	private int signalRedundancy = 3;
+	private boolean state = false;
 	
-	public Outlet(int headerPin, int onCode, int offCode) throws IOException
+	public Outlet(String name, int headerPin, int onCode, int offCode) throws IOException
 	{
+		super(name);
 		this.ON = onCode;
 		this.OFF = offCode;
 		this.headerPin = headerPin;
@@ -31,16 +33,21 @@ public class Outlet extends Device
 	}
 
 	@Override
-	public boolean performAction(Action action) throws IOException, InterruptedException
+	public void performAction(Action action)
 	{
 		if(isClosed)
-			return false;
+			return;
 		
 		int code = Boolean.parseBoolean(action.getData())? ON : OFF;
 		
-		sendIRSignal(code);
-		
-		return true;
+		try
+		{
+			sendIRSignal(code);
+		}
+		catch (IOException | InterruptedException e)
+		{
+			Application.LOGGER.severe(e.getMessage());
+		}
 	}
 
 	@Override
@@ -49,6 +56,7 @@ public class Outlet extends Device
 		try
 		{
 			sendIRSignal(OFF);
+			isClosed = true;
 		}
 		catch (IOException | InterruptedException e)
 		{
@@ -58,10 +66,21 @@ public class Outlet extends Device
 	
 	private void sendIRSignal(int code) throws IOException, InterruptedException
 	{
+		state = (code == ON) ? true : false;		
+		
 		for(int x = 0; x < signalRedundancy; x++)
 		{
 			Process process = rt.exec("sudo ./codesend " + code + " -l " + PULSELENGTH + " -p " + IR_PIN);
 			process.waitFor();
 		}
+	}
+
+	@Override
+	public Action getState()
+	{
+		if(isClosed)
+			return null;
+
+		return new Action(name, String.valueOf(state));
 	}
 }

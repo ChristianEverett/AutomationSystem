@@ -19,21 +19,20 @@ public class Switch extends Device
 {
 	private final GpioPinDigitalOutput gpioPin;
 	
-	public Switch(int headerPin, String name) throws IOException
+	public Switch(String name, int headerPin) throws IOException
 	{
+		super(name);
 		this.headerPin = headerPin;
 		gpioPin = gpioController.provisionDigitalOutputPin(pins.get(headerPin).getWiringPI_Pin(), name, PinState.HIGH);
 	}
 
 	@Override
-	public boolean performAction(Action action)
+	public void performAction(Action action)
 	{
 		if(isClosed)
-			return false;
+			return;
 		
 		gpioPin.setState(!Boolean.parseBoolean(action.getData()));
-
-		return true;
 	}
 
 	@Override
@@ -41,5 +40,13 @@ public class Switch extends Device
 	{
 		gpioPin.setState(PinState.HIGH);
 		isClosed = true;
+	}
+
+	@Override
+	public Action getState()
+	{
+		if(isClosed)
+			return null;
+		return new Action(name, String.valueOf(gpioPin.isLow()));
 	}
 }

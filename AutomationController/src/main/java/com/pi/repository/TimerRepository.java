@@ -1,17 +1,71 @@
-/**
- * 
- */
 package com.pi.repository;
 
-import org.springframework.data.repository.CrudRepository;
-import org.springframework.stereotype.Repository;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
+import com.google.common.base.Objects;
 
 /**
  * @author Christian Everett
- *
  */
-@Repository
-public interface TimerRepository extends CrudRepository<Timer, Long>
+public class TimerRepository
 {
-	//public Timer findByCommand(String command);
+	private static TimerRepository singlton = null;
+	private final static HashMap<Long, Timer> timerMap = new HashMap<>();
+	
+	private TimerRepository()
+	{
+		
+	}
+	
+	public static TimerRepository getInstance()
+	{
+		if(singlton == null)
+			singlton = new TimerRepository();
+		
+		return singlton;
+	}
+	
+	/**
+	 * @param timer
+	 * @return id of added timer
+	 */
+	public Long add(Timer timer)
+	{
+		Long id = (long) Objects.hashCode(timer.getTime(), timer.getAction());
+		
+		timerMap.put(id, timer);
+		
+		return id;
+	}
+	
+	/**
+	 * @param id
+	 * @return stored timer, or null if not found
+	 */
+	public Timer get(Long id)
+	{
+		return timerMap.get(id);
+	}
+	
+	public Set<Long> getAllKeys()
+	{
+		return timerMap.keySet();
+	}
+	
+	public Set<Entry<Long, Timer>> getAllElement()
+	{
+		return timerMap.entrySet();
+	}
+	
+	public Timer delete(Long id)
+	{
+		return timerMap.remove(id);
+	}
+	
+	public void deleteAll()
+	{
+		timerMap.clear();
+	}
 }

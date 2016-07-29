@@ -4,10 +4,14 @@
 package com.pi.backgroundprocessor;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map.Entry;
 import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,12 +22,13 @@ import com.pi.Application;
 import com.pi.devices.Led;
 import com.pi.devices.Outlet;
 import com.pi.devices.Switch;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
+import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.PropertiesLoader;
 import com.pi.repository.Action;
 import com.pi.repository.Timer;
+import com.pi.repository.TimerRepository;
 
 
 /**
@@ -51,11 +56,14 @@ public class Processor extends Thread
 			deviceLoader.populateDeviceMap(deviceMap);
 			
 			Application.LOGGER.info("Loading Device States");
-			persistenceManager = PersistenceManager.loadPersistanceManager();		
-			processLastKnowStates(persistenceManager.getAllStates());
+			persistenceManager = PersistenceManager.loadPersistanceManager();
+			
+			for(int x = 0; x < persistenceManager.getNumberOfSavedStates(); x++)
+			{
+				scheduleAction(persistenceManager.getSavedState(x));
+			}
 			
 			Application.LOGGER.info("Scheduling Tasks");
-		    
 			exec.scheduleAtFixedRate(() ->
 			{
 				try
@@ -117,7 +125,7 @@ public class Processor extends Thread
 				if(!NetworkConnectionPoller.isConnected())
 					throw new IllegalStateException("Lost Network Connection");
 				
-				Thread.sleep(5);
+				Thread.sleep(4);
 			}
 		} 
 		catch (IllegalStateException e)
@@ -140,7 +148,7 @@ public class Processor extends Thread
 		{
 			if(action != null)
 			{
-				String command = action.getCommand();
+				String command = action.getDevice();
 				Device device =  deviceMap.get(command);
 				
 				if(device == null)
@@ -149,7 +157,7 @@ public class Processor extends Thread
 					{	
 					case DeviceType.RUN_ECHO_SERVER:
 						ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
-						process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+						//process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
 						process.start();
 						break;
 						
@@ -169,10 +177,9 @@ public class Processor extends Thread
 						break;
 					}
 				}
-				else
+				else 
 				{
-					if(device.performAction(action) == true)
-						persistenceManager.saveState(action);
+					device.performAction(action);
 				}
 			}	
 		}
@@ -191,45 +198,53 @@ public class Processor extends Thread
 		//set hour for day divide when reseting timers during 11:00pm
 		int previousHour = ((hour == 0) ? 24 : hour) - 1;
 		
-		Iterator<Timer> timers = persistenceManager.getAllTimers();
+		TimerRepository timerRepository = TimerRepository.getInstance();
 		
-		while(timers.hasNext())
+		for(Long id : timerRepository.getAllKeys())
 		{
-			Timer timer = timers.next();
+			Timer timer = timerRepository.get(id);
 			
 			if(timer.getHour() == hour && timer.getMinute() == minute && !timer.getEvaluated())
 			{
-				scheduleAction(new Action(timer.getCommand(), timer.getData()));
+				scheduleAction(new Action(timer.getAction().getDevice(), timer.getAction().getData()));
 				timer.setEvaluated(true);
-				persistenceManager.saveTimer(timer);
-				Application.LOGGER.info("Timer Triggered: " + timer.getCommand() + " Time: " + timer.getTime());
+				timerRepository.add(timer);
+				Application.LOGGER.info("Timer Triggered: " + timer.getAction().getDevice() + " Time: " + timer.getTime());
 			}
 			else if(timer.getHour() == previousHour)
 			{
 				timer.setEvaluated(false);
-				persistenceManager.saveTimer(timer);
+				timerRepository.add(timer);
 			}
 		}
 	}
 	
-	private void processLastKnowStates(Iterator<Action> states)
-	{
-		while(states.hasNext())
-		{
-			scheduleAction(states.next());
-		}
-	}
-	
-	public boolean scheduleAction(Action action)
+	public synchronized boolean scheduleAction(Action action)
 	{
 		return processingQueue.add(action);
+	}
+	
+	public List<Action> getStates()
+	{	
+		List<Action> stateList = new ArrayList<>();
+		
+		for(Entry<String, Device> device : deviceMap.entrySet())
+		{
+			stateList.add(device.getValue().getState());
+		}
+		
+		return stateList;
+	}
+	
+	public Action getStateByDeviceName(String name)
+	{
+		return deviceMap.get(name).getState();
 	}
 	
 	public void shutdownBackgroundProcessor()
 	{
 		try
 		{
-			Application.LOGGER.severe("System Shutting down!");
 			//rt.exec("java -jar EmailModule.jar christian.everett1@gmail.com pi 'The pi controller has shutdown'");
 			
 			//Shutdown all devices
@@ -244,6 +259,7 @@ public class Processor extends Thread
 		}
 		finally 
 		{
+			Application.LOGGER.severe("System has been shutdown.");
 			System.exit(1);
 		}    
 	}

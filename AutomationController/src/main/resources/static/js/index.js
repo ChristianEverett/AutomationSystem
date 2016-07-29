@@ -55,7 +55,7 @@ $(document).ready(function ()
         {
             var colorObject = color.toRgb();
 
-            POST_ACTION(LED2, colorObject.r + " " + colorObject.g + " " + colorObject.b);
+            POST_ACTION(LED2, "red=" + colorObject.r + "&green=" + colorObject.g + "&blue=" + colorObject.b);
         }
 
         //RGB Button Table -------------------------------------------------------------
@@ -99,7 +99,7 @@ $(document).ready(function ()
             var g = parseInt(rgbColor.g * color_slider.slider("value"));
             var b = parseInt(rgbColor.b * color_slider.slider("value"));
 
-            POST_ACTION(LED2, r + " " + g + " " + b);
+            POST_ACTION(LED2,  "red=" + r + "&green=" + g + "&blue=" +  b);
         }
 
         function hexToRgb(hex)
@@ -256,7 +256,7 @@ $(document).ready(function ()
                 url: "/action/add",
                 data:JSON.stringify(
                 {
-                    "command": commandForm,
+                    "device": commandForm,
                     "data": dataForm
                 }),
                 success: function (result,status,xhr)
@@ -277,7 +277,6 @@ $(document).ready(function ()
                 async: true,
                 type: "GET",
                 contentType: "application/json",
-                dataType: "json",
                 dataType: "json",
                 url: "/timer",
                 success: callback,
@@ -301,8 +300,11 @@ $(document).ready(function ()
                 {
                     "time": time,
                     "evaluated": "false",
-                    "command": commandForm,
-                    "data": dataForm
+                    "action":
+                    {
+                        "device": commandForm,
+                        "data": dataForm
+                    }
                 }),
                 success: function (result,status,xhr)
                 {

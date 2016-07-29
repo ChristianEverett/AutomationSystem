@@ -1,7 +1,7 @@
 package com.pi.infrastructure;
 
 import java.sql.*;
-import java.util.logging.*;
+
 
 public class MySQLHandler
 {

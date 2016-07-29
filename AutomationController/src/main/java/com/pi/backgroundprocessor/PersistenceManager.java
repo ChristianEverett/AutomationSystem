@@ -8,15 +8,17 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Set;
 
 import org.springframework.data.repository.CrudRepository;
 
 import com.pi.Application;
+import com.pi.infrastructure.Device;
 import com.pi.infrastructure.MySQLHandler;
 import com.pi.repository.Action;
-import com.pi.repository.RepositoryContainer;
-import com.pi.repository.StateRepository;
 import com.pi.repository.Timer;
 import com.pi.repository.TimerRepository;
 
@@ -31,8 +33,10 @@ class PersistenceManager
 	private Statement timerStatement;
 	private Statement stateStatement;
 	
-	private TimerRepository timerRepository = RepositoryContainer.getRepositorycontainer().buildTimerRepository();
-	private StateRepository stateRepository = RepositoryContainer.getRepositorycontainer().buildStateRepository();
+	private TimerRepository timerRepository = TimerRepository.getInstance();
+	private List<Action> loadedStates = new ArrayList<>();
+	
+	private HashMap<String, Device> deviceMap = null;
 	
 	private static PersistenceManager singleton = null;
 	
@@ -70,14 +74,14 @@ class PersistenceManager
 		timerStatement = dbHandler.createStatement();
 		stateStatement = dbHandler.createStatement();
 		
-		loadStatesTable();
+		loadAndQueueStatesTable();
 		loadTimersTable();
 	}
 	
 	/**
 	 * Populate CrudRepository from States table
 	 */
-	private void loadStatesTable() throws SQLException
+	private void loadAndQueueStatesTable() throws SQLException
 	{
 		ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
 		
@@ -85,7 +89,7 @@ class PersistenceManager
 		{
 			Action action = new Action(result.getString(STATE_TABLE_COLUMNS.COMMAND), result.getString(STATE_TABLE_COLUMNS.DATA));
 			
-			stateRepository.save(action);
+			loadedStates.add(action);
 		}
 		
 		result.close();
@@ -106,56 +110,46 @@ class PersistenceManager
 			String command = result.getString(TIMER_TABLE_COLUMNS.COMMAND);
 			String data = result.getString(TIMER_TABLE_COLUMNS.DATA);
 			
-			Timer timer = new Timer(time, evaluated, command, data);
+			Timer timer = new Timer(time, evaluated, new Action(command, data));
 			
-			timerRepository.save(timer);
+			timerRepository.add(timer);
 		}
 		
 		result.close();
 	}
 	
-	public Iterator<Action> getAllStates()
-	{
-		return stateRepository.findAll().iterator();
-	}
-	
-	public Iterator<Timer> getAllTimers()
-	{
-		return timerRepository.findAll().iterator();
-	}
-	
-	public void saveState(Action action)
-	{
-		stateRepository.save(action);
-	}
-	
-	public void saveTimer(Timer timer)
-	{
-		timerRepository.save(timer);
-	}
-	
 	public void commit() throws SQLException
 	{
-		Iterator<Timer> timers = timerRepository.findAll().iterator();
-		Iterator<Action> states = stateRepository.findAll().iterator();
+		Set<Long> timersIDs = timerRepository.getAllKeys();
+		Set<String> devices = deviceMap.keySet();
 
 		dbHandler.clearTable(TABLES.TIMER_TABLE);
 		dbHandler.clearTable(TABLES.STATES_TABLE);
-		
-		while(timers.hasNext())
-		{
-			Timer timer = timers.next();
-			
-			dbHandler.INSERT(TABLES.TIMER_TABLE, Long.toString(timer.getId()), toMySqlString(timer.getTime()), 
-					"false", toMySqlString(timer.getCommand()), toMySqlString(timer.getData()));
-		}
-		
-		while(states.hasNext())
-		{
-			Action action = states.next();
 
-			dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(action.getCommand()), toMySqlString(action.getData()));
+		for(Long id : timersIDs)
+		{	
+			Timer timer = timerRepository.get(id);
+			
+			dbHandler.INSERT(TABLES.TIMER_TABLE, Long.toString(id), toMySqlString(timer.getTime()), 
+					"false", toMySqlString(timer.getAction().getDevice()), toMySqlString(timer.getAction().getData()));
 		}
+		
+		for(String deviceName : devices)
+		{
+			Device device = deviceMap.get(deviceName);
+
+			dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(deviceName), toMySqlString(device.getState().getData()));
+		}
+	}
+	
+	public Action getSavedState(int index)
+	{
+		return loadedStates.get(index);
+	}
+	
+	public int getNumberOfSavedStates()
+	{
+		return loadedStates.size();
 	}
 	
 	private String toMySqlString(String string)
@@ -179,7 +173,7 @@ class PersistenceManager
 	
 	private interface STATE_TABLE_COLUMNS
 	{
-		public static final String COMMAND = "command";
+		public static final String COMMAND = "device";
 		public static final String DATA= "data";
 	}
 	

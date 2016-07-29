@@ -12,6 +12,8 @@ import com.pi.Application;
 import com.pi.devices.Led;
 import com.pi.devices.Outlet;
 import com.pi.devices.Switch;
+import com.pi.devices.TempatureSensor;
+import com.pi.devices.thermostat.ThermostatHandler;
 import com.pi.repository.Action;
 import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
@@ -29,21 +31,27 @@ public abstract class Device
 	protected static Runtime rt = Runtime.getRuntime();
 	protected static GpioController gpioController = GpioFactory.getInstance();
 	
+	protected final String name;
 	protected boolean isClosed = false;
 	protected int headerPin = -1;
 	
-	public Device() throws IOException
+	public Device(String name) throws IOException
 	{
+		this.name = name;
 		Process pr = rt.exec("sudo pigpiod");
 	}
 	
 	/**
 	 * 
 	 * @param action
-	 * @return true if device action was performed, false otherwise
 	 * @throws IOException
 	 */
-	public abstract boolean performAction(Action action) throws IOException, InterruptedException;
+	public abstract void performAction(Action action);
+	
+	/**
+	 * @return action representing the current state of the device
+	 */
+	public abstract Action getState();
 	
 	/**
 	 * Shutdown device and release resources.
@@ -54,7 +62,7 @@ public abstract class Device
 	public static Device CreateNewDevice(String name, String type, Element element)
 	{
 		String header;
-		
+	
 		try
 		{
 			switch (type)
@@ -64,18 +72,31 @@ public abstract class Device
 				String green = element.getElementsByTagName("green").item(0).getTextContent();
 				String blue = element.getElementsByTagName("blue").item(0).getTextContent();
 
-				return new Led(Integer.parseInt(red), Integer.parseInt(green), Integer.parseInt(blue));
+				return new Led(name, Integer.parseInt(red), Integer.parseInt(green), Integer.parseInt(blue));
+				
 			case DeviceType.SWITCH:
 				header = element.getElementsByTagName("header").item(0).getTextContent();
-				String switch_name = element.getElementsByTagName("name").item(0).getTextContent();
 
-				return new Switch(Integer.parseInt(header), switch_name);
+				return new Switch(name, Integer.parseInt(header));
+				
 			case DeviceType.OUTLET:
 				header = element.getElementsByTagName("header").item(0).getTextContent();
 				String onCode = element.getElementsByTagName("onCode").item(0).getTextContent();
 				String offCode = element.getElementsByTagName("offCode").item(0).getTextContent();
 				
-				return new Outlet(Integer.parseInt(header), Integer.parseInt(onCode), Integer.parseInt(offCode));
+				return new Outlet(name, Integer.parseInt(header), Integer.parseInt(onCode), Integer.parseInt(offCode));
+				
+			case DeviceType.THERMOSTAT:
+				String url = element.getElementsByTagName("url").item(0).getTextContent();
+				
+				return new ThermostatHandler(name, url);
+				
+			case DeviceType.TEMP_SENSOR:
+				header = element.getElementsByTagName("header").item(0).getTextContent();
+				String location = element.getElementsByTagName("location").item(0).getTextContent();
+				
+				return new TempatureSensor(name, Integer.parseInt(header), location);
+	
 			default:
 				Application.LOGGER.severe("Unknown device: " + name + " Off Type: " + type);
 			}

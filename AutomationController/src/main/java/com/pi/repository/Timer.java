@@ -16,38 +16,25 @@ import javax.persistence.Id;
  * @author Christian Everett
  *
  */
-@Entity
+
 public class Timer
 {
-	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
-	private long id;
 	private String time;
 	private boolean evaluated;
-	private String command;
-	private String data;
+	private Action action;
 	
 	public Timer()
 	{
 		
 	}
 	
-	public Timer(String time, boolean evaluated, String command, String data)
+	public Timer(String time, boolean evaluated, Action action)
 	{
 		this.time = time;
 		this.evaluated = evaluated;
-		this.command = command;
-		this.data = data;
+		this.action = action;
 	}
 	
-	public long getId()
-	{
-		return id;
-	}
-	public void setId(long id)
-	{
-		this.id = id;
-	}
 	public String getTime()
 	{
 		return time;
@@ -64,28 +51,18 @@ public class Timer
 	{
 		this.evaluated = evaluated;
 	}
-	public String getCommand()
+	public Action getAction()
 	{
-		return command;
+		return action;
 	}
-	public void setCommand(String command)
+	public void setAction(Action action)
 	{
-		this.command = command;
+		this.action = action;
 	}
-	public String getData()
-	{
-		return data;
-	}
-	public void setData(String data)
-	{
-		this.data = data;
-	}
-	
 	public int getHour()
 	{
 		return Integer.parseInt(time.substring(0, time.indexOf(":")));
 	}
-	
 	public int getMinute()
 	{
 		return Integer.parseInt(time.substring(time.indexOf(":") + 1, time.length()));

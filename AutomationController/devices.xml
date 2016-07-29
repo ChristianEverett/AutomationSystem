@@ -13,13 +13,75 @@
 	</device>
 	
 	<device device-type="switch" device-name="switch4">
-		<header>11</header>
-		<name>19</name>
+		<header>7</header>
+	</device>
+	
+	<device device-type="temp_sensor" device-name="temp_sensor1">
+		<header>19</header>
+		<location>nashua nh</location>
+	</device>
+	
+	<device device-type="thermostat" device-name="thermostat1">
+		<url>http://10.0.0.105:8080/</url>
 	</device>
 	
 	<device device-type="outlet" device-name="outlet1">
-		<header>16</header>
+		<header>8</header>
 		<onCode>5264691</onCode>
 		<offCode>5264700</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet2">
+		<header>8</header>
+		<onCode>5264835</onCode>
+		<offCode>5264844</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet3">
+		<header>8</header>
+		<onCode>5265155</onCode>
+		<offCode>5265164</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet4">
+		<header>8</header>
+		<onCode>5266691</onCode>
+		<offCode>5266700</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet5">
+		<header>8</header>
+		<onCode>5272835</onCode>
+		<offCode>5272844</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet6">
+		<header>8</header>
+		<onCode>4527411</onCode>
+		<offCode>4527420</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet7">
+		<header>8</header>
+		<onCode>4527555</onCode>
+		<offCode>4527564</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet8">
+		<header>8</header>
+		<onCode>4527875</onCode>
+		<offCode>4527884</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet9">
+		<header>8</header>
+		<onCode>4529411</onCode>
+		<offCode>4529420</offCode>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet10">
+		<header>8</header>
+		<onCode>4535555</onCode>
+		<offCode>4535564</offCode>
 	</device>
 </devices>
