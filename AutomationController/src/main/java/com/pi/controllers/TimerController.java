@@ -52,15 +52,19 @@ public class TimerController
 	}
 	
 	@RequestMapping(value = (PATH + "/{id}"), method = RequestMethod.POST)
-	public @ResponseBody Long changeTimer(HttpServletRequest request, HttpServletResponse response, @RequestBody Timer timer, @PathVariable("id") Long id)
+	public @ResponseBody void changeTimer(HttpServletRequest request, HttpServletResponse response, @RequestBody Timer timer, @PathVariable("id") Long id)
 	{
-		if(timerRepository.delete(id) == null)
+		if(timerRepository.get(id) == null)
+		{
 			response.setStatus(404);
-		return timerRepository.add(timer);
+			return;
+		}
+		
+		timerRepository.update(id, timer);
 	}
 	
-	@RequestMapping(value = (PATH + "/delete"), method = RequestMethod.DELETE)
-	public void deleteTimer(HttpServletRequest request, HttpServletResponse response, @RequestParam("id") long id)
+	@RequestMapping(value = (PATH + "/delete/{id}"), method = RequestMethod.DELETE)
+	public void deleteTimer(HttpServletRequest request, HttpServletResponse response, @PathVariable("id") long id)
 	{
 		if(timerRepository.get(id) != null)
 			timerRepository.delete(id);
@@ -68,7 +72,7 @@ public class TimerController
 			response.setStatus(404);
 	}
 	
-	@RequestMapping(value = (PATH + "/delete/all"), method = RequestMethod.DELETE)
+	@RequestMapping(value = PATH, method = RequestMethod.DELETE)
 	public void deleteAllTimers(HttpServletRequest request, HttpServletResponse response)
 	{
 		timerRepository.deleteAll();

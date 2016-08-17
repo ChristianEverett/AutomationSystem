@@ -34,9 +34,6 @@ class PersistenceManager
 	private Statement stateStatement;
 	
 	private TimerRepository timerRepository = TimerRepository.getInstance();
-	private List<Action> loadedStates = new ArrayList<>();
-	
-	private HashMap<String, Device> deviceMap = null;
 	
 	private static PersistenceManager singleton = null;
 	
@@ -62,34 +59,36 @@ class PersistenceManager
 		if(dbHandler.tableExists(TABLES.STATES_TABLE) == false)
 		{
 			Application.LOGGER.info("State Table not found");
-			dbHandler.createTable(TABLES.STATES_TABLE, STATE_TABLE_COLUMNS.COMMAND, "char(25)", STATE_TABLE_COLUMNS.DATA, "char(25)");
+			dbHandler.createTable(TABLES.STATES_TABLE, STATE_TABLE_COLUMNS.DEVICE, "char(25)", STATE_TABLE_COLUMNS.DATA, "char(100)");
 		}
 		if(dbHandler.tableExists(TABLES.TIMER_TABLE) == false)
 		{
 			Application.LOGGER.info("Timers Table not found");
 			dbHandler.createTable(TABLES.TIMER_TABLE, TIMER_TABLE_COLUMNS.ID, "BIGINT", TIMER_TABLE_COLUMNS.TIME, "char(7)", 
-					TIMER_TABLE_COLUMNS.EVALUATED, "boolean", TIMER_TABLE_COLUMNS.COMMAND, "char(25)", TIMER_TABLE_COLUMNS.DATA, "char(25)");
+					TIMER_TABLE_COLUMNS.EVALUATED, "boolean", TIMER_TABLE_COLUMNS.COMMAND, "char(25)", TIMER_TABLE_COLUMNS.DATA, "char(100)");
 		}
 		
 		timerStatement = dbHandler.createStatement();
 		stateStatement = dbHandler.createStatement();
 		
-		loadAndQueueStatesTable();
 		loadTimersTable();
 	}
 	
 	/**
 	 * Populate CrudRepository from States table
 	 */
-	private void loadAndQueueStatesTable() throws SQLException
+	public void loadSavedStates(HashMap<String, Device> deviceMap) throws SQLException
 	{
 		ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
 		
 		while(result.next())
 		{
-			Action action = new Action(result.getString(STATE_TABLE_COLUMNS.COMMAND), result.getString(STATE_TABLE_COLUMNS.DATA));
+			Action action = new Action(result.getString(STATE_TABLE_COLUMNS.DEVICE), result.getString(STATE_TABLE_COLUMNS.DATA));
+		
+			Device device = deviceMap.get(action.getDevice());
 			
-			loadedStates.add(action);
+			if(device != null)
+				device.performAction(action);
 		}
 		
 		result.close();
@@ -118,7 +117,7 @@ class PersistenceManager
 		result.close();
 	}
 	
-	public void commit() throws SQLException
+	public void commit(HashMap<String, Device> deviceMap) throws SQLException
 	{
 		Set<Long> timersIDs = timerRepository.getAllKeys();
 		Set<String> devices = deviceMap.keySet();
@@ -138,18 +137,9 @@ class PersistenceManager
 		{
 			Device device = deviceMap.get(deviceName);
 
-			dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(deviceName), toMySqlString(device.getState().getData()));
+			if(device != null)
+				dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(deviceName), toMySqlString(device.getState().getData()));
 		}
-	}
-	
-	public Action getSavedState(int index)
-	{
-		return loadedStates.get(index);
-	}
-	
-	public int getNumberOfSavedStates()
-	{
-		return loadedStates.size();
 	}
 	
 	private String toMySqlString(String string)
@@ -159,7 +149,6 @@ class PersistenceManager
 	
 	public void close() throws SQLException
 	{
-		commit();
 		dbHandler.close();
 	}
 	
@@ -173,7 +162,7 @@ class PersistenceManager
 	
 	private interface STATE_TABLE_COLUMNS
 	{
-		public static final String COMMAND = "device";
+		public static final String DEVICE = "device";
 		public static final String DATA= "data";
 	}
 	

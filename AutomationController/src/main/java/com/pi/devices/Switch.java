@@ -39,6 +39,7 @@ public class Switch extends Device
 	public void close()
 	{
 		gpioPin.setState(PinState.HIGH);
+		gpioController.unprovisionPin(gpioPin);
 		isClosed = true;
 	}
 

@@ -74,5 +74,6 @@ public class Application extends WebMvcAutoConfiguration
 		SpringApplication.run(Application.class, args);
 		
 		processor.start();
+		LOGGER.info("------------Service Running-------------");
 	}
 }

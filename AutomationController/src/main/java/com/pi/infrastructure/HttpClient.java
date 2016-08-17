@@ -11,6 +11,8 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
@@ -51,7 +53,8 @@ public class HttpClient
 
 	/**
 	 * @param queryParams (arg1=var1&arg2=var2)
-	 * @param body of Post
+	 * @param path
+	 * @param resquestBody
 	 * @throws IOException 
 	 */
 	public Response sendPost(String queryParams, String path, String resquestBody) throws IOException
@@ -117,6 +120,20 @@ public class HttpClient
 	public static String URLEncodeData(List<NameValuePair> params)
 	{
 		return URLEncodedUtils.format(params, Charset.forName("utf8"));
+	}
+	
+	public static HashMap<String, String> URLEncodedDataToHashMap(String data)
+	{
+		HashMap<String, String> map = new HashMap<>();
+		
+		List<NameValuePair> pairs = parseURLEncodedData(data);
+		
+		for (NameValuePair nameValuePair : pairs)
+		{
+			map.put(nameValuePair.getName(), nameValuePair.getValue());
+		}
+		
+		return map;
 	}
 	
 	public class Response

@@ -12,17 +12,21 @@
 		<blue>21</blue>
 	</device>
 	
-	<device device-type="switch" device-name="switch4">
+	<device device-type="switch" device-name="switch2">
 		<header>7</header>
 	</device>
 	
 	<device device-type="temp_sensor" device-name="temp_sensor1">
 		<header>19</header>
-		<location>nashua nh</location>
+		<location>Nashua NH</location>
 	</device>
 	
 	<device device-type="thermostat" device-name="thermostat1">
-		<url>http://10.0.0.105:8080/</url>
+		<url>http://10.0.0.105:8080</url>
+		<sensorDevice>temp_sensor1</sensorDevice>
+		<maxTempF>78</maxTempF>
+		<minTempF>60</minTempF>
+		<turnOffDelay>160</turnOffDelay>
 	</device>
 	
 	<device device-type="outlet" device-name="outlet1">

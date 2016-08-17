@@ -60,10 +60,9 @@ public class DeviceLoader
 		}
 	}
 	
-	public static DeviceLoader getInstance() throws ParserConfigurationException, SAXException, IOException
+	public static DeviceLoader createNewDeviceLoader() throws ParserConfigurationException, SAXException, IOException
 	{
-		if(singleton == null)
-			singleton = new DeviceLoader();
+		singleton = new DeviceLoader();
 		
 		return singleton;
 	}

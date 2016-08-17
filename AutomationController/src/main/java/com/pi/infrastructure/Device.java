@@ -6,6 +6,8 @@ package com.pi.infrastructure;
 import java.io.IOException;
 import java.util.HashMap;
 
+import javax.persistence.criteria.CriteriaBuilder.In;
+
 import org.w3c.dom.Element;
 
 import com.pi.Application;
@@ -13,7 +15,7 @@ import com.pi.devices.Led;
 import com.pi.devices.Outlet;
 import com.pi.devices.Switch;
 import com.pi.devices.TempatureSensor;
-import com.pi.devices.thermostat.ThermostatHandler;
+import com.pi.devices.thermostat.ThermostatController;
 import com.pi.repository.Action;
 import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
@@ -38,7 +40,6 @@ public abstract class Device
 	public Device(String name) throws IOException
 	{
 		this.name = name;
-		Process pr = rt.exec("sudo pigpiod");
 	}
 	
 	/**
@@ -49,13 +50,14 @@ public abstract class Device
 	public abstract void performAction(Action action);
 	
 	/**
-	 * @return action representing the current state of the device
+	 * @return action representing the current state of the device.
+	 * If device is closed returns null
 	 */
 	public abstract Action getState();
 	
 	/**
 	 * Shutdown device and release resources.
-	 * All future calls to performAction will return false
+	 * All future calls to performAction will do nothing
 	 */
 	public abstract void close();
 	
@@ -88,8 +90,13 @@ public abstract class Device
 				
 			case DeviceType.THERMOSTAT:
 				String url = element.getElementsByTagName("url").item(0).getTextContent();
+				String sensorDevice = element.getElementsByTagName("sensorDevice").item(0).getTextContent();
+				String maxTemp = element.getElementsByTagName("maxTempF").item(0).getTextContent();
+				String minTemp = element.getElementsByTagName("minTempF").item(0).getTextContent();
+				String turnOffDelay = element.getElementsByTagName("turnOffDelay").item(0).getTextContent();
 				
-				return new ThermostatHandler(name, url);
+				return new ThermostatController(name, url, sensorDevice, Integer.parseInt(maxTemp), Integer.parseInt(minTemp),
+						Integer.parseInt(turnOffDelay));
 				
 			case DeviceType.TEMP_SENSOR:
 				header = element.getElementsByTagName("header").item(0).getTextContent();

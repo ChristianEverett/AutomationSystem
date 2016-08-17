@@ -37,7 +37,7 @@ public class ActionController
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
-	public @ResponseBody Collection<Action> getStates(HttpServletResponse response)
+	public @ResponseBody Collection<Action> getAllStates(HttpServletResponse response)
 	{
 		try
 		{

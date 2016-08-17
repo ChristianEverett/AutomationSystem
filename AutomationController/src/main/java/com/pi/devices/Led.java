@@ -32,6 +32,8 @@ public class Led extends Device
 	public Led(String name, int red, int green, int blue) throws IOException
 	{
 		super(name);
+		Process pr = rt.exec("sudo pigpiod");
+		
 		this.RED_PIN = red;
 		this.GREEN_PIN = green;
 		this.BLUE_PIN = blue;

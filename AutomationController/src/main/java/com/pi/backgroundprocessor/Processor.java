@@ -39,6 +39,7 @@ import com.pi.repository.TimerRepository;
 public class Processor extends Thread
 {
 	private static Processor singleton = null;
+	private static boolean singletonCreated = false;
 	private Queue<Action> processingQueue = new ConcurrentLinkedQueue<>();
 	private ExecutorService executorService = Executors.newFixedThreadPool(10);
 	private ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
@@ -50,18 +51,14 @@ public class Processor extends Thread
 		try
 		{
 			PropertiesLoader properties = PropertiesLoader.getInstance();
-			DeviceLoader deviceLoader = DeviceLoader.getInstance();
+			DeviceLoader deviceLoader = DeviceLoader.createNewDeviceLoader();
 			
 			Application.LOGGER.info("Loading Devices");
 			deviceLoader.populateDeviceMap(deviceMap);
 			
 			Application.LOGGER.info("Loading Device States");
 			persistenceManager = PersistenceManager.loadPersistanceManager();
-			
-			for(int x = 0; x < persistenceManager.getNumberOfSavedStates(); x++)
-			{
-				scheduleAction(persistenceManager.getSavedState(x));
-			}
+			persistenceManager.loadSavedStates(deviceMap);
 			
 			Application.LOGGER.info("Scheduling Tasks");
 			exec.scheduleAtFixedRate(() ->
@@ -80,7 +77,7 @@ public class Processor extends Thread
 			{
 				try
 				{
-					persistenceManager.commit();
+					persistenceManager.commit(deviceMap);
 					Application.LOGGER.info("Timer/State Commit");
 				}
 				catch (SQLException e)
@@ -89,16 +86,17 @@ public class Processor extends Thread
 				}
 			}, 1, 2, TimeUnit.HOURS);
 			
-			exec.scheduleAtFixedRate(() ->
-			{
-				NetworkConnectionPoller.checkConnection();
-			}, 1, 20, TimeUnit.MINUTES);
+//			exec.scheduleAtFixedRate(() ->
+//			{
+//				NetworkConnectionPoller.checkConnection();
+//			}, 1, 20, TimeUnit.MINUTES);
 			
 			Runtime.getRuntime().addShutdownHook(new Thread()
 	        {
 	            @Override
 	            public void run()
 	            {
+	            	Application.LOGGER.severe("Shutdown Hook Running");
 	            	shutdownBackgroundProcessor();
 	            }
 	        });
@@ -121,17 +119,10 @@ public class Processor extends Thread
 				
 				if(result != null)
 					processAction(result);
-							
-				if(!NetworkConnectionPoller.isConnected())
-					throw new IllegalStateException("Lost Network Connection");
 				
 				Thread.sleep(4);
 			}
 		} 
-		catch (IllegalStateException e)
-		{
-			Application.LOGGER.severe(e.getMessage());
-		}
 		catch (UnsupportedOperationException | InterruptedException e)
 		{
 			Application.LOGGER.severe(e.getMessage());
@@ -162,9 +153,11 @@ public class Processor extends Thread
 						break;
 						
 					case DeviceType.RELOAD_DEVICES:
+						persistenceManager.commit(deviceMap);
 						deviceMap.forEach((k, v) -> v.close());
 						deviceMap.clear();
-						DeviceLoader.getInstance().populateDeviceMap(deviceMap);
+						DeviceLoader.createNewDeviceLoader().populateDeviceMap(deviceMap);
+						persistenceManager.loadSavedStates(deviceMap);
 						Application.LOGGER.info("Reloaded Devices");
 						break;
 						
@@ -247,10 +240,11 @@ public class Processor extends Thread
 		{
 			//rt.exec("java -jar EmailModule.jar christian.everett1@gmail.com pi 'The pi controller has shutdown'");
 			
-			//Shutdown all devices
+			//Shutdown all devices and save their state
+			Application.LOGGER.info("Saving Device States");
+			persistenceManager.commit(deviceMap);
 			Application.LOGGER.info("Shutting down all devices");
 			deviceMap.forEach((k, v) -> v.close());
-			
 			persistenceManager.close();
 		}
 		catch (Exception e)
@@ -259,16 +253,19 @@ public class Processor extends Thread
 		}
 		finally 
 		{
-			Application.LOGGER.severe("System has been shutdown.");
+			Application.LOGGER.info("System has been shutdown.");
 			System.exit(1);
 		}    
 	}
 	
-	public static Processor getBackgroundProcessor()
+	public static synchronized Processor getBackgroundProcessor()
 	{
-		if(singleton == null)
+		if(!singletonCreated)
+		{
+			singletonCreated = true;
 			singleton = new Processor();
-		
+		}
+			
 		return singleton;
 	}
 }

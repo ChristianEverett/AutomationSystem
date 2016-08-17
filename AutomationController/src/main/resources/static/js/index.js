@@ -8,7 +8,7 @@ $(document).ready(function ()
 {
     //Actions
     var LED2 = "led2";
-    var LOCK = "switch4";
+    var LOCK = "switch2";
 
     (function ()
     {

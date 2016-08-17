@@ -40,6 +40,18 @@ public class TimerRepository
 		return id;
 	}
 	
+	public void update(Long id, Timer timer)
+	{
+		Timer oldTimer = timerMap.get(id);
+		
+		if(oldTimer == null)
+		{
+			return;
+		}
+		
+		timerMap.put(id, timer);
+	}
+	
 	/**
 	 * @param id
 	 * @return stored timer, or null if not found
