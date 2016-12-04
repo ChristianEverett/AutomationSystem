@@ -6,12 +6,11 @@ package com.pi.devices.thermostat;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -19,7 +18,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 
@@ -27,9 +25,12 @@ import com.pi.Application;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.devices.TempatureSensor;
 import com.pi.infrastructure.Device;
+import com.pi.infrastructure.Email;
 import com.pi.infrastructure.HttpClient;
+import com.pi.infrastructure.PropertyManger;
+import com.pi.infrastructure.PropertyManger.PropertyKeys;
+import com.pi.model.Action;
 import com.pi.infrastructure.HttpClient.Response;
-import com.pi.repository.Action;
 
 /**
  * @author Christian Everett
@@ -37,10 +38,9 @@ import com.pi.repository.Action;
  */
 public class ThermostatController extends Device
 {
-	private ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-	private ScheduledFuture<?> pollingTask = null;
+	private int taskID = -1;
 	private Lock lock = new ReentrantLock();
-	HttpClient httpClient = null;
+	private HttpClient httpClient = null;
 	private String sensorDevice = null;
 
 	private ThermostatMode currentMode = ThermostatMode.OFF_MODE;
@@ -51,17 +51,18 @@ public class ThermostatController extends Device
 
 	private int currentHumidity = 0;
 	
-	private final String path = "/tempature";
+	private static final String PATH = "/tempature";
 
 	private final int MAX_TEMP;
 	private final int MIN_TEMP;
 
 	private boolean isTurnOffDelayEnabled = false;
 	private int turnOffDelay = 0;
+	private boolean thermostatDisconnected = false;
 
 	public ThermostatController(String name, String url, String sensorDevice, int maxTemp, int mintemp, int turnOffDelay)
-			throws MalformedURLException, IOException
-	{
+			throws IOException
+	{//TODO redesign class
 		super(name);
 		httpClient = new HttpClient(url);
 		this.sensorDevice = sensorDevice;
@@ -71,15 +72,16 @@ public class ThermostatController extends Device
 
 		this.turnOffDelay = turnOffDelay;
 
-		pollingTask = executor.scheduleAtFixedRate(() -> 
+		taskID = bgp.getThreadExecutorService().scheduleTask(() -> 
 		{
 			try
 			{
-				Response URLEncodedResponse = httpClient.sendGet(null, path);
+				Response URLEncodedResponse = httpClient.sendGet(null, PATH);
 
 				if (URLEncodedResponse.getStatusCode() != HttpURLConnection.HTTP_OK)
 					throw new IOException("Got status: " + URLEncodedResponse.getStatusCode());
-
+				
+				thermostatDisconnected = false;
 				cacheResponse(URLEncodedResponse.getReponseBody(), true);
 
 				if (targetMode.equals(ThermostatMode.COOL_MODE) || targetMode.equals(ThermostatMode.HEAT_MODE))
@@ -92,20 +94,18 @@ public class ThermostatController extends Device
 					{
 						isTurnOffDelayEnabled = true;
 						setModeAndTargetTempature();
-						executor.schedule(() -> 
+						bgp.getThreadExecutorService().scheduleTask(() -> 
 						{
 							isTurnOffDelayEnabled = false;
 						}, turnOffDelay, TimeUnit.SECONDS);
 					}
 				}
 			}
-			catch (Exception e)
+			catch (Throwable e)
 			{
-				Application.LOGGER.severe(e.getMessage());
-				//Notify UI thermostat can't be reached
-				currentHumidity = -1;
+				Application.LOGGER.severe(e.getClass() + " - " + e.getMessage());
 			}
-		}, 5, 30, TimeUnit.SECONDS);
+		}, 5, 15, TimeUnit.SECONDS);
 	}
 
 	@Override
@@ -172,7 +172,7 @@ public class ThermostatController extends Device
 			paramsList.add(new BasicNameValuePair(QueryParams.TARGET_MODE, mode.toString()));
 			try
 			{
-				Response URLEncodedResponse = httpClient.sendPost(null, path, HttpClient.URLEncodeData(paramsList));
+				Response URLEncodedResponse = httpClient.sendPost(null, PATH, HttpClient.URLEncodeData(paramsList));
 				cacheResponse(URLEncodedResponse.getReponseBody(), true);
 			}
 			catch (Exception e)
@@ -185,15 +185,11 @@ public class ThermostatController extends Device
 	
 	private int getLocationTempature()
 	{
-		Processor processor = Processor.getBackgroundProcessor();
-		
-		if (processor != null)
-		{
-			Action action = processor.getStateByDeviceName(sensorDevice);
-			HashMap<String, String> map = HttpClient.URLEncodedDataToHashMap(action.getData());
-			String locationTempature = map.get(TempatureSensor.QueryParams.LOCATION_TEMPATURE);
-			if (locationTempature != null) return Integer.parseInt(locationTempature);
-		}
+		Action action = bgp.getStateByDeviceName(sensorDevice);
+		HashMap<String, String> map = HttpClient.URLEncodedDataToHashMap(action.getData());
+		String locationTempature = map.get(TempatureSensor.QueryParams.LOCATION_TEMPATURE);
+		if (locationTempature != null) 
+			return Integer.parseInt(locationTempature);
 		
 		return -1;
 	}
@@ -202,14 +198,8 @@ public class ThermostatController extends Device
 	public void close()
 	{
 		isClosed = true;
-	
-		setMode(ThermostatMode.OFF_MODE);
-
-		pollingTask.cancel(true);
-
-		while (!pollingTask.isCancelled())
-		{
-		};
+		bgp.getThreadExecutorService().cancelTask(taskID);
+		setMode(ThermostatMode.OFF_MODE);	
 	}
 
 	@Override

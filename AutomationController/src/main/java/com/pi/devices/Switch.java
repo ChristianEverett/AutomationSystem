@@ -6,7 +6,7 @@ package com.pi.devices;
 import java.io.IOException;
 
 import com.pi.infrastructure.Device;
-import com.pi.repository.Action;
+import com.pi.model.Action;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
 

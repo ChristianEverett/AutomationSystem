@@ -3,32 +3,25 @@
  */
 package com.pi.backgroundprocessor;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Queue;
-import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import javax.xml.parsers.ParserConfigurationException;
+
+import org.xml.sax.SAXException;
 
 import com.pi.Application;
-import com.pi.devices.Led;
-import com.pi.devices.Outlet;
-import com.pi.devices.Switch;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
 import com.pi.infrastructure.DeviceType;
-import com.pi.infrastructure.PropertiesLoader;
-import com.pi.repository.Action;
-import com.pi.repository.Timer;
-import com.pi.repository.TimerRepository;
+import com.pi.model.Action;
 
 
 /**
@@ -39,101 +32,59 @@ import com.pi.repository.TimerRepository;
 public class Processor extends Thread
 {
 	private static Processor singleton = null;
-	private static boolean singletonCreated = false;
-	private Queue<Action> processingQueue = new ConcurrentLinkedQueue<>();
-	private ExecutorService executorService = Executors.newFixedThreadPool(10);
-	private ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
+	private AtomicBoolean processorRunning = new AtomicBoolean(false);
+	private LinkedBlockingQueue<Action> processingQueue = new LinkedBlockingQueue<>(100_000);
+	private TaskExecutorService taskService = new TaskExecutorService(2);
 	private HashMap<String, Device> deviceMap = new HashMap<>();
-	private PersistenceManager persistenceManager;
+	private PersistenceManager persistenceManager = null;
+	private TimeActionProcessor timeActionProcessor = null;
 
-	private Processor() 
+	public static void createBackgroundProcessor() throws Exception
 	{
-		try
-		{
-			PropertiesLoader properties = PropertiesLoader.getInstance();
-			DeviceLoader deviceLoader = DeviceLoader.createNewDeviceLoader();
-			
-			Application.LOGGER.info("Loading Devices");
-			deviceLoader.populateDeviceMap(deviceMap);
-			
-			Application.LOGGER.info("Loading Device States");
-			persistenceManager = PersistenceManager.loadPersistanceManager();
-			persistenceManager.loadSavedStates(deviceMap);
-			
-			Application.LOGGER.info("Scheduling Tasks");
-			exec.scheduleAtFixedRate(() ->
-			{
-				try
-				{
-					timerEvaluator();
-				}
-				catch (SQLException e)
-				{
-					Application.LOGGER.severe(e.getMessage());
-				}
-			}, 1, 2, TimeUnit.SECONDS);
-			
-			exec.scheduleAtFixedRate(() ->
-			{
-				try
-				{
-					persistenceManager.commit(deviceMap);
-					Application.LOGGER.info("Timer/State Commit");
-				}
-				catch (SQLException e)
-				{
-					Application.LOGGER.severe(e.getMessage());
-				}
-			}, 1, 2, TimeUnit.HOURS);
-			
-//			exec.scheduleAtFixedRate(() ->
-//			{
-//				NetworkConnectionPoller.checkConnection();
-//			}, 1, 20, TimeUnit.MINUTES);
-			
-			Runtime.getRuntime().addShutdownHook(new Thread()
-	        {
-	            @Override
-	            public void run()
-	            {
-	            	Application.LOGGER.severe("Shutdown Hook Running");
-	            	shutdownBackgroundProcessor();
-	            }
-	        });
-		}
-		catch(Exception e)
-		{
-			Application.LOGGER.severe(e.getMessage());
-			shutdownBackgroundProcessor();
-		}
+		if(singleton != null)
+			throw new Exception("Background Processor already created");
+		singleton = new Processor();
 	}
 	
+	public static synchronized Processor getBackgroundProcessor()
+	{
+		if(singleton == null)
+			throw new NullPointerException("Background Processor null");
+		return singleton;
+	}
+	
+	private Processor() throws Exception 
+	{
+		persistenceManager = PersistenceManager.loadPersistanceManager();
+		timeActionProcessor = TimeActionProcessor.getTimeActionProcessor();
+		
+		loadDevices();
+		scheduleTasksAndTimers();
+	}	
+
 	@Override
 	public void run()
 	{
 		try
-		{	    		
+		{
+			processorRunning.set(true);
+			
 			while(true)
 			{
-				Action result = processingQueue.poll();
+				Action result = processingQueue.take();
 				
 				if(result != null)
 					processAction(result);
-				
-				Thread.sleep(4);
 			}
 		} 
-		catch (UnsupportedOperationException | InterruptedException e)
+		catch (InterruptedException e)
 		{
-			Application.LOGGER.severe(e.getMessage());
-			Application.LOGGER.severe("Restarting Processor");
-			this.run();
+			processorRunning.set(false);
+			Application.LOGGER.info(e.getMessage());
 		}
-		
-		shutdownBackgroundProcessor();
 	}
 	
-	private void processAction(Action action) throws UnsupportedOperationException
+	private void processAction(Action action) throws InterruptedException
 	{
 		try
 		{
@@ -153,11 +104,8 @@ public class Processor extends Thread
 						break;
 						
 					case DeviceType.RELOAD_DEVICES:
-						persistenceManager.commit(deviceMap);
-						deviceMap.forEach((k, v) -> v.close());
-						deviceMap.clear();
-						DeviceLoader.createNewDeviceLoader().populateDeviceMap(deviceMap);
-						persistenceManager.loadSavedStates(deviceMap);
+						saveAndCloseAllDevices();
+						loadDevices();
 						Application.LOGGER.info("Reloaded Devices");
 						break;
 						
@@ -176,42 +124,12 @@ public class Processor extends Thread
 				}
 			}	
 		}
-		catch(Exception e)
+		catch(IOException | SQLException | ParserConfigurationException | SAXException e)
 		{
-			throw new UnsupportedOperationException("Invalid Action");
+			Application.LOGGER.severe(e.getMessage());
 		}
 	}
-	
-	private void timerEvaluator() throws SQLException
-	{
-		int day = Calendar.getInstance().get(Calendar.DAY_OF_WEEK);
-		int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-		int minute = Calendar.getInstance().get(Calendar.MINUTE);
-		
-		//set hour for day divide when reseting timers during 11:00pm
-		int previousHour = ((hour == 0) ? 24 : hour) - 1;
-		
-		TimerRepository timerRepository = TimerRepository.getInstance();
-		
-		for(Long id : timerRepository.getAllKeys())
-		{
-			Timer timer = timerRepository.get(id);
-			
-			if(timer.getHour() == hour && timer.getMinute() == minute && !timer.getEvaluated())
-			{
-				scheduleAction(new Action(timer.getAction().getDevice(), timer.getAction().getData()));
-				timer.setEvaluated(true);
-				timerRepository.add(timer);
-				Application.LOGGER.info("Timer Triggered: " + timer.getAction().getDevice() + " Time: " + timer.getTime());
-			}
-			else if(timer.getHour() == previousHour)
-			{
-				timer.setEvaluated(false);
-				timerRepository.add(timer);
-			}
-		}
-	}
-	
+
 	public synchronized boolean scheduleAction(Action action)
 	{
 		return processingQueue.add(action);
@@ -234,38 +152,75 @@ public class Processor extends Thread
 		return deviceMap.get(name).getState();
 	}
 	
-	public void shutdownBackgroundProcessor()
+	public TaskExecutorService getThreadExecutorService()
 	{
+		return taskService;
+	}
+	
+	public TimeActionProcessor getTimeActionProcessor()
+	{
+		return timeActionProcessor;
+	}
+	
+	private void loadDevices() throws ParserConfigurationException, SAXException, IOException
+	{
+		Application.LOGGER.info("Loading Devices");
+		DeviceLoader deviceLoader = DeviceLoader.createNewDeviceLoader();
+		deviceLoader.populateDeviceMap(deviceMap);
+		
+		Application.LOGGER.info("Loading Device States");
+		deviceMap = (HashMap<String, Device>) persistenceManager.loadSavedStates();
+	}
+	
+	private void scheduleTasksAndTimers()
+	{
+		Application.LOGGER.info("Scheduling Timers");		
+		timeActionProcessor.load(persistenceManager.loadTimers());
+		
+		Application.LOGGER.info("Scheduling Tasks");		
+		taskService.scheduleTask(() ->
+		{
+			try
+			{
+				persistenceManager.commit(deviceMap);
+			}
+			catch (Throwable e)
+			{
+				Application.LOGGER.severe(e.getMessage());
+			}
+		}, 1, 2, TimeUnit.HOURS);	
+	}
+	
+	/**
+	 * @throws SQLException
+	 */
+	private void saveAndCloseAllDevices() throws SQLException
+	{
+		persistenceManager.commit(deviceMap);
+		deviceMap.forEach((k, v) -> v.close());
+		deviceMap.clear();
+	}
+	
+	public void shutdownBackgroundProcessor()
+	{	
 		try
 		{
-			//rt.exec("java -jar EmailModule.jar christian.everett1@gmail.com pi 'The pi controller has shutdown'");
-			
+			if(processorRunning.get())
+				this.interrupt();
 			//Shutdown all devices and save their state
-			Application.LOGGER.info("Saving Device States");
-			persistenceManager.commit(deviceMap);
-			Application.LOGGER.info("Shutting down all devices");
-			deviceMap.forEach((k, v) -> v.close());
+			Application.LOGGER.info("Saving Device States and shutting down");
+			saveAndCloseAllDevices();
 			persistenceManager.close();
 		}
-		catch (Exception e)
+		catch (Throwable e)
 		{
 			Application.LOGGER.severe(e.getMessage());
 		}
 		finally 
 		{
 			Application.LOGGER.info("System has been shutdown.");
-			System.exit(1);
 		}    
 	}
+
 	
-	public static synchronized Processor getBackgroundProcessor()
-	{
-		if(!singletonCreated)
-		{
-			singletonCreated = true;
-			singleton = new Processor();
-		}
-			
-		return singleton;
-	}
 }

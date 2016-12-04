@@ -1,34 +1,27 @@
 /**
  * 
  */
-package com.pi.repository;
+package com.pi.model;
 
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-
+import com.google.common.base.Objects;
 
 /**
  * @author Christian Everett
  *
  */
 
-public class Timer
+public class TimedAction
 {
 	private String time;
 	private boolean evaluated;
 	private Action action;
 	
-	public Timer()
+	public TimedAction()
 	{
 		
 	}
 	
-	public Timer(String time, boolean evaluated, Action action)
+	public TimedAction(String time, boolean evaluated, Action action)
 	{
 		this.time = time;
 		this.evaluated = evaluated;
@@ -66,5 +59,21 @@ public class Timer
 	public int getMinute()
 	{
 		return Integer.parseInt(time.substring(time.indexOf(":") + 1, time.length()));
+	}
+
+	@Override
+	public boolean equals(Object object)
+	{
+		if(!(object instanceof TimedAction))
+			return false;
+		TimedAction timedAction = (TimedAction) object;
+		
+		return (time.equals(timedAction.time) && action.equals(timedAction.action));
+	}
+
+	@Override
+	public int hashCode()
+	{
+		return Objects.hashCode(action.hashCode(), time.hashCode());
 	}
 }

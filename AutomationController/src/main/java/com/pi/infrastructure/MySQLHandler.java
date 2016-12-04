@@ -9,12 +9,12 @@ public class MySQLHandler
 	Statement statement = null;
 	private String DATABASE;
 	
-	public MySQLHandler() throws Exception
+	public MySQLHandler(String username, String password) throws Exception
 	{
 		// This will load the MySQL driver, each DB has its own driver
 		Class.forName("com.mysql.jdbc.Driver");
 		// Setup the connection with the DB
-		connection = DriverManager.getConnection("jdbc:mysql://localhost/?user=root&password=root");
+		connection = DriverManager.getConnection("jdbc:mysql://localhost/?user=" + username + "&password=" + password);
 	}
 	
 	public void loadDatabase(final String DATABASE) throws Exception

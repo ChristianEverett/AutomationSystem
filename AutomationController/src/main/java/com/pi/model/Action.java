@@ -1,7 +1,9 @@
 /**
  * 
  */
-package com.pi.repository;
+package com.pi.model;
+
+import java.util.Objects;
 
 /**
  * @author Christian Everett
@@ -45,5 +47,21 @@ public class Action
 	public void setData(String data)
 	{
 		this.data = data;
+	}
+
+	@Override
+	public boolean equals(Object object)
+	{
+		if(!(object instanceof Action))
+			return false;
+		Action action = (Action) object;
+		
+		return device.equals(action.device) && data.equals(action.data);
+	}
+
+	@Override
+	public int hashCode()
+	{
+		return Objects.hash(device, data);
 	}
 }

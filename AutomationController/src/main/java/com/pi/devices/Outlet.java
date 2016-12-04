@@ -7,7 +7,7 @@ import java.io.IOException;
 
 import com.pi.Application;
 import com.pi.infrastructure.Device;
-import com.pi.repository.Action;
+import com.pi.model.Action;
 
 
 /**
@@ -64,7 +64,7 @@ public class Outlet extends Device
 		}
 	}
 	
-	private void sendIRSignal(int code) throws IOException, InterruptedException
+	private synchronized void sendIRSignal(int code) throws IOException, InterruptedException
 	{
 		state = (code == ON) ? true : false;		
 		

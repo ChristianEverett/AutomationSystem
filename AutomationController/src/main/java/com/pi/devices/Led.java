@@ -14,7 +14,7 @@ import org.apache.http.message.BasicNameValuePair;
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.HttpClient;
-import com.pi.repository.Action;
+import com.pi.model.Action;
 
 
 /**
@@ -28,6 +28,11 @@ public class Led extends Device
 	private final int BLUE_PIN;
 
 	private Color currentColor = new Color(0, 0, 0);
+	
+	public static Device create()
+	{
+		return null;
+	}
 	
 	public Led(String name, int red, int green, int blue) throws IOException
 	{
@@ -67,9 +72,9 @@ public class Led extends Device
 				}
 			}
 		
-			rt.exec("pigs p " + RED_PIN + " " + (255 - red) + " &");
-			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green) + " &");
-			rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue) + " &");
+			rt.exec("pigs p " + RED_PIN + " " + (255 - red));
+			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green));
+			rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue));
 			
 			currentColor = new Color(red, green, blue);
 		}

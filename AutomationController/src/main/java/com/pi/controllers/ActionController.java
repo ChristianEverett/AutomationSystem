@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.Application;
 import com.pi.backgroundprocessor.Processor;
-import com.pi.repository.Action;
+import com.pi.model.Action;
 
 /**
  * @author Christian Everett

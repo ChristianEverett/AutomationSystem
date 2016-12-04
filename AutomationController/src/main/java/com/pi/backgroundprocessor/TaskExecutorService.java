@@ -1,0 +1,59 @@
+/**
+ * 
+ */
+package com.pi.backgroundprocessor;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * @author Christian Everett
+ */
+public class TaskExecutorService
+{
+	private Map<Integer, Future<?>> taskMap = new HashMap<>();
+	AtomicInteger atomicInteger = new AtomicInteger();
+	private ScheduledExecutorService executorService;
+	
+	public TaskExecutorService(int threads)
+	{
+		executorService = Executors.newScheduledThreadPool(threads);
+	}
+	
+	public Future<?> scheduleTask(Runnable task, long delay, TimeUnit unit)
+	{
+		return executorService.schedule(task, delay, unit);
+	}
+	
+	public int scheduleTask(Runnable task, long delay, long interval, TimeUnit unit)
+	{
+		Future<?> scheduledTask = executorService.scheduleWithFixedDelay(task, delay, interval, unit);
+		
+		int id = atomicInteger.incrementAndGet();
+		
+		taskMap.put(id, scheduledTask);
+		
+		return id;
+	}
+	
+	public boolean cancelTask(Integer id)
+	{
+		return taskMap.remove(id).cancel(false);//TODO fix NullPointerException
+	}
+	
+	public void cancelAllTasks()
+	{
+		for(Map.Entry<Integer, Future<?>> entry : taskMap.entrySet())
+		{
+			entry.getValue().cancel(false);
+		}
+		
+		taskMap.clear();
+	}
+}

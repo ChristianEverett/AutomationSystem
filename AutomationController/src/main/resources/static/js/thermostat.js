@@ -10,13 +10,13 @@ $(document).ready(function ()
     var thermostatModeDiv = $("#comp-irhyyw5iinlineContent");
     var outsideTempDiv = $("#comp-irxjq407inlineContent");
 
-    var fanButton =  $("#comp-irffwqe4link");
-    var acButton =  $("#comp-irffwy09link");
-    var heatButton =  $("#comp-irffx5bzlink");
-    var offButton =  $("#comp-irfnr972link");
+    var fanButton = $("#comp-irffwqe4link");
+    var acButton = $("#comp-irffwy09link");
+    var heatButton = $("#comp-irffx5bzlink");
+    var offButton = $("#comp-irfnr972link");
 
-    var downButton =  $("#comp-irfg7zhflink");
-    var upButton =  $("#comp-irfg7urclink");
+    var downButton = $("#comp-irfg7zhflink");
+    var upButton = $("#comp-irfg7urclink");
 
     var tempDisplayDiv = $("#comp-irfga970inlineContent");
 
@@ -36,10 +36,13 @@ $(document).ready(function ()
         upButton.button().click(tempatureSelect);
         downButton.button().click(tempatureSelect);
 
-        setInterval(function(){GET_STATES(refreshPage);}, 30000);
+        setInterval(function ()
+        {
+            GET_STATES(refreshPage);
+        }, 20000);
     }());
 
-    function unSelectModeButtons() 
+    function unSelectModeButtons()
     {
         fanButton.css("background-color", "rgba(114, 114, 114, 1)");
         acButton.css("background-color", "rgba(114, 114, 114, 1)");
@@ -89,19 +92,19 @@ $(document).ready(function ()
 
     function update(result, status, xhr)
     {
-        if(xhr.status == 200)
+        if (xhr.status == 200)
         {
-            if(this.data.search(fan_mode) != -1)
+            if (this.data.search(fan_mode) != -1)
             {
                 thermostatModeDiv.html("Fan");
                 fanButton.css("background-color", "rgba(204, 204, 204, 1)");
             }
-            else if(this.data.search(cool_mode) != -1)
+            else if (this.data.search(cool_mode) != -1)
             {
                 thermostatModeDiv.html("AC");
                 acButton.css("background-color", "rgba(204, 204, 204, 1)");
             }
-            else if(this.data.search(heat_mode) != -1)
+            else if (this.data.search(heat_mode) != -1)
             {
                 thermostatModeDiv.html("Heat");
                 heatButton.css("background-color", "rgba(204, 204, 204, 1)");
@@ -118,19 +121,22 @@ $(document).ready(function ()
 
     function refreshPage(result, status, xhr)
     {
-        if(xhr.status == 200)
+        if (xhr.status == 200)
         {
-            for(var index = 0; index < result.length; index++)
+            for (var index = 0; index < result.length; index++)
             {
                 var dataArray = result[index].data.split("&");
 
-                for (var x = 0; x < dataArray.length; x++) {
+                for (var x = 0; x < dataArray.length; x++)
+                {
                     var keyValuePair = dataArray[x].split("=");
 
-                    if (keyValuePair[0] == "target_mode" && !dontChangeTargetUI) {
+                    if (keyValuePair[0] == "target_mode" && !dontChangeTargetUI)
+                    {
                         unSelectModeButtons();
 
-                        switch (keyValuePair[1]) {
+                        switch (keyValuePair[1])
+                        {
                             case off_mode:
                                 thermostatModeDiv.html("Off");
                                 offButton.css("background-color", "rgba(204, 204, 204, 1)");
@@ -150,18 +156,20 @@ $(document).ready(function ()
                             default:
                         }
                     }
-                    else if (keyValuePair[0] == "temp") {
+                    else if (keyValuePair[0] == "temp")
+                    {
                         thermostatTempDiv.html(keyValuePair[1] + "&#x2109");
                     }
-                    else if (keyValuePair[0] == "target_temp" && !dontChangeTargetUI) {
+                    else if (keyValuePair[0] == "target_temp" && !dontChangeTargetUI)
+                    {
                         tempDisplayDiv.html(keyValuePair[1] + "&#x2109");
                     }
-                    else if (keyValuePair[0] == "humidity") {
-                        if (keyValuePair[1] == "-1")
-                            alert("thermostat is down");
+                    else if (keyValuePair[0] == "humidity")
+                    {
                         thermostatHumidityDiv.html(keyValuePair[1] + "%");
                     }
-                    else if (keyValuePair[0] == "location_temp") {
+                    else if (keyValuePair[0] == "location_temp")
+                    {
                         outsideTempDiv.html(keyValuePair[1] + "&#x2109");
                     }
                 }

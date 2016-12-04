@@ -7,16 +7,18 @@ import java.io.IOException;
 import java.util.HashMap;
 
 import javax.persistence.criteria.CriteriaBuilder.In;
+import javax.transaction.Synchronization;
 
 import org.w3c.dom.Element;
 
 import com.pi.Application;
+import com.pi.backgroundprocessor.Processor;
 import com.pi.devices.Led;
 import com.pi.devices.Outlet;
 import com.pi.devices.Switch;
 import com.pi.devices.TempatureSensor;
 import com.pi.devices.thermostat.ThermostatController;
-import com.pi.repository.Action;
+import com.pi.model.Action;
 import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
 import com.pi4j.io.gpio.Pin;
@@ -28,105 +30,99 @@ import com.pi4j.io.gpio.RaspiPin;
  */
 public abstract class Device
 {
-	//Map GPIO Headers to BCM/WiringPI GPIO pins
-	protected final static HashMap<Integer, GPIO_PIN> pins = new HashMap<>();
+	protected static final Processor bgp = Processor.getBackgroundProcessor();
+
+	// Map GPIO Headers to BCM/WiringPI GPIO pins
+	protected static final HashMap<Integer, GPIO_PIN> pins = new HashMap<>();
 	protected static Runtime rt = Runtime.getRuntime();
 	protected static GpioController gpioController = GpioFactory.getInstance();
-	
+
 	protected final String name;
 	protected boolean isClosed = false;
 	protected int headerPin = -1;
-	
+
 	public Device(String name) throws IOException
 	{
 		this.name = name;
 	}
-	
+
 	/**
 	 * 
 	 * @param action
 	 * @throws IOException
 	 */
 	public abstract void performAction(Action action);
-	
+
 	/**
-	 * @return action representing the current state of the device.
-	 * If device is closed returns null
+	 * @return action representing the current state of the device. If device is
+	 *         closed returns null
 	 */
 	public abstract Action getState();
-	
+
 	/**
-	 * Shutdown device and release resources.
-	 * All future calls to performAction will do nothing
+	 * Shutdown device and release resources. All future calls to performAction
+	 * will do nothing
 	 */
 	public abstract void close();
-	
-	public static Device CreateNewDevice(String name, String type, Element element)
+
+	public static Device createNewDevice(String name, String type, Element element) throws IOException
 	{
 		String header;
-	
-		try
-		{
-			switch (type)
-			{
-			case DeviceType.LED:
-				String red = element.getElementsByTagName("red").item(0).getTextContent();
-				String green = element.getElementsByTagName("green").item(0).getTextContent();
-				String blue = element.getElementsByTagName("blue").item(0).getTextContent();
 
-				return new Led(name, Integer.parseInt(red), Integer.parseInt(green), Integer.parseInt(blue));
-				
-			case DeviceType.SWITCH:
-				header = element.getElementsByTagName("header").item(0).getTextContent();
-
-				return new Switch(name, Integer.parseInt(header));
-				
-			case DeviceType.OUTLET:
-				header = element.getElementsByTagName("header").item(0).getTextContent();
-				String onCode = element.getElementsByTagName("onCode").item(0).getTextContent();
-				String offCode = element.getElementsByTagName("offCode").item(0).getTextContent();
-				
-				return new Outlet(name, Integer.parseInt(header), Integer.parseInt(onCode), Integer.parseInt(offCode));
-				
-			case DeviceType.THERMOSTAT:
-				String url = element.getElementsByTagName("url").item(0).getTextContent();
-				String sensorDevice = element.getElementsByTagName("sensorDevice").item(0).getTextContent();
-				String maxTemp = element.getElementsByTagName("maxTempF").item(0).getTextContent();
-				String minTemp = element.getElementsByTagName("minTempF").item(0).getTextContent();
-				String turnOffDelay = element.getElementsByTagName("turnOffDelay").item(0).getTextContent();
-				
-				return new ThermostatController(name, url, sensorDevice, Integer.parseInt(maxTemp), Integer.parseInt(minTemp),
-						Integer.parseInt(turnOffDelay));
-				
-			case DeviceType.TEMP_SENSOR:
-				header = element.getElementsByTagName("header").item(0).getTextContent();
-				String location = element.getElementsByTagName("location").item(0).getTextContent();
-				
-				return new TempatureSensor(name, Integer.parseInt(header), location);
-	
-			default:
-				Application.LOGGER.severe("Unknown device: " + name + " Off Type: " + type);
-			}
-		}
-		catch (Exception e)
+		switch (type)
 		{
-			Application.LOGGER.severe("Error Loading Device: " + name + ". Exception: " + e.getMessage());
+		case DeviceType.LED:
+			String red = element.getElementsByTagName("red").item(0).getTextContent();
+			String green = element.getElementsByTagName("green").item(0).getTextContent();
+			String blue = element.getElementsByTagName("blue").item(0).getTextContent();
+
+			return new Led(name, Integer.parseInt(red), Integer.parseInt(green), Integer.parseInt(blue));
+
+		case DeviceType.SWITCH:
+			header = element.getElementsByTagName("header").item(0).getTextContent();
+
+			return new Switch(name, Integer.parseInt(header));
+
+		case DeviceType.OUTLET:
+			header = element.getElementsByTagName("header").item(0).getTextContent();
+			String onCode = element.getElementsByTagName("onCode").item(0).getTextContent();
+			String offCode = element.getElementsByTagName("offCode").item(0).getTextContent();
+
+			return new Outlet(name, Integer.parseInt(header), Integer.parseInt(onCode), Integer.parseInt(offCode));
+
+		case DeviceType.THERMOSTAT:
+			String url = element.getElementsByTagName("url").item(0).getTextContent();
+			String sensorDevice = element.getElementsByTagName("sensorDevice").item(0).getTextContent();
+			String maxTemp = element.getElementsByTagName("maxTempF").item(0).getTextContent();
+			String minTemp = element.getElementsByTagName("minTempF").item(0).getTextContent();
+			String turnOffDelay = element.getElementsByTagName("turnOffDelay").item(0).getTextContent();
+
+			return new ThermostatController(name, url, sensorDevice, Integer.parseInt(maxTemp), Integer.parseInt(minTemp), Integer.parseInt(turnOffDelay));
+
+		case DeviceType.TEMP_SENSOR:
+			header = element.getElementsByTagName("header").item(0).getTextContent();
+			String location = element.getElementsByTagName("location").item(0).getTextContent();
+
+			return new TempatureSensor(name, Integer.parseInt(header), location);
+
+		default:
+			Application.LOGGER.severe("Unknown device: " + name + " Off Type: " + type);
 		}
-		
+
 		return null;
 	}
-	
+
 	protected static class GPIO_PIN
 	{
 		private int BCM_Pin;
 		private Pin WiringPI_Pin;
-		
+
 		public GPIO_PIN(int BCM, Pin WiringPI)
 		{
 			this.BCM_Pin = BCM;
 			this.WiringPI_Pin = WiringPI;
 		}
-		
+
 		/**
 		 * @return the bCM_Pin
 		 */
@@ -134,6 +130,7 @@ public abstract class Device
 		{
 			return BCM_Pin;
 		}
+
 		/**
 		 * @return the wiringPI_Pin
 		 */
@@ -142,7 +139,7 @@ public abstract class Device
 			return WiringPI_Pin;
 		}
 	}
-	
+
 	static
 	{
 		pins.put(1, null);

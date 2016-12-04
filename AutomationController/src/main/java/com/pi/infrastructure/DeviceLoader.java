@@ -5,7 +5,7 @@ package com.pi.infrastructure;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.Map;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -17,6 +17,10 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
+import com.pi.Application;
+import static com.pi.infrastructure.PropertyManger.loadProperty;
+import static com.pi.infrastructure.PropertyManger.PropertyKeys;
+
 /**
  * @author Christian Everett
  *
@@ -26,10 +30,10 @@ public class DeviceLoader
 	private static DeviceLoader singleton = null;
 	private Document xmlDocument = null;
 	
-	private DeviceLoader() throws ParserConfigurationException, SAXException, IOException
+	private DeviceLoader() throws IOException, ParserConfigurationException, SAXException
 	{
-		File xmlFile = new File("./devices.xml");
-		xmlFile.createNewFile();
+		File xmlFile = new File(loadProperty(PropertyKeys.DEVICE_CONFIG));
+		boolean create = xmlFile.createNewFile();
 		
 		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
 		DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
@@ -38,7 +42,7 @@ public class DeviceLoader
 		xmlDocument.getDocumentElement().normalize();
 	}
 	
-	public void populateDeviceMap(HashMap<String, Device> deviceMap)
+	public void populateDeviceMap(Map<String, Device> deviceMap)
 	{
 		NodeList nodeList = xmlDocument.getElementsByTagName("device");
 		
@@ -52,17 +56,26 @@ public class DeviceLoader
 				
 				String type = element.getAttribute("device-type");
 				String name = element.getAttribute("device-name");
-				Device device = Device.CreateNewDevice(name, type, element);
 				
-				if(device != null)
-					deviceMap.put(name, device);
+				try
+				{
+					Device device = Device.createNewDevice(name, type, element);
+					
+					if(device != null)
+						deviceMap.put(name, device);
+				}
+				catch (Exception e)
+				{
+					Application.LOGGER.severe("Error Loading Device: " + name + ". Exception: " + e.getMessage());
+				}
 			}
 		}
 	}
 	
-	public static DeviceLoader createNewDeviceLoader() throws ParserConfigurationException, SAXException, IOException
+	public static DeviceLoader createNewDeviceLoader() throws IOException, ParserConfigurationException, SAXException
 	{
-		singleton = new DeviceLoader();
+		if(singleton == null)
+			singleton = new DeviceLoader();
 		
 		return singleton;
 	}

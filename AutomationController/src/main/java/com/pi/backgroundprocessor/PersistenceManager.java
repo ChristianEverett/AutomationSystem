@@ -9,18 +9,16 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
+import java.util.Map;
 import java.util.Set;
-
-import org.springframework.data.repository.CrudRepository;
 
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.MySQLHandler;
-import com.pi.repository.Action;
-import com.pi.repository.Timer;
-import com.pi.repository.TimerRepository;
+import com.pi.model.Action;
+import com.pi.model.TimedAction;
+import static com.pi.infrastructure.PropertyManger.loadProperty;
+import static com.pi.infrastructure.PropertyManger.PropertyKeys;
 
 /**
  * @author Christian Everett
@@ -33,35 +31,37 @@ class PersistenceManager
 	private Statement timerStatement;
 	private Statement stateStatement;
 	
-	private TimerRepository timerRepository = TimerRepository.getInstance();
-	
 	private static PersistenceManager singleton = null;
 	
 	public static PersistenceManager loadPersistanceManager() throws Exception
 	{
 		if(singleton == null)
-			singleton = new PersistenceManager();
+		{
+			String dbUser = loadProperty(PropertyKeys.DBUSER);
+			String dbPass = loadProperty(PropertyKeys.DBPASS);
+			singleton = new PersistenceManager(dbUser, dbPass);
+		}
 		
 		return singleton;
 	}
 	
-	private PersistenceManager() throws Exception
+	private PersistenceManager(String username, String password) throws Exception
 	{
-		dbHandler = new MySQLHandler();
+		dbHandler = new MySQLHandler("root", "root");
 		dbHandler.loadDatabase(TABLES.DATABASE);
 		
-		if(dbHandler.tableExists(TABLES.USERS_TABLE) == false)
+		if(!dbHandler.tableExists(TABLES.USERS_TABLE))
 		{
 			Application.LOGGER.info("Users Table not found");
 			dbHandler.createTable(TABLES.USERS_TABLE, "username", "char(25)", "password", "char(25)");
 			//dbHandler.INSERT(TABLES.USERS_TABLE, "admin", "01433128");
 		}
-		if(dbHandler.tableExists(TABLES.STATES_TABLE) == false)
+		if(!dbHandler.tableExists(TABLES.STATES_TABLE))
 		{
 			Application.LOGGER.info("State Table not found");
 			dbHandler.createTable(TABLES.STATES_TABLE, STATE_TABLE_COLUMNS.DEVICE, "char(25)", STATE_TABLE_COLUMNS.DATA, "char(100)");
 		}
-		if(dbHandler.tableExists(TABLES.TIMER_TABLE) == false)
+		if(!dbHandler.tableExists(TABLES.TIMER_TABLE))
 		{
 			Application.LOGGER.info("Timers Table not found");
 			dbHandler.createTable(TABLES.TIMER_TABLE, TIMER_TABLE_COLUMNS.ID, "BIGINT", TIMER_TABLE_COLUMNS.TIME, "char(7)", 
@@ -70,76 +70,96 @@ class PersistenceManager
 		
 		timerStatement = dbHandler.createStatement();
 		stateStatement = dbHandler.createStatement();
-		
-		loadTimersTable();
 	}
 	
 	/**
 	 * Populate CrudRepository from States table
 	 */
-	public void loadSavedStates(HashMap<String, Device> deviceMap) throws SQLException
+	public Map<String, Device> loadSavedStates()
 	{
-		ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
+		Map<String, Device> deviceMap = new HashMap<>();
 		
-		while(result.next())
+		try
 		{
-			Action action = new Action(result.getString(STATE_TABLE_COLUMNS.DEVICE), result.getString(STATE_TABLE_COLUMNS.DATA));
-		
-			Device device = deviceMap.get(action.getDevice());
+			ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
 			
-			if(device != null)
-				device.performAction(action);
+			while(result.next())
+			{
+				Action action = new Action(result.getString(STATE_TABLE_COLUMNS.DEVICE), result.getString(STATE_TABLE_COLUMNS.DATA));
+			
+				Device device = deviceMap.get(action.getDevice());
+				
+				if(device != null)
+					device.performAction(action);
+			}
+			
+			result.close();
+		}
+		catch (SQLException e)
+		{
+			Application.LOGGER.severe(e.getMessage());
 		}
 		
-		result.close();
+		return deviceMap;
 	}
 	
 	/**
 	 * Populate CrudRepository from Timers table
 	 */
-	private void loadTimersTable() throws SQLException
+	public Collection<TimedAction> loadTimers()
 	{
-		ResultSet result = dbHandler.SELECT(timerStatement, TIMER_TABLE_COLUMNS.COMMAND + ", "
-				+ TIMER_TABLE_COLUMNS.DATA + ", " + TIMER_TABLE_COLUMNS.TIME, TABLES.TIMER_TABLE, null);
+		Collection<TimedAction> timerList = new ArrayList<>();
 		
-		while(result.next())
+		try
 		{
-			String time = result.getString(TIMER_TABLE_COLUMNS.TIME);
-			boolean evaluated = false;
-			String command = result.getString(TIMER_TABLE_COLUMNS.COMMAND);
-			String data = result.getString(TIMER_TABLE_COLUMNS.DATA);
+			ResultSet result = dbHandler.SELECT(timerStatement, TIMER_TABLE_COLUMNS.COMMAND + ", "
+					+ TIMER_TABLE_COLUMNS.DATA + ", " + TIMER_TABLE_COLUMNS.TIME, TABLES.TIMER_TABLE, null);
 			
-			Timer timer = new Timer(time, evaluated, new Action(command, data));
+			while(result.next())
+			{
+				String time = result.getString(TIMER_TABLE_COLUMNS.TIME);
+				boolean evaluated = false;
+				String command = result.getString(TIMER_TABLE_COLUMNS.COMMAND);
+				String data = result.getString(TIMER_TABLE_COLUMNS.DATA);
+				
+				TimedAction timer = new TimedAction(time, evaluated, new Action(command, data));
+				
+				timerList.add(timer);
+			}
 			
-			timerRepository.add(timer);
+			result.close();
+		}
+		catch (SQLException e)
+		{
+			Application.LOGGER.severe(e.getMessage());
 		}
 		
-		result.close();
+		return timerList;
 	}
 	
-	public void commit(HashMap<String, Device> deviceMap) throws SQLException
-	{
-		Set<Long> timersIDs = timerRepository.getAllKeys();
-		Set<String> devices = deviceMap.keySet();
-
-		dbHandler.clearTable(TABLES.TIMER_TABLE);
-		dbHandler.clearTable(TABLES.STATES_TABLE);
-
-		for(Long id : timersIDs)
-		{	
-			Timer timer = timerRepository.get(id);
-			
-			dbHandler.INSERT(TABLES.TIMER_TABLE, Long.toString(id), toMySqlString(timer.getTime()), 
-					"false", toMySqlString(timer.getAction().getDevice()), toMySqlString(timer.getAction().getData()));
-		}
-		
-		for(String deviceName : devices)
-		{
-			Device device = deviceMap.get(deviceName);
-
-			if(device != null)
-				dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(deviceName), toMySqlString(device.getState().getData()));
-		}
+	public void commit(Map<String, Device> deviceMap) throws SQLException
+	{//TODO
+//		Set<Long> timersIDs = timerRepository.getAllKeys();
+//		Set<String> devices = deviceMap.keySet();
+//
+//		dbHandler.clearTable(TABLES.TIMER_TABLE);
+//		dbHandler.clearTable(TABLES.STATES_TABLE);
+//
+//		for(Long id : timersIDs)
+//		{	
+//			TimedAction timer = timerRepository.get(id);
+//			
+//			dbHandler.INSERT(TABLES.TIMER_TABLE, Long.toString(id), toMySqlString(timer.getTime()), 
+//					"false", toMySqlString(timer.getAction().getDevice()), toMySqlString(timer.getAction().getData()));
+//		}
+//		
+//		for(String deviceName : devices)
+//		{
+//			Device device = deviceMap.get(deviceName);
+//
+//			if(device != null)
+//				dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(deviceName), toMySqlString(device.getState().getData()));
+//		}
 	}
 	
 	private String toMySqlString(String string)
@@ -152,7 +172,7 @@ class PersistenceManager
 		dbHandler.close();
 	}
 	
-	private interface TABLES
+	private interface TABLES//TODO
 	{
 		public static final String DATABASE = "pidb";
 		public static final String USERS_TABLE = "users";
