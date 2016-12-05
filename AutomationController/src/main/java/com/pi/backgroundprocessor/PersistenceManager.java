@@ -75,32 +75,49 @@ class PersistenceManager
 	/**
 	 * Populate CrudRepository from States table
 	 */
-	public Map<String, Device> loadSavedStates()
+//	public Map<String, Device> loadSavedStates()
+//	{
+//		Map<String, Device> deviceMap = new HashMap<>();
+//		
+//		try
+//		{
+//			ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
+//			
+//			while(result.next())
+//			{
+//				Action action = new Action(result.getString(STATE_TABLE_COLUMNS.DEVICE), result.getString(STATE_TABLE_COLUMNS.DATA));
+//			
+//				Device device = deviceMap.get(action.getDevice());
+//				
+//				if(device != null)
+//					device.performAction(action);
+//			}
+//			
+//			result.close();
+//		}
+//		catch (SQLException e)
+//		{
+//			Application.LOGGER.severe(e.getMessage());
+//		}
+//		
+//		return deviceMap;
+//	}
+	
+	public void loadSavedStates(HashMap<String, Device> deviceMap) throws SQLException
 	{
-		Map<String, Device> deviceMap = new HashMap<>();
+		ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
 		
-		try
+		while(result.next())
 		{
-			ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
+			Action action = new Action(result.getString(STATE_TABLE_COLUMNS.DEVICE), result.getString(STATE_TABLE_COLUMNS.DATA));
+		
+			Device device = deviceMap.get(action.getDevice());
 			
-			while(result.next())
-			{
-				Action action = new Action(result.getString(STATE_TABLE_COLUMNS.DEVICE), result.getString(STATE_TABLE_COLUMNS.DATA));
-			
-				Device device = deviceMap.get(action.getDevice());
-				
-				if(device != null)
-					device.performAction(action);
-			}
-			
-			result.close();
-		}
-		catch (SQLException e)
-		{
-			Application.LOGGER.severe(e.getMessage());
+			if(device != null)
+				device.performAction(action);
 		}
 		
-		return deviceMap;
+		result.close();
 	}
 	
 	/**

@@ -28,8 +28,10 @@ public class TempatureSensor extends Device
 {
 	private Connection httpConnection;
 	private String location = "";
+	private int tempatureReadingTask;
 
-	private int roomTempature = -1;
+	private int sensorTempature = -1;
+	private int sensorHumidity = -1;
 	private int locationTempature = -1;
 
 	public TempatureSensor(String name, int headerPin, String location) throws IOException
@@ -41,11 +43,13 @@ public class TempatureSensor extends Device
 		httpConnection = Jsoup.connect("http://www.google.com/search?q=weahther+" + location).userAgent(
 				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
 
-		bgp.getThreadExecutorService().scheduleTask(() ->
+		tempatureReadingTask = bgp.getThreadExecutorService().scheduleTask(()->
 		{
 			try
 			{
-				roomTempature = (int) Math.round((1.8 * readSensor(pins.get(headerPin).getBCM_Pin())) + 32);
+				SensorReading reading = readSensor(pins.get(headerPin).getBCM_Pin());
+				sensorTempature = Math.round((1.8F * reading.getTempature()) + 32);
+				sensorHumidity = Math.round(reading.getHumidity());
 
 				Document doc = httpConnection.get();
 				Element element = doc.getElementById("wob_tm");
@@ -77,7 +81,7 @@ public class TempatureSensor extends Device
 			return null;
 
 		List<NameValuePair> params = new ArrayList<>();
-		params.add(new BasicNameValuePair(QueryParams.ROOM_TEMP, String.valueOf(roomTempature)));
+		params.add(new BasicNameValuePair(QueryParams.ROOM_TEMP, String.valueOf(sensorTempature)));
 		params.add(new BasicNameValuePair(QueryParams.LOCATION_TEMPATURE, String.valueOf(locationTempature)));
 
 		return new Action(name, HttpClient.URLEncodeData(params));
@@ -87,13 +91,42 @@ public class TempatureSensor extends Device
 	public void close()
 	{
 		isClosed = true;
+		bgp.getThreadExecutorService().cancelTask(tempatureReadingTask);
 	}
 
-	private native double readSensor(int pin);//TODO return temp and humidity
+	private native SensorReading readSensor(int pin);
 
 	static
 	{
 		System.loadLibrary("TempDriver");
+	}
+	
+	public class SensorReading
+	{
+		private float tempature = -1;
+		private float humidity = -1;
+
+		public SensorReading(float tempature, float humidity)
+		{
+			this.tempature = tempature;
+			this.humidity = humidity;
+		}
+
+		/**
+		 * @return the tempature
+		 */
+		public float getTempature()
+		{
+			return tempature;
+		}
+
+		/**
+		 * @return the humidity
+		 */
+		public float getHumidity()
+		{
+			return humidity;
+		}
 	}
 
 	public interface QueryParams

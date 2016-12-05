@@ -31,14 +31,14 @@ public class PropertyManger
 		try
 		{
 			//Create file if it does't exist
-			PROPERTIES_FILE.createNewFile();
+			boolean created = PROPERTIES_FILE.createNewFile();
 			
 			input = new FileInputStream(PROPERTIES_FILE);
 			properties.load(input);
 			
 			input.close();
 			
-			output = new FileOutputStream(PROPERTIES_FILE);
+			output = new FileOutputStream(PROPERTIES_FILE, true);
 		}
 		catch (Exception e)
 		{

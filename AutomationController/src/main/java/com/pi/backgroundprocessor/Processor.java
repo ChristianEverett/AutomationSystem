@@ -44,6 +44,9 @@ public class Processor extends Thread
 		if(singleton != null)
 			throw new Exception("Background Processor already created");
 		singleton = new Processor();
+		
+		singleton.loadDevices();
+		singleton.scheduleTasksAndTimers();
 	}
 	
 	public static synchronized Processor getBackgroundProcessor()
@@ -56,10 +59,8 @@ public class Processor extends Thread
 	private Processor() throws Exception 
 	{
 		persistenceManager = PersistenceManager.loadPersistanceManager();
+		TimeActionProcessor.createTimeActionProcessor(this);
 		timeActionProcessor = TimeActionProcessor.getTimeActionProcessor();
-		
-		loadDevices();
-		scheduleTasksAndTimers();
 	}	
 
 	@Override
@@ -162,14 +163,14 @@ public class Processor extends Thread
 		return timeActionProcessor;
 	}
 	
-	private void loadDevices() throws ParserConfigurationException, SAXException, IOException
+	private void loadDevices() throws ParserConfigurationException, SAXException, IOException, SQLException
 	{
 		Application.LOGGER.info("Loading Devices");
 		DeviceLoader deviceLoader = DeviceLoader.createNewDeviceLoader();
 		deviceLoader.populateDeviceMap(deviceMap);
 		
 		Application.LOGGER.info("Loading Device States");
-		deviceMap = (HashMap<String, Device>) persistenceManager.loadSavedStates();
+		persistenceManager.loadSavedStates(deviceMap);
 	}
 	
 	private void scheduleTasksAndTimers()

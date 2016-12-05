@@ -91,7 +91,7 @@ public class UniqueMultiMap<K, V>
 			
 			for (V value : element.getValue())
 			{
-				valueCollection.add(new AbstractMap.SimpleEntry<Integer, V>(element.hashCode(), element.getValue().get(0)));
+				valueCollection.add(new AbstractMap.SimpleEntry<Integer, V>(value.hashCode(), value));
 			}
 		}
 		

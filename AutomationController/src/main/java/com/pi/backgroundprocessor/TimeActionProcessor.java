@@ -22,14 +22,22 @@ public class TimeActionProcessor
 {
 	private static TimeActionProcessor singlton = null;
 	private int timerEvaluatorTask = -1;
-	private Processor bgp = Processor.getBackgroundProcessor();
+	private static Processor bgp = null;
 	//Map hours to groups of TimedActions
 	private UniqueMultiMap<Integer, TimedAction> hourToTimersMap = new UniqueMultiMap<>();
 
+	public static void createTimeActionProcessor(Processor bgp) throws Exception
+	{
+		TimeActionProcessor.bgp = bgp;
+		
+		if(singlton != null)
+			throw new Exception("TimeActionProcessor already created");
+		singlton = new TimeActionProcessor();
+	}
+	
 	public static TimeActionProcessor getTimeActionProcessor()
 	{
-		if(singlton == null)
-			singlton = new TimeActionProcessor();
+		
 		return singlton;
 	}
 	
@@ -59,18 +67,21 @@ public class TimeActionProcessor
 		
 		Collection<TimedAction> timers = hourToTimersMap.get(hour);
 
-		for(TimedAction timedAction : timers)
+		if (timers != null)
 		{
-			if(timedAction.getMinute() == minute && !timedAction.getEvaluated())
+			for (TimedAction timedAction : timers)
 			{
-				bgp.scheduleAction(timedAction.getAction());
-				timedAction.setEvaluated(true);
-				Application.LOGGER.info("Timer Triggered: " + timedAction.getAction().getDevice() + " Time: " + timedAction.getTime());
-			}
-			else if(timedAction.getHour() == previousHour)
-			{
-				timedAction.setEvaluated(false);
-			}
+				if (timedAction.getMinute() == minute && !timedAction.getEvaluated())
+				{
+					bgp.scheduleAction(timedAction.getAction());
+					timedAction.setEvaluated(true);
+					Application.LOGGER.info("Timer Triggered: " + timedAction.getAction().getDevice() + " Time: " + timedAction.getTime());
+				}
+				else if (timedAction.getHour() == previousHour)
+				{
+					timedAction.setEvaluated(false);
+				}
+			} 
 		}
 	}
 	

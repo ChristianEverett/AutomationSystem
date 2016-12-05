@@ -92,7 +92,7 @@ public class Application extends WebMvcAutoConfiguration
 			Email.create(loadProperty(PropertyKeys.ADMIN_EMAIL)).setSubject("Automation System Shutting down").setMessageBody(
 					"Shutting down at: " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())).send();
 		}
-		catch (Exception e)
+		catch (Throwable e)
 		{
 			LOGGER.severe(e.getMessage());
 			e.printStackTrace();

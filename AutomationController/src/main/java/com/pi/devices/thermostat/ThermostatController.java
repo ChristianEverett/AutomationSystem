@@ -57,7 +57,7 @@ public class ThermostatController extends Device
 	private final int MIN_TEMP;
 
 	private boolean isTurnOffDelayEnabled = false;
-	private int turnOffDelay = 0;
+	private int turnOffDelay;
 	private boolean thermostatDisconnected = false;
 
 	public ThermostatController(String name, String url, String sensorDevice, int maxTemp, int mintemp, int turnOffDelay)
