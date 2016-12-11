@@ -65,13 +65,15 @@ public class TimeActionProcessor
 		//set hour for day divide when reseting timers during 11:00pm
 		int previousHour = ((hour == 0) ? 24 : hour) - 1;
 		
-		Collection<TimedAction> timers = hourToTimersMap.get(hour);
+		//Collection<TimedAction> timers = hourToTimersMap.get(hour);
+		Collection<Entry<Integer, TimedAction>> timers = hourToTimersMap.getAllValues();
 
 		if (timers != null)
 		{
-			for (TimedAction timedAction : timers)
+			for (Entry<Integer, TimedAction> timedAction2 : timers)
 			{
-				if (timedAction.getMinute() == minute && !timedAction.getEvaluated())
+				TimedAction timedAction = timedAction2.getValue();
+				if (timedAction.getMinute() == minute && timedAction.getHour() == hour && !timedAction.getEvaluated())
 				{
 					bgp.scheduleAction(timedAction.getAction());
 					timedAction.setEvaluated(true);

@@ -15,6 +15,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -56,7 +57,7 @@ public class ThermostatController extends Device
 	private final int MAX_TEMP;
 	private final int MIN_TEMP;
 
-	private boolean isTurnOffDelayEnabled = false;
+	private AtomicBoolean isTurnOffDelayEnabled = new AtomicBoolean(false);
 	private int turnOffDelay;
 	private boolean thermostatDisconnected = false;
 
@@ -82,27 +83,28 @@ public class ThermostatController extends Device
 					throw new IOException("Got status: " + URLEncodedResponse.getStatusCode());
 				
 				thermostatDisconnected = false;
-				cacheResponse(URLEncodedResponse.getReponseBody(), true);
+				updateControllerState(URLEncodedResponse.getReponseBody(), true);
 
 				if (targetMode.equals(ThermostatMode.COOL_MODE) || targetMode.equals(ThermostatMode.HEAT_MODE))
 				{
-					if (targetTempatureReached() && !isTurnOffDelayEnabled)
+					if (targetTempatureReached() && !isTurnOffDelayEnabled.get())
 					{
 						setMode(ThermostatMode.OFF_MODE);
 					}
 					else if(!targetMode.equals(currentMode))
 					{
-						isTurnOffDelayEnabled = true;
+						isTurnOffDelayEnabled.set(true);
 						setModeAndTargetTempature();
 						bgp.getThreadExecutorService().scheduleTask(() -> 
 						{
-							isTurnOffDelayEnabled = false;
+							isTurnOffDelayEnabled.set(false);
 						}, turnOffDelay, TimeUnit.SECONDS);
 					}
 				}
 			}
 			catch (Throwable e)
 			{
+				thermostatDisconnected = true;
 				Application.LOGGER.severe(e.getClass() + " - " + e.getMessage());
 			}
 		}, 5, 15, TimeUnit.SECONDS);
@@ -114,14 +116,14 @@ public class ThermostatController extends Device
 		if (isClosed)
 			return;
 
-		cacheResponse(action.getData(), false);
+		updateControllerState(action.getData(), false);
 		if (!targetTempatureReached())
 		{
 			setModeAndTargetTempature();
 		}
 	}
 
-	private synchronized void cacheResponse(String response, boolean fromThermostat)
+	private synchronized void updateControllerState(String response, boolean fromThermostat)
 	{
 		HashMap<String, String> responseParams = HttpClient.URLEncodedDataToHashMap(response);
 
@@ -132,12 +134,12 @@ public class ThermostatController extends Device
 			if (fromThermostat)
 			{
 				this.currentMode = ThermostatMode.valueOf(responseParams.get(QueryParams.MODE).toUpperCase());
-				this.currentTempInFehrenheit = celsiusToFahrenheit(Integer.parseInt(responseParams.get(QueryParams.TEMP)));
-				this.currentHumidity = Integer.parseInt(responseParams.get(QueryParams.HUMIDITY));
+				this.currentTempInFehrenheit = celsiusToFahrenheit(Float.parseFloat(responseParams.get(QueryParams.TEMP)));
+				this.currentHumidity = (int) Float.parseFloat(responseParams.get(QueryParams.HUMIDITY));
 			}
 			else
 			{
-				int targetTemp = Integer.parseInt(responseParams.get(QueryParams.TARGET_TEMP));
+				int targetTemp = (int) Float.parseFloat(responseParams.get(QueryParams.TARGET_TEMP));
 				ThermostatMode mode = ThermostatMode.valueOf(responseParams.get(QueryParams.TARGET_MODE).toUpperCase());
 
 				if (targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
@@ -173,7 +175,7 @@ public class ThermostatController extends Device
 			try
 			{
 				Response URLEncodedResponse = httpClient.sendPost(null, PATH, HttpClient.URLEncodeData(paramsList));
-				cacheResponse(URLEncodedResponse.getReponseBody(), true);
+				updateControllerState(URLEncodedResponse.getReponseBody(), true);
 			}
 			catch (Exception e)
 			{
@@ -185,7 +187,7 @@ public class ThermostatController extends Device
 	
 	private int getLocationTempature()
 	{
-		Action action = bgp.getStateByDeviceName(sensorDevice);
+		Action action = bgp.getDeviceByName(sensorDevice).getState();
 		HashMap<String, String> map = HttpClient.URLEncodedDataToHashMap(action.getData());
 		String locationTempature = map.get(TempatureSensor.QueryParams.LOCATION_TEMPATURE);
 		if (locationTempature != null) 
@@ -219,14 +221,14 @@ public class ThermostatController extends Device
 		return new Action(name, HttpClient.URLEncodeData(params));
 	}
 
-	private int celsiusToFahrenheit(int c)
+	private int celsiusToFahrenheit(float c)
 	{
 		return (int) (Math.round(c * 1.8) + 32);
 	}
 
-	private int fahrenheitToCelsius(int f)
+	private float fahrenheitToCelsius(int f)
 	{
-		return (int) Math.round(((f - 32) / 1.8));
+		return (float) ((f - 32) / 1.8);
 	}
 
 	private boolean targetTempatureReached()

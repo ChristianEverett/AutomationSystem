@@ -33,11 +33,18 @@ public class Processor extends Thread
 {
 	private static Processor singleton = null;
 	private AtomicBoolean processorRunning = new AtomicBoolean(false);
+	
+	//Background processor data structures
 	private LinkedBlockingQueue<Action> processingQueue = new LinkedBlockingQueue<>(100_000);
-	private TaskExecutorService taskService = new TaskExecutorService(2);
 	private HashMap<String, Device> deviceMap = new HashMap<>();
+	
+	//Background processor services
+	private TaskExecutorService taskService = new TaskExecutorService(2);
 	private PersistenceManager persistenceManager = null;
 	private TimeActionProcessor timeActionProcessor = null;
+	
+	//Background processor tasks
+	private int databaseTask;
 
 	public static void createBackgroundProcessor() throws Exception
 	{
@@ -148,9 +155,9 @@ public class Processor extends Thread
 		return stateList;
 	}
 	
-	public Action getStateByDeviceName(String name)
+	public Device getDeviceByName(String name)
 	{
-		return deviceMap.get(name).getState();
+		return deviceMap.get(name);
 	}
 	
 	public TaskExecutorService getThreadExecutorService()
@@ -179,11 +186,12 @@ public class Processor extends Thread
 		timeActionProcessor.load(persistenceManager.loadTimers());
 		
 		Application.LOGGER.info("Scheduling Tasks");		
-		taskService.scheduleTask(() ->
+		databaseTask = taskService.scheduleTask(() ->
 		{
 			try
 			{
 				persistenceManager.commit(deviceMap);
+				persistenceManager.commit(timeActionProcessor.retrieveAllTimedActions());
 			}
 			catch (Throwable e)
 			{
@@ -208,6 +216,8 @@ public class Processor extends Thread
 		{
 			if(processorRunning.get())
 				this.interrupt();
+			Application.LOGGER.info("Stopping all background tasks");
+			taskService.cancelAllTasks();
 			//Shutdown all devices and save their state
 			Application.LOGGER.info("Saving Device States and shutting down");
 			saveAndCloseAllDevices();
@@ -221,7 +231,5 @@ public class Processor extends Thread
 		{
 			Application.LOGGER.info("System has been shutdown.");
 		}    
-	}
-
-	
+	}	
 }

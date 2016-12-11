@@ -29,6 +29,7 @@ import com.thermostat.ThermostatMode;
  */
 public class TempatureHandler implements HttpHandler
 {
+	private static final String POST = "POST";
 	Thermostat thermostat = Thermostat.getInstance();
 	
 	@Override
@@ -39,7 +40,7 @@ public class TempatureHandler implements HttpHandler
 			String urlEncodedResponseBody;
 			String s = httpExchange.getRequestMethod();
 			
-			if (httpExchange.getRequestMethod().equalsIgnoreCase("POST"))
+			if (httpExchange.getRequestMethod().equalsIgnoreCase(POST))
 			{
 				String requestBody = "";
 				Scanner input = new Scanner(new BufferedInputStream(httpExchange.getRequestBody()));
@@ -96,7 +97,7 @@ public class TempatureHandler implements HttpHandler
 	
 	private ThermostatSetting extractAndValidateTempature(List<NameValuePair> params)
 	{
-		int temp = thermostat.getTargetTemp();
+		float temp = thermostat.getTargetTemp();
 		ThermostatMode temp_mode = ThermostatMode.OFF_MODE;
 		
 		for(NameValuePair pair : params)
@@ -104,7 +105,7 @@ public class TempatureHandler implements HttpHandler
 			switch (pair.getName())
 			{
 			case QueryParams.TARGET_TEMP:
-				temp = Integer.parseInt(pair.getValue());
+				temp = Float.parseFloat(pair.getValue());
 				break;
 			case QueryParams.TARGET_MODE:
 				temp_mode = ThermostatMode.valueOf(pair.getValue().toUpperCase());

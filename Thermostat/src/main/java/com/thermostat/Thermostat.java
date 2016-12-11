@@ -24,13 +24,13 @@ public class Thermostat
 	private ScheduledExecutorService exec = Executors.newSingleThreadScheduledExecutor();
 	private static Thermostat singlton = null;
 
-	private int targetTemp = -1;
-	private int currentTemp = -1;
+	private float targetTemp = -1;
+	private float currentTemp = -1;
 
 	private ThermostatMode currentMode = ThermostatMode.OFF_MODE;
 	private ThermostatMode targetMode = ThermostatMode.OFF_MODE;
 
-	private int currentHumidity = -1;
+	private float currentHumidity = -1;
 
 	private GpioPinDigitalOutput FAN;
 	private GpioPinDigitalOutput COMPRESSOR;
@@ -63,7 +63,7 @@ public class Thermostat
 
 	public void performAction(ThermostatSetting setting)
 	{
-		int temp = setting.getTemp();
+		float temp = setting.getTemp();
 		ThermostatMode newMode = setting.getMode();
 
 		this.targetTemp = temp;
@@ -72,7 +72,10 @@ public class Thermostat
 
 	private void checkStatus()
 	{
-		this.currentTemp = getAccurateTempature();
+		SensorReading reading = readSensor();
+		this.currentTemp = reading.getTempature();
+		this.currentHumidity = reading.getHumidity();
+		
 
 		if (!isInDelayPeriod || targetMode.equals(ThermostatMode.OFF_MODE))
 		{
@@ -143,32 +146,6 @@ public class Thermostat
 		}
 	}
 
-	/**
-	 * @return Accruate Tempature
-	 */
-	private int getAccurateTempature()
-	{
-		int temp;
-
-		SensorReading reading = readSensor();
-
-		temp = (int) Math.round(reading.getTempature());
-
-		// Read again for accuracy
-		if (temp != currentTemp)
-		{
-			do
-			{
-				reading = readSensor();
-				temp = (int) Math.round(reading.getTempature());
-			} while (((currentTemp - temp) / currentTemp) * 100 >= 10 && currentTemp != -1);
-		}
-
-		currentHumidity = (int) reading.getHumidity();
-
-		return temp;
-	}
-
 	private void turnOff()
 	{
 		if (currentMode != ThermostatMode.OFF_MODE)
@@ -203,17 +180,17 @@ public class Thermostat
 		return targetMode;
 	}
 
-	public int getTempature()
+	public float getTempature()
 	{
 		return currentTemp;
 	}
 
-	public int getTargetTemp()
+	public float getTargetTemp()
 	{
 		return targetTemp;
 	}
 
-	public int getHumidity()
+	public float getHumidity()
 	{
 		return currentHumidity;
 	}
@@ -288,9 +265,9 @@ public class Thermostat
 	public static class ThermostatSetting
 	{
 		private final ThermostatMode mode;
-		private final int temp;
+		private final float temp;
 
-		public ThermostatSetting(ThermostatMode mode, int temp)
+		public ThermostatSetting(ThermostatMode mode, float temp)
 		{
 			super();
 			this.mode = mode;
@@ -308,7 +285,7 @@ public class Thermostat
 		/**
 		 * @return the temp
 		 */
-		public int getTemp()
+		public float getTemp()
 		{
 			return temp;
 		}

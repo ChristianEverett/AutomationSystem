@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import com.pi.Application;
@@ -75,34 +76,6 @@ class PersistenceManager
 	/**
 	 * Populate CrudRepository from States table
 	 */
-//	public Map<String, Device> loadSavedStates()
-//	{
-//		Map<String, Device> deviceMap = new HashMap<>();
-//		
-//		try
-//		{
-//			ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
-//			
-//			while(result.next())
-//			{
-//				Action action = new Action(result.getString(STATE_TABLE_COLUMNS.DEVICE), result.getString(STATE_TABLE_COLUMNS.DATA));
-//			
-//				Device device = deviceMap.get(action.getDevice());
-//				
-//				if(device != null)
-//					device.performAction(action);
-//			}
-//			
-//			result.close();
-//		}
-//		catch (SQLException e)
-//		{
-//			Application.LOGGER.severe(e.getMessage());
-//		}
-//		
-//		return deviceMap;
-//	}
-	
 	public void loadSavedStates(HashMap<String, Device> deviceMap) throws SQLException
 	{
 		ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
@@ -155,28 +128,31 @@ class PersistenceManager
 	}
 	
 	public void commit(Map<String, Device> deviceMap) throws SQLException
-	{//TODO
-//		Set<Long> timersIDs = timerRepository.getAllKeys();
-//		Set<String> devices = deviceMap.keySet();
-//
-//		dbHandler.clearTable(TABLES.TIMER_TABLE);
-//		dbHandler.clearTable(TABLES.STATES_TABLE);
-//
-//		for(Long id : timersIDs)
-//		{	
-//			TimedAction timer = timerRepository.get(id);
-//			
-//			dbHandler.INSERT(TABLES.TIMER_TABLE, Long.toString(id), toMySqlString(timer.getTime()), 
-//					"false", toMySqlString(timer.getAction().getDevice()), toMySqlString(timer.getAction().getData()));
-//		}
-//		
-//		for(String deviceName : devices)
-//		{
-//			Device device = deviceMap.get(deviceName);
-//
-//			if(device != null)
-//				dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(deviceName), toMySqlString(device.getState().getData()));
-//		}
+	{
+		Set<String> devices = deviceMap.keySet();
+
+		dbHandler.clearTable(TABLES.STATES_TABLE);
+		
+		for(String deviceName : devices)
+		{
+			Device device = deviceMap.get(deviceName);
+
+			if(device != null)
+				dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(deviceName), toMySqlString(device.getState().getData()));
+		}
+	}
+	
+	public void commit(Collection<Entry<Integer, TimedAction>> timers) throws SQLException
+	{
+		dbHandler.clearTable(TABLES.TIMER_TABLE);
+		
+		for(Entry<Integer, TimedAction> keyValue : timers)
+		{	
+			TimedAction timer = keyValue.getValue();
+			
+			dbHandler.INSERT(TABLES.TIMER_TABLE, Long.toString(keyValue.getKey()), toMySqlString(timer.getTime()), 
+					"false", toMySqlString(timer.getAction().getDevice()), toMySqlString(timer.getAction().getData()));
+		}
 	}
 	
 	private String toMySqlString(String string)
@@ -189,7 +165,7 @@ class PersistenceManager
 		dbHandler.close();
 	}
 	
-	private interface TABLES//TODO
+	private interface TABLES
 	{
 		public static final String DATABASE = "pidb";
 		public static final String USERS_TABLE = "users";

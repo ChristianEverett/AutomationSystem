@@ -42,9 +42,15 @@ public class TaskExecutorService
 		return id;
 	}
 	
-	public boolean cancelTask(Integer id)
+	public Future<?> cancelTask(Integer id)
 	{
-		return taskMap.remove(id).cancel(false);//TODO fix NullPointerException
+		Future<?> task = taskMap.remove(id);
+		
+		if(task == null)
+			throw new RuntimeException("Attempt to cancel task that does not exist");
+		
+		task.cancel(false);
+		return task;
 	}
 	
 	public void cancelAllTasks()

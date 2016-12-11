@@ -57,7 +57,7 @@ public class ActionController
 	{
 		try
 		{
-			Action action = PROCESSOR.getStateByDeviceName(deviceName);
+			Action action = PROCESSOR.getDeviceByName(deviceName).getState();
 			
 			if(action == null)
 				response.setStatus(404);
