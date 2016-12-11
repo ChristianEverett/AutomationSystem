@@ -197,7 +197,7 @@ public class Processor extends Thread
 			{
 				Application.LOGGER.severe(e.getMessage());
 			}
-		}, 1, 2, TimeUnit.HOURS);	
+		}, 1L, 2L, TimeUnit.HOURS);	
 	}
 	
 	/**

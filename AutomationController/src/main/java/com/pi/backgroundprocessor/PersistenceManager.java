@@ -108,11 +108,10 @@ class PersistenceManager
 			while(result.next())
 			{
 				String time = result.getString(TIMER_TABLE_COLUMNS.TIME);
-				boolean evaluated = false;
 				String command = result.getString(TIMER_TABLE_COLUMNS.COMMAND);
 				String data = result.getString(TIMER_TABLE_COLUMNS.DATA);
 				
-				TimedAction timer = new TimedAction(time, evaluated, new Action(command, data));
+				TimedAction timer = new TimedAction(time, new Action(command, data));
 				
 				timerList.add(timer);
 			}

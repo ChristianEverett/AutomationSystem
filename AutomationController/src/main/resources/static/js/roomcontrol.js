@@ -57,7 +57,7 @@ $(document).ready(function ()
             outletSwitchArray[x].OFF.button().click(onOutletButtonClick);
         }
 
-        setInterval(function(){GET_STATES(refreshPage);}, 20000);
+        setInterval(function(){GET_STATES(refreshPage);}, 10000);
     })();
 
     function onLockUnlockButtonClick(event)

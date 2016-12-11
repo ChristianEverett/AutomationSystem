@@ -28,7 +28,7 @@ public class TempatureSensor extends Device
 {
 	private Connection httpConnection;
 	private String location = "";
-	private int tempatureReadingTask;
+	private Integer tempatureReadingTask;
 
 	private int sensorTempature = -1;
 	private int sensorHumidity = -1;
@@ -64,7 +64,7 @@ public class TempatureSensor extends Device
 				Application.LOGGER.severe(e.getClass() + " - " + e.getMessage());
 			}
 
-		}, 5, 30, TimeUnit.SECONDS);
+		}, 5L, 30L, TimeUnit.SECONDS);
 	}
 
 	@Override

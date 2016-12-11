@@ -13,7 +13,6 @@ import com.google.common.base.Objects;
 public class TimedAction
 {
 	private String time;
-	private boolean evaluated;
 	private Action action;
 	
 	public TimedAction()
@@ -21,10 +20,9 @@ public class TimedAction
 		
 	}
 	
-	public TimedAction(String time, boolean evaluated, Action action)
+	public TimedAction(String time, Action action)
 	{
 		this.time = time;
-		this.evaluated = evaluated;
 		this.action = action;
 	}
 	
@@ -35,14 +33,6 @@ public class TimedAction
 	public void setTime(String time)
 	{
 		this.time = time;
-	}
-	public boolean getEvaluated()
-	{
-		return evaluated;
-	}
-	public void setEvaluated(boolean evaluated)
-	{
-		this.evaluated = evaluated;
 	}
 	public Action getAction()
 	{

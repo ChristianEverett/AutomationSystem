@@ -85,7 +85,6 @@ function POST_TIMER(time, device, data, callback)
             data:JSON.stringify(
                 {
                     "time": time,
-                    "evaluated": "false",
                     "action":
                     {
                         "device": device,
@@ -112,7 +111,6 @@ function CHANGE_TIMER(id, time, device, data, callback)
             data:JSON.stringify(
                 {
                     "time": time,
-                    "evaluated": "false",
                     "action":
                     {
                         "device": device,

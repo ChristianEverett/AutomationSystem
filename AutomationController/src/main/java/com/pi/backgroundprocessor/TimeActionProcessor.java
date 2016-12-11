@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.pi.Application;
-import com.pi.infrastructure.UniqueMultiMap;
+import com.pi.infrastructure.TaskMap;
 import com.pi.model.TimedAction;
 
 /**
@@ -21,10 +21,9 @@ import com.pi.model.TimedAction;
 public class TimeActionProcessor
 {
 	private static TimeActionProcessor singlton = null;
-	private int timerEvaluatorTask = -1;
 	private static Processor bgp = null;
-	//Map hours to groups of TimedActions
-	private UniqueMultiMap<Integer, TimedAction> hourToTimersMap = new UniqueMultiMap<>();
+
+	private TaskMap<TimedAction> timerMap = new TaskMap<>();
 
 	public static void createTimeActionProcessor(Processor bgp) throws Exception
 	{
@@ -37,98 +36,91 @@ public class TimeActionProcessor
 	
 	public static TimeActionProcessor getTimeActionProcessor()
 	{
-		
 		return singlton;
 	}
 	
 	private TimeActionProcessor()
 	{
-		timerEvaluatorTask = bgp.getThreadExecutorService().scheduleTask(() ->
-		{
-			try
-			{
-				timerEvaluator();
-			}
-			catch (Throwable e)
-			{
-				Application.LOGGER.severe(e.getMessage());
-			}
-		}, 1, 2, TimeUnit.SECONDS);
+		
 	}
 	
-	private void timerEvaluator()
-	{//TODO improve
-		int day = Calendar.getInstance().get(Calendar.DAY_OF_WEEK);
-		int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+	private Integer scheduleTimer(TimedAction timedAction)
+	{
+		int second = Calendar.getInstance().get(Calendar.SECOND);
 		int minute = Calendar.getInstance().get(Calendar.MINUTE);
+		int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
+		int day = Calendar.getInstance().get(Calendar.DAY_OF_WEEK);
 		
-		//set hour for day divide when reseting timers during 11:00pm
-		int previousHour = ((hour == 0) ? 24 : hour) - 1;
+		Long initalDelay = (Math.abs(hour - timedAction.getHour()) * 3600L) 
+				         + (Math.abs(minute - timedAction.getMinute()) * 60L);
 		
-		//Collection<TimedAction> timers = hourToTimersMap.get(hour);
-		Collection<Entry<Integer, TimedAction>> timers = hourToTimersMap.getAllValues();
-
-		if (timers != null)
-		{
-			for (Entry<Integer, TimedAction> timedAction2 : timers)
-			{
-				TimedAction timedAction = timedAction2.getValue();
-				if (timedAction.getMinute() == minute && timedAction.getHour() == hour && !timedAction.getEvaluated())
-				{
-					bgp.scheduleAction(timedAction.getAction());
-					timedAction.setEvaluated(true);
-					Application.LOGGER.info("Timer Triggered: " + timedAction.getAction().getDevice() + " Time: " + timedAction.getTime());
-				}
-				else if (timedAction.getHour() == previousHour)
-				{
-					timedAction.setEvaluated(false);
-				}
-			} 
-		}
+		TimerRunnable task = new TimerRunnable(timedAction);
+		return bgp.getThreadExecutorService().scheduleTask(task, initalDelay, 60L * 60L * 24L, TimeUnit.SECONDS);
 	}
 	
 	public synchronized void load(TimedAction timedAction)
 	{
-		hourToTimersMap.put(timedAction.getHour(), timedAction);
+		timerMap.put(timedAction, scheduleTimer(timedAction));
 	}
 	
 	public synchronized void load(Collection<TimedAction> timedActions)
 	{
 		for(TimedAction timedAction : timedActions)
 		{
-			hourToTimersMap.put(timedAction.getHour(), timedAction);
+			timerMap.put(timedAction, scheduleTimer(timedAction));
 		}
 	}
 	
 	public TimedAction getTimedActionByID(Integer id)
 	{
-		return hourToTimersMap.getByHash(id);	
+		return timerMap.get(id);	
 	}
 	
 	public Collection<Entry<Integer, TimedAction>> retrieveAllTimedActions()
 	{
-		return hourToTimersMap.getAllValues();
+		return timerMap.getAllValues();
 	}
 	
 	public boolean updateTimedActionByID(Integer id, TimedAction timedAction)
 	{
-		return hourToTimersMap.updateByHash(id, timedAction);
+		bgp.getThreadExecutorService().cancelTask(timerMap.getTaskID(id));
+		return timerMap.update(id, timedAction, scheduleTimer(timedAction));
 	}
 	
 	public TimedAction delete(Integer id)
-	{
-		return hourToTimersMap.delete(id);
+	{	
+		bgp.getThreadExecutorService().cancelTask(timerMap.getTaskID(id));
+		return timerMap.delete(id);
 	}
 	
 	public void deleteAll()
 	{
-		hourToTimersMap.clear();
+		timerMap.getAllTaskIDs().forEach((taskID) -> 
+		{
+			bgp.getThreadExecutorService().cancelTask(taskID);
+		});
+		timerMap.clear();
 	}
 	
 	public void shutdown()
 	{
-		bgp.getThreadExecutorService().cancelTask(timerEvaluatorTask);
-		hourToTimersMap.clear();
+		deleteAll();
 		singlton = null;
+	}
+	
+	class TimerRunnable implements Runnable
+	{
+		private TimedAction timedAction = null;
+		
+		public TimerRunnable(TimedAction timedAction)
+		{
+			this.timedAction = timedAction;
+		}
+
+		@Override
+		public void run()
+		{
+			bgp.scheduleAction(timedAction.getAction());			
+		}
 	}
 }

@@ -58,12 +58,12 @@ public class ThermostatController extends Device
 	private final int MIN_TEMP;
 
 	private AtomicBoolean isTurnOffDelayEnabled = new AtomicBoolean(false);
-	private int turnOffDelay;
+	private long turnOffDelay;
 	private boolean thermostatDisconnected = false;
 
-	public ThermostatController(String name, String url, String sensorDevice, int maxTemp, int mintemp, int turnOffDelay)
+	public ThermostatController(String name, String url, String sensorDevice, int maxTemp, int mintemp, long turnOffDelay)
 			throws IOException
-	{//TODO redesign class
+	{
 		super(name);
 		httpClient = new HttpClient(url);
 		this.sensorDevice = sensorDevice;
@@ -107,7 +107,7 @@ public class ThermostatController extends Device
 				thermostatDisconnected = true;
 				Application.LOGGER.severe(e.getClass() + " - " + e.getMessage());
 			}
-		}, 5, 15, TimeUnit.SECONDS);
+		}, 5L, 15L, TimeUnit.SECONDS);
 	}
 
 	@Override

@@ -39,7 +39,7 @@ $(document).ready(function ()
         setInterval(function ()
         {
             GET_STATES(refreshPage);
-        }, 20000);
+        }, 10000);
     }());
 
     function unSelectModeButtons()

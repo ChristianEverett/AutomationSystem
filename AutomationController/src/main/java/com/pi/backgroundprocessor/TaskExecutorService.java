@@ -26,12 +26,12 @@ public class TaskExecutorService
 		executorService = Executors.newScheduledThreadPool(threads);
 	}
 	
-	public Future<?> scheduleTask(Runnable task, long delay, TimeUnit unit)
+	public Future<?> scheduleTask(Runnable task, Long delay, TimeUnit unit)
 	{
 		return executorService.schedule(task, delay, unit);
 	}
 	
-	public int scheduleTask(Runnable task, long delay, long interval, TimeUnit unit)
+	public Integer scheduleTask(Runnable task, Long delay, Long interval, TimeUnit unit)
 	{
 		Future<?> scheduledTask = executorService.scheduleWithFixedDelay(task, delay, interval, unit);
 		
