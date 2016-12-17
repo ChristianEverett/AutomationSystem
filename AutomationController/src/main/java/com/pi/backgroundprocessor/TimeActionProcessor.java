@@ -51,8 +51,12 @@ public class TimeActionProcessor
 		int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
 		int day = Calendar.getInstance().get(Calendar.DAY_OF_WEEK);
 		
-		Long initalDelay = (Math.abs(hour - timedAction.getHour()) * 3600L) 
-				         + (Math.abs(minute - timedAction.getMinute()) * 60L);
+		long currentTimeInSeconds = (hour * 3600L) + (minute * 60L);
+		long futureTimeInSeconds = (timedAction.getHour() * 3600L) + (timedAction.getMinute() * 60L);
+		long initalDelay = futureTimeInSeconds - currentTimeInSeconds;
+		
+		if(initalDelay < 0)
+			initalDelay = 86_400 + initalDelay;
 		
 		TimerRunnable task = new TimerRunnable(timedAction);
 		return bgp.getThreadExecutorService().scheduleTask(task, initalDelay, 60L * 60L * 24L, TimeUnit.SECONDS);

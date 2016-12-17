@@ -32,7 +32,7 @@ public class TaskMap<V>
 	public boolean put(V value, Integer task)
 	{
 		int hash = value.hashCode();
-		if(hashToValueMap.get(hash) != null)
+		if(hashToValueMap.get(hash) == null)
 		{
 			hashToValueMap.put(hash, value);
 			hashToTaskMap.put(hash, task);
@@ -80,7 +80,7 @@ public class TaskMap<V>
 		{
 			Entry<Integer, V> element = iter.next();
 			
-			valueCollection.add(new AbstractMap.SimpleEntry<Integer, V>(element.hashCode(), element.getValue()));
+			valueCollection.add(new AbstractMap.SimpleEntry<Integer, V>(element.getKey(), element.getValue()));
 		}
 		
 		return valueCollection;

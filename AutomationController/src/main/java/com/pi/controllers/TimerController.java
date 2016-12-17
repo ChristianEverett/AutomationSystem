@@ -61,7 +61,7 @@ public class TimerController
 		bgp.getTimeActionProcessor().updateTimedActionByID(id, timer);
 	}
 	
-	@RequestMapping(value = (PATH + "/delete/{id}"), method = RequestMethod.DELETE)
+	@RequestMapping(value = (PATH + "/{id}"), method = RequestMethod.DELETE)
 	public void deleteTimer(HttpServletRequest request, HttpServletResponse response, @PathVariable("id") Integer id)
 	{
 		if(bgp.getTimeActionProcessor().delete(id) == null)
