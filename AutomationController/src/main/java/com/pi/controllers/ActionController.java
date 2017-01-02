@@ -3,6 +3,7 @@
  */
 package com.pi.controllers;
 
+import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Map.Entry;
 
@@ -18,7 +19,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.Application;
 import com.pi.backgroundprocessor.Processor;
+import com.pi.infrastructure.Device;
 import com.pi.model.Action;
+import com.pi.model.DeviceState;
 
 /**
  * @author Christian Everett
@@ -37,11 +40,11 @@ public class ActionController
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
-	public @ResponseBody Collection<Action> getAllStates(HttpServletResponse response)
+	public @ResponseBody Collection<DeviceState> getAllStates(HttpServletResponse response)
 	{
 		try
 		{
-			return PROCESSOR.getStates();
+			return Device.getStates();
 		}
 		catch (Exception e)
 		{
@@ -53,16 +56,42 @@ public class ActionController
 	}
 	
 	@RequestMapping(value = (PATH + "/{name}"), method = RequestMethod.GET)
-	public @ResponseBody Action getState(HttpServletResponse response, @PathVariable("name") String deviceName)
+	public @ResponseBody DeviceState getState(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String deviceName)
+	{
+		return getState(response, deviceName);
+	}
+	
+	@RequestMapping(value = (PATH + "/AC/{name}"), method = RequestMethod.GET)
+	public void getStateForAutomationClient(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String deviceName)
+	{
+		try(ObjectOutputStream output = new ObjectOutputStream(response.getOutputStream()))
+		{
+			output.writeObject(getState(response, deviceName));
+			output.flush();
+		}
+		catch (Exception e)
+		{
+			response.setStatus(503);
+			Application.LOGGER.severe(e.getMessage());
+		}
+	}
+	
+	@RequestMapping(value = (PATH + "/add"), method = RequestMethod.POST)
+	public void addAction(HttpServletRequest request, HttpServletResponse response, @RequestBody Action action)
+	{
+		PROCESSOR.scheduleAction(action);
+	}
+	
+	private DeviceState getState(HttpServletResponse response, String deviceName)
 	{
 		try
 		{
-			Action action = PROCESSOR.getDeviceByName(deviceName).getState();
+			DeviceState state = Device.getDeviceState(deviceName);
 			
-			if(action == null)
+			if(state == null)
 				response.setStatus(404);
 			
-			return action;
+			return state;
 		}
 		catch (Exception e)
 		{
@@ -71,11 +100,5 @@ public class ActionController
 		}
 		
 		return null;
-	}
-	
-	@RequestMapping(value = (PATH + "/add"), method = RequestMethod.POST)
-	public void addAction(HttpServletRequest request, HttpServletResponse response, @RequestBody Action action)
-	{
-		PROCESSOR.scheduleAction(action);
 	}
 }

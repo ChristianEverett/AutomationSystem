@@ -13,6 +13,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.Future;
 
+import com.pi.backgroundprocessor.TaskExecutorService.Task;
+
 /**
  * @author Christian Everett
  * @param <K>
@@ -22,14 +24,14 @@ import java.util.concurrent.Future;
 public class TaskMap<V>
 {
 	private HashMap<Integer, V> hashToValueMap = new HashMap<>();
-	private HashMap<Integer, Integer> hashToTaskMap = new HashMap<>();
+	private HashMap<Integer, Task> hashToTaskMap = new HashMap<>();
 
 	public TaskMap()
 	{
 		super();
 	}
 
-	public boolean put(V value, Integer task)
+	public boolean put(V value, Task task)
 	{
 		int hash = value.hashCode();
 		if(hashToValueMap.get(hash) == null)
@@ -47,7 +49,7 @@ public class TaskMap<V>
 		return hashToValueMap.get(key);
 	}
 
-	public Integer getTaskID(Integer hash)
+	public Task getTaskID(Integer hash)
 	{
 		return hashToTaskMap.get(hash);
 	}
@@ -64,7 +66,7 @@ public class TaskMap<V>
 		return value;
 	}
 
-	public boolean update(Integer hash, V item, Integer task)
+	public boolean update(Integer hash, V item, Task task)
 	{
 		if(delete(hash) == null)
 			return false;
@@ -86,9 +88,9 @@ public class TaskMap<V>
 		return valueCollection;
 	}
 	
-	public Collection<Integer> getAllTaskIDs()
+	public Collection<Task> getAllTaskIDs()
 	{
-		Collection<Integer> taskCollection = new ArrayList<>();
+		Collection<Task> taskCollection = new ArrayList<>();
 		
 		hashToTaskMap.entrySet().forEach((item) -> 
 		{

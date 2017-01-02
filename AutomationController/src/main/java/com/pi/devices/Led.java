@@ -8,13 +8,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 
 import com.pi.Application;
 import com.pi.infrastructure.Device;
+import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.HttpClient;
 import com.pi.model.Action;
+import com.pi.model.DeviceState;
+import com.pi4j.wiringpi.Gpio;
+import com.pi4j.wiringpi.SoftPwm;
 
 
 /**
@@ -29,26 +36,19 @@ public class Led extends Device
 
 	private Color currentColor = new Color(0, 0, 0);
 	
-	public static Device create()
-	{
-		return null;
-	}
-	
 	public Led(String name, int red, int green, int blue) throws IOException
 	{
 		super(name);
 		Process pr = rt.exec("sudo pigpiod");
 		
-		this.RED_PIN = red;
-		this.GREEN_PIN = green;
-		this.BLUE_PIN = blue;
+		this.RED_PIN = pins.get(red).getBCM_Pin();
+		this.GREEN_PIN = pins.get(green).getBCM_Pin();
+		this.BLUE_PIN = pins.get(blue).getBCM_Pin();
 	}
 
 	@Override
 	public void performAction(Action action)
 	{
-		if(isClosed)
-			return;
 		try
 		{
 			int red = 0, green = 0, blue = 0;
@@ -71,7 +71,14 @@ public class Led extends Device
 					break;
 				}
 			}
-		
+			boolean testSwitch = false;
+			if (testSwitch)
+			{
+				Gpio.wiringPiSetup();
+				SoftPwm.softPwmCreate(23, 20, 100);
+				SoftPwm.softPwmWrite(23, 40);
+			}
+			//TODO use better strategy
 			rt.exec("pigs p " + RED_PIN + " " + (255 - red));
 			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green));
 			rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue));
@@ -92,7 +99,6 @@ public class Led extends Device
 			rt.exec("pigs p " + RED_PIN + " " + (255 - 0) + " &");
 			rt.exec("pigs p " + GREEN_PIN + " " + (255 - 0) + " &");
 			rt.exec("pigs p " + BLUE_PIN + " " + (255 - 0) + " &");
-			isClosed = true;
 		}
 		catch (IOException e)
 		{
@@ -101,17 +107,79 @@ public class Led extends Device
 	}
 
 	@Override
-	public Action getState()
+	public DeviceState getState()
 	{
-		if(isClosed)
-			return null;
+		return new LedState(name, currentColor);
+	}
+	
+	@Override
+	public String getType()
+	{
+		return DeviceType.LED;
+	}
+	
+	public static class LedState extends DeviceState
+	{
+		int red, green, blue;
 		
-		List<NameValuePair> params = new ArrayList<>();
-		params.add(new BasicNameValuePair(QueryParams.RED, String.valueOf(currentColor.getRed())));
-		params.add(new BasicNameValuePair(QueryParams.GREEN, String.valueOf(currentColor.getGreen())));
-		params.add(new BasicNameValuePair(QueryParams.BLUE, String.valueOf(currentColor.getBlue())));
-		
-		return new Action(name, HttpClient.URLEncodeData(params));
+		public LedState(String deviceName, Color color)
+		{
+			super(deviceName);
+			red = color.getRed();
+			green = color.getGreen();
+			blue = color.getBlue();
+		}
+
+		public int getRed()
+		{
+			return red;
+		}
+
+		public int getGreen()
+		{
+			return green;
+		}
+
+		public int getBlue()
+		{
+			return blue;
+		}
+
+		@Override
+		public String getType()
+		{
+			return DeviceType.LED;
+		}
+	}
+	
+	@XmlRootElement(name = DEVICE)
+	public static class LedConfig extends DeviceConfig
+	{
+		int red, green, blue;
+
+		@Override
+		public Device buildDevice() throws IOException
+		{
+			return new Led(name, red, green, blue);
+		}
+
+		@XmlElement
+		public void setRed(int red)
+		{
+			this.red = red;
+		}
+
+		@XmlElement
+		public void setGreen(int green)
+		{
+			this.green = green;
+		}
+
+		@XmlElement
+		public void setBlue(int blue)
+		{
+			this.blue = blue;
+		}
 	}
 	
 	private interface QueryParams

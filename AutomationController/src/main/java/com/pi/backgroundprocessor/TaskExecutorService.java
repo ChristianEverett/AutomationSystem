@@ -5,7 +5,6 @@ package com.pi.backgroundprocessor;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -26,12 +25,12 @@ public class TaskExecutorService
 		executorService = Executors.newScheduledThreadPool(threads);
 	}
 	
-	public Future<?> scheduleTask(Runnable task, Long delay, TimeUnit unit)
+	public Task scheduleTask(Runnable task, Long delay, TimeUnit unit)
 	{
-		return executorService.schedule(task, delay, unit);
+		return new Task(-1, executorService.schedule(task, delay, unit));
 	}
 	
-	public Integer scheduleTask(Runnable task, Long delay, Long interval, TimeUnit unit)
+	public Task scheduleTask(Runnable task, Long delay, Long interval, TimeUnit unit)
 	{
 		Future<?> scheduledTask = executorService.scheduleWithFixedDelay(task, delay, interval, unit);
 		
@@ -39,18 +38,7 @@ public class TaskExecutorService
 		
 		taskMap.put(id, scheduledTask);
 		
-		return id;
-	}
-	
-	public Future<?> cancelTask(Integer id)
-	{
-		Future<?> task = taskMap.remove(id);
-		
-		if(task == null)
-			throw new RuntimeException("Attempt to cancel task that does not exist");
-		
-		task.cancel(false);
-		return task;
+		return new Task(id, scheduledTask);
 	}
 	
 	public void cancelAllTasks()
@@ -61,5 +49,35 @@ public class TaskExecutorService
 		}
 		
 		taskMap.clear();
+	}
+	
+	public class Task
+	{
+		private Integer id;
+		private Future <?> task = null;
+		
+		public Task(Integer id, Future <?> task)
+		{
+			this.id = id;
+			this.task = task;
+		}
+		
+		public boolean isCancelled()
+		{
+			return task.isCancelled();
+		}
+		
+		public boolean cancel()
+		{
+			if(taskMap.remove(id) == null)
+				return false;
+			
+			return task.cancel(false);
+		}
+		
+		public boolean isDone()
+		{
+			return task.isDone();
+		}
 	}
 }

@@ -3,6 +3,7 @@
  */
 package com.pi.model;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
@@ -10,7 +11,7 @@ import java.util.Objects;
  *
  */
 
-public class Action
+public class Action implements Serializable
 {
 	private String device;
 	private String data;

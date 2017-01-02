@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import com.pi.Application;
+import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.TaskMap;
 import com.pi.model.TimedAction;
 
@@ -44,7 +45,7 @@ public class TimeActionProcessor
 		
 	}
 	
-	private Integer scheduleTimer(TimedAction timedAction)
+	private Task scheduleTimer(TimedAction timedAction)
 	{
 		int second = Calendar.getInstance().get(Calendar.SECOND);
 		int minute = Calendar.getInstance().get(Calendar.MINUTE);
@@ -87,21 +88,29 @@ public class TimeActionProcessor
 	
 	public boolean updateTimedActionByID(Integer id, TimedAction timedAction)
 	{
-		bgp.getThreadExecutorService().cancelTask(timerMap.getTaskID(id));
+		Task task = timerMap.getTaskID(id);
+		if(task == null)
+			return false;
+		task.cancel();
+		
 		return timerMap.update(id, timedAction, scheduleTimer(timedAction));
 	}
 	
 	public TimedAction delete(Integer id)
 	{	
-		bgp.getThreadExecutorService().cancelTask(timerMap.getTaskID(id));
+		Task task = timerMap.getTaskID(id);
+		if(task == null)
+			return null;
+		task.cancel();
+		
 		return timerMap.delete(id);
 	}
 	
 	public void deleteAll()
 	{
-		timerMap.getAllTaskIDs().forEach((taskID) -> 
+		timerMap.getAllTaskIDs().forEach((task) -> 
 		{
-			bgp.getThreadExecutorService().cancelTask(taskID);
+			task.cancel();
 		});
 		timerMap.clear();
 	}

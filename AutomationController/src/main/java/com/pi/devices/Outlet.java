@@ -5,9 +5,14 @@ package com.pi.devices;
 
 import java.io.IOException;
 
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+
 import com.pi.Application;
 import com.pi.infrastructure.Device;
+import com.pi.infrastructure.DeviceType;
 import com.pi.model.Action;
+import com.pi.model.DeviceState;
 
 
 /**
@@ -16,6 +21,7 @@ import com.pi.model.Action;
  */
 public class Outlet extends Device
 {
+	private int headerPin = -1;
 	private final int PULSELENGTH = 187;
 	private final int ON;
 	private final int OFF;
@@ -35,9 +41,6 @@ public class Outlet extends Device
 	@Override
 	public void performAction(Action action)
 	{
-		if(isClosed)
-			return;
-		
 		int code = Boolean.parseBoolean(action.getData())? ON : OFF;
 		
 		try
@@ -56,7 +59,6 @@ public class Outlet extends Device
 		try
 		{
 			sendIRSignal(OFF);
-			isClosed = true;
 		}
 		catch (IOException | InterruptedException e)
 		{
@@ -76,11 +78,66 @@ public class Outlet extends Device
 	}
 
 	@Override
-	public Action getState()
+	public DeviceState getState()
 	{
-		if(isClosed)
-			return null;
+		return new OutletState(name, state);
+	}
 
-		return new Action(name, String.valueOf(state));
+	@Override
+	public String getType()
+	{
+		return DeviceType.OUTLET;
+	}
+	
+	public static class OutletState extends DeviceState
+	{
+		private boolean deviceOn;
+		
+		public OutletState(String deviceName, boolean deviceOn)
+		{
+			super(deviceName);
+			this.deviceOn = deviceOn;
+		}
+
+		public boolean getDeviceOn()
+		{
+			return deviceOn;
+		}
+
+		@Override
+		public String getType()
+		{
+			return DeviceType.OUTLET;
+		}
+	}
+	
+	@XmlRootElement(name = DEVICE)
+	public static class OutletConfig extends DeviceConfig
+	{
+		int header, offCode, onCode;		
+		
+		@Override
+		public Device buildDevice() throws IOException
+		{
+			return new Outlet(name, header, onCode, offCode);
+		}
+
+		@XmlElement
+		public void setHeader(int header)
+		{
+			this.header = header;
+		}
+
+		@XmlElement
+		public void setOffCode(int offCode)
+		{
+			this.offCode = offCode;
+		}
+
+		@XmlElement
+		public void setOnCode(int onCode)
+		{
+			this.onCode = onCode;
+		}
 	}
 }

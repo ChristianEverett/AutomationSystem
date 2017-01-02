@@ -1,89 +1,105 @@
 <?xml version="1.0"?>
 <devices>
 	<device device-type="led" device-name="led1">
-		<red>13</red>
-		<green>19</green>
-		<blue>26</blue>
+		<red>33</red>
+		<green>35</green>
+		<blue>37</blue>
 	</device>
 	
 	<device device-type="led" device-name="led2">
-		<red>20</red>
-		<green>16</green>
-		<blue>21</blue>
+		<red>36</red>
+		<green>38</green>
+		<blue>40</blue>
 	</device>
 	
 	<device device-type="switch" device-name="switch2">
 		<header>7</header>
 	</device>
 	
-	<device device-type="temp_sensor" device-name="temp_sensor1">
-		<header>19</header>
+	<device device-type="weather_sensor" device-name="weather_sensor1">
 		<location>Nashua NH</location>
 	</device>
 	
-	<device device-type="thermostat" device-name="thermostat1">
+	<device device-type="temp_sensor" device-name="temp_sensor1">
+		<header>19</header>
+		<sensorType>11</sensorType>
+	</device>
+
+	<device device-type="remote_device" device-name="">
 		<url>http://10.0.0.105:8080</url>
-		<sensorDevice>temp_sensor1</sensorDevice>
-		<maxTempF>78</maxTempF>
-		<minTempF>60</minTempF>
-		<turnOffDelay>160</turnOffDelay>
+		<device device-type="temp_sensor" device-name="temp_sensor2">
+			<header>32</header>
+			<sensorType>22</sensorType>
+		</device>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet1">
+	<device device-type="remote_device" device-name="">
+		<url>http://10.0.0.105:8080</url>
+		<device device-type="thermostat" device-name="thermostat1">
+			<sensor>temp_sensor2</sensor>
+			<sensor>weather_sensor1</sensor>
+			<fan>36</fan>
+			<compressor>38</compressor>
+			<heat>40</heat>
+			<modeChangeDelay>160</modeChangeDelay>
+		</device>
+	</device>
+	
+	<device device-type="outlet" device-name="outlet6">
 		<header>8</header>
 		<onCode>5264691</onCode>
 		<offCode>5264700</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet2">
+	<device device-type="outlet" device-name="outlet7">
 		<header>8</header>
 		<onCode>5264835</onCode>
 		<offCode>5264844</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet3">
+	<device device-type="outlet" device-name="outlet8">
 		<header>8</header>
 		<onCode>5265155</onCode>
 		<offCode>5265164</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet4">
+	<device device-type="outlet" device-name="outlet9">
 		<header>8</header>
 		<onCode>5266691</onCode>
 		<offCode>5266700</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet5">
+	<device device-type="outlet" device-name="outlet10">
 		<header>8</header>
 		<onCode>5272835</onCode>
 		<offCode>5272844</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet6">
+	<device device-type="outlet" device-name="outlet1">
 		<header>8</header>
 		<onCode>4527411</onCode>
 		<offCode>4527420</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet7">
+	<device device-type="outlet" device-name="outlet2">
 		<header>8</header>
 		<onCode>4527555</onCode>
 		<offCode>4527564</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet8">
+	<device device-type="outlet" device-name="outlet3">
 		<header>8</header>
 		<onCode>4527875</onCode>
 		<offCode>4527884</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet9">
+	<device device-type="outlet" device-name="outlet4">
 		<header>8</header>
 		<onCode>4529411</onCode>
 		<offCode>4529420</offCode>
 	</device>
 	
-	<device device-type="outlet" device-name="outlet10">
+	<device device-type="outlet" device-name="outlet5">
 		<header>8</header>
 		<onCode>4535555</onCode>
 		<offCode>4535564</offCode>

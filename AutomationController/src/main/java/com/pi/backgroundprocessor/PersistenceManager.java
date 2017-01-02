@@ -9,6 +9,7 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -17,6 +18,7 @@ import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.MySQLHandler;
 import com.pi.model.Action;
+import com.pi.model.DeviceState;
 import com.pi.model.TimedAction;
 import static com.pi.infrastructure.PropertyManger.loadProperty;
 import static com.pi.infrastructure.PropertyManger.PropertyKeys;
@@ -76,21 +78,20 @@ class PersistenceManager
 	/**
 	 * Populate CrudRepository from States table
 	 */
-	public void loadSavedStates(HashMap<String, Device> deviceMap) throws SQLException
+	public List<Action> loadSavedStates() throws SQLException
 	{
+		List<Action> savedStates = new ArrayList<>();
 		ResultSet result = dbHandler.SELECT(stateStatement, "*", TABLES.STATES_TABLE, null);
 		
 		while(result.next())
 		{
 			Action action = new Action(result.getString(STATE_TABLE_COLUMNS.DEVICE), result.getString(STATE_TABLE_COLUMNS.DATA));
 		
-			Device device = deviceMap.get(action.getDevice());
-			
-			if(device != null)
-				device.performAction(action);
+			savedStates.add(action);
 		}
 		
 		result.close();
+		return savedStates;
 	}
 	
 	/**
@@ -126,19 +127,14 @@ class PersistenceManager
 		return timerList;
 	}
 	
-	public void commit(Map<String, Device> deviceMap) throws SQLException
+	public void commit(List<DeviceState> states) throws SQLException
 	{
-		Set<String> devices = deviceMap.keySet();
-
-		dbHandler.clearTable(TABLES.STATES_TABLE);
-		
-		for(String deviceName : devices)
-		{
-			Device device = deviceMap.get(deviceName);
-
-			if(device != null)
-				dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(deviceName), toMySqlString(device.getState().getData()));
-		}
+//		dbHandler.clearTable(TABLES.STATES_TABLE); TODO
+//		
+//		for(Action state : states)
+//		{
+//			dbHandler.INSERT(TABLES.STATES_TABLE, toMySqlString(state.getDevice()), toMySqlString(state.getData()));
+//		}
 	}
 	
 	public void commit(Collection<Entry<Integer, TimedAction>> timers) throws SQLException

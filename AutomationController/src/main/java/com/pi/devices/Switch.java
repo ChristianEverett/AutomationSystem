@@ -5,8 +5,13 @@ package com.pi.devices;
 
 import java.io.IOException;
 
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
+
 import com.pi.infrastructure.Device;
+import com.pi.infrastructure.DeviceType;
 import com.pi.model.Action;
+import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
 
@@ -17,6 +22,7 @@ import com.pi4j.io.gpio.PinState;
  */
 public class Switch extends Device
 {
+	private int headerPin = -1;
 	private final GpioPinDigitalOutput gpioPin;
 	
 	public Switch(String name, int headerPin) throws IOException
@@ -29,9 +35,6 @@ public class Switch extends Device
 	@Override
 	public void performAction(Action action)
 	{
-		if(isClosed)
-			return;
-		
 		gpioPin.setState(!Boolean.parseBoolean(action.getData()));
 	}
 
@@ -40,14 +43,57 @@ public class Switch extends Device
 	{
 		gpioPin.setState(PinState.HIGH);
 		gpioController.unprovisionPin(gpioPin);
-		isClosed = true;
 	}
 
 	@Override
-	public Action getState()
+	public DeviceState getState()
 	{
-		if(isClosed)
-			return null;
-		return new Action(name, String.valueOf(gpioPin.isLow()));
+		return new SwitchState(name, gpioPin.isLow());
+	}
+
+	@Override
+	public String getType()
+	{
+		return DeviceType.SWITCH;
+	}
+	
+	public static class SwitchState extends DeviceState
+	{
+		private boolean deviceOn;
+		
+		public SwitchState(String deviceName, boolean switchOn)
+		{
+			super(deviceName);
+			this.deviceOn = switchOn;
+		}
+
+		public boolean getDeviceOn()
+		{
+			return deviceOn;
+		}
+
+		@Override
+		public String getType()
+		{
+			return DeviceType.SWITCH;
+		}
+	}
+	
+	@XmlRootElement(name = DEVICE)
+	public static class SwitchConfig extends DeviceConfig
+	{
+		private int header;
+		
+		@Override
+		public Device buildDevice() throws IOException
+		{
+			return new Switch(name, header);
+		}
+	
+		@XmlElement
+		public void setHeader(int header)
+		{
+			this.header = header;
+		}
 	}
 }

@@ -10,6 +10,13 @@ function GET_STATE(device, callback)
             contentType: "application/json",
             dataType: "json",
             url: "/action/" + device,
+            headers: 
+            {
+            	//'Connection': 'keep-alive',
+            	'Cache-Control': 'no-cache, no-store, must-revalidate',
+            	'Pragma': 'no-cache',
+            	'Expires': '0'
+            },
             success: callback,
             error: function (xhr, status, error)
             {
@@ -27,6 +34,13 @@ function GET_STATES(callback)
             contentType: "application/json",
             dataType: "json",
             url: "/action",
+            headers: 
+            {
+            	//'Connection': 'keep-alive',
+            	'Cache-Control': 'no-cache, no-store, must-revalidate',
+            	'Pragma': 'no-cache',
+            	'Expires': '0'
+            },
             success: callback,
             error: function (xhr, status, error)
             {
@@ -43,6 +57,13 @@ function POST_ACTION(device, data, callback)
             type: "POST",
             contentType: "application/json",
             url: "/action/add",
+            headers: 
+            {
+            	//'Connection': 'keep-alive',
+            	'Cache-Control': 'no-cache, no-store, must-revalidate',
+            	'Pragma': 'no-cache',
+            	'Expires': '0'
+            },
             data:JSON.stringify(
                 {
                     "device": device,
@@ -65,6 +86,13 @@ function GET_TIMERS(callback)
             contentType: "application/json",
             dataType: "json",
             url: "/timer",
+            headers: 
+            {
+            	//'Connection': 'keep-alive',
+            	'Cache-Control': 'no-cache, no-store, must-revalidate',
+            	'Pragma': 'no-cache',
+            	'Expires': '0'
+            },
             success: callback,
             error: function (xhr, status, error)
             {

@@ -1,0 +1,5 @@
+#org.springsource.ide.eclipse.gradle.core.preferences.GradleProjectPreferences
+#Wed Dec 14 22:16:24 EST 2016
+build.family.org.gradle.tooling.model.eclipse.HierarchicalEclipseProject=;../AutomationController;
+org.springsource.ide.eclipse.gradle.linkedresources=
+org.springsource.ide.eclipse.gradle.rootprojectloc=

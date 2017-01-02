@@ -27,6 +27,10 @@ import static com.pi.infrastructure.PropertyManger.PropertyKeys;
  */
 public class DeviceLoader
 {
+	public static final String DEVICE_NAME = "device-name";
+	public static final String DEVICE_TYPE = "device-type";
+	public static final String DEVICE = "device";
+	
 	private static DeviceLoader singleton = null;
 	private Document xmlDocument = null;
 	
@@ -42,32 +46,19 @@ public class DeviceLoader
 		xmlDocument.getDocumentElement().normalize();
 	}
 	
-	public void populateDeviceMap(Map<String, Device> deviceMap)
+	public void loadDevices()
 	{
-		NodeList nodeList = xmlDocument.getElementsByTagName("device");
+		NodeList deviceList = xmlDocument.getElementsByTagName(DEVICE);
 		
-		for (int x = 0; x < nodeList.getLength(); x++)
+		for (int x = 0; x < deviceList.getLength(); x++)
 		{
-			Node node = nodeList.item(x);
+			Node node = deviceList.item(x);
 			
 			if(node.getNodeType() == Node.ELEMENT_NODE)
 			{
 				Element element = (Element) node;
-				
-				String type = element.getAttribute("device-type");
-				String name = element.getAttribute("device-name");
-				
-				try
-				{
-					Device device = Device.createNewDevice(name, type, element);
-					
-					if(device != null)
-						deviceMap.put(name, device);
-				}
-				catch (Exception e)
-				{
-					Application.LOGGER.severe("Error Loading Device: " + name + ". Exception: " + e.getMessage());
-				}
+							
+				Device.createNewDevice(element);
 			}
 		}
 	}

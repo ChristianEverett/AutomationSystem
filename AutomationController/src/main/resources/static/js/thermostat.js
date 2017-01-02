@@ -3,7 +3,9 @@
  */
 $(document).ready(function ()
 {
-    var device = "thermostat1";
+    var thermostat_device = "thermostat1";
+    var temperature_device = "temp_sensor2";
+    var weather_sensor = "weather_sensor1";
 
     var thermostatTempDiv = $("#comp-irhyydxlinlineContent");
     var thermostatHumidityDiv = $("#comp-irpookur1inlineContent");
@@ -22,6 +24,15 @@ $(document).ready(function ()
 
     var dontChangeTargetUI = false;
 
+    var outletSwitchArray = [
+        {ON: $("#comp-ix6pzzx0link"), OFF: $("#comp-ix6pzzwwlink")},
+        {ON: $("#comp-ix6pzzx6link"), OFF: $("#comp-ix6pzzx4link")},
+        {ON: $("#comp-ix6pzzxblink"), OFF: $("#comp-ix6pzzx9link")},
+        {ON: $("#comp-ix6pzzxe3link"), OFF: $("#comp-ix6pzzxd1link")},
+        {ON: $("#comp-ix6q2prblink"), OFF: $("#comp-ix6q2pr9link")},
+        {ON: $("#comp-irkzqrtz2link"), OFF: $("#comp-irkzqrtylink")}
+    ];
+    
     (function ()
     {
         GET_STATES(refreshPage);
@@ -32,9 +43,15 @@ $(document).ready(function ()
         heatButton.button().click(modeSelect);
         offButton.button().click(modeSelect);
 
-        //Tempature - Up, Down
-        upButton.button().click(tempatureSelect);
-        downButton.button().click(tempatureSelect);
+        //Temperature - Up, Down
+        upButton.button().click(temperatureSelect);
+        downButton.button().click(temperatureSelect);
+
+        for(var x = 0; x < outletSwitchArray.length; x++)
+        {
+            outletSwitchArray[x].ON.button().click(onOutletButtonClick);
+            outletSwitchArray[x].OFF.button().click(onOutletButtonClick);
+        }
 
         setInterval(function ()
         {
@@ -57,22 +74,22 @@ $(document).ready(function ()
         switch (this.id)
         {
             case fanButton.attr("id"):
-                POST_ACTION(device, "target_mode=" + fan_mode + "&target_temp=" + tempDisplayDiv.html().slice(0, -1), update);
+                POST_ACTION(thermostat_device, "target_mode=" + fan_mode + "&target_temp=" + tempDisplayDiv.html().slice(0, -1), update);
                 break;
             case acButton.attr("id"):
-                POST_ACTION(device, "target_mode=" + cool_mode + "&target_temp=" + tempDisplayDiv.html().slice(0, -1), update);
+                POST_ACTION(thermostat_device, "target_mode=" + cool_mode + "&target_temp=" + tempDisplayDiv.html().slice(0, -1), update);
                 break;
             case heatButton.attr("id"):
-                POST_ACTION(device, "target_mode=" + heat_mode + "&target_temp=" + tempDisplayDiv.html().slice(0, -1), update);
+                POST_ACTION(thermostat_device, "target_mode=" + heat_mode + "&target_temp=" + tempDisplayDiv.html().slice(0, -1), update);
                 break;
             case offButton.attr("id"):
-                POST_ACTION(device, "target_mode=" + off_mode + "&target_temp=" + tempDisplayDiv.html().slice(0, -1), update);
+                POST_ACTION(thermostat_device, "target_mode=" + off_mode + "&target_temp=" + tempDisplayDiv.html().slice(0, -1), update);
                 break;
             default:
         }
     }
 
-    function tempatureSelect(event)
+    function temperatureSelect(event)
     {
         dontChangeTargetUI = true;
         var split = tempDisplayDiv.html().slice(0, -1);
@@ -88,6 +105,32 @@ $(document).ready(function ()
         }
 
         tempDisplayDiv.html(split + "&#x2109");
+    }
+
+    function onOutletButtonClick(event)
+    {
+        for(var x = 0; x < outletSwitchArray.length; x++)
+            if(outletSwitchArray[x].ON.attr("id") == this.id || outletSwitchArray[x].OFF.attr("id") == this.id)
+                POST_ACTION("outlet" + (x + 1), (outletSwitchArray[x].ON.attr("id") == this.id), update);
+    }
+
+    function checkOutlet(name, isOn)
+    {
+        deviceNumber = parseInt(name.substring(6, name.length)) - 1;
+
+        if(deviceNumber > 4)
+            return;
+
+        if(isOn == "true" || isOn === true)
+        {
+            outletSwitchArray[deviceNumber].ON.css("background-color", "rgba(204, 204, 204, 1)");
+            outletSwitchArray[deviceNumber].OFF.css("background-color", "rgba(114, 114, 114, 1)");
+        }
+        else
+        {
+            outletSwitchArray[deviceNumber].OFF.css("background-color", "rgba(204, 204, 204, 1)");
+            outletSwitchArray[deviceNumber].ON.css("background-color", "rgba(114, 114, 114, 1)");
+        }
     }
 
     function update(result, status, xhr)
@@ -109,10 +152,15 @@ $(document).ready(function ()
                 thermostatModeDiv.html("Heat");
                 heatButton.css("background-color", "rgba(204, 204, 204, 1)");
             }
-            else
+            else if (this.data.search(off_mode) != -1)
             {
                 thermostatModeDiv.html("Off");
                 offButton.css("background-color", "rgba(204, 204, 204, 1)");
+            }
+            else
+            {
+                var json = jQuery.parseJSON(this.data);
+                checkOutlet(json.device, json.data);
             }
         }
 
@@ -125,53 +173,47 @@ $(document).ready(function ()
         {
             for (var index = 0; index < result.length; index++)
             {
-                var dataArray = result[index].data.split("&");
-
-                for (var x = 0; x < dataArray.length; x++)
+                if(result[index].deviceName == thermostat_device)
                 {
-                    var keyValuePair = dataArray[x].split("=");
+                    unSelectModeButtons();
 
-                    if (keyValuePair[0] == "target_mode" && !dontChangeTargetUI)
+                    switch (result[index].targetMode)
                     {
-                        unSelectModeButtons();
+                        case off_mode:
+                            thermostatModeDiv.html("Off");
+                            offButton.css("background-color", "rgba(204, 204, 204, 1)");
+                            break;
+                        case fan_mode:
+                            thermostatModeDiv.html("Fan");
+                            fanButton.css("background-color", "rgba(204, 204, 204, 1)");
+                            break;
+                        case cool_mode:
+                            thermostatModeDiv.html("AC");
+                            acButton.css("background-color", "rgba(204, 204, 204, 1)");
+                            break;
+                        case heat_mode:
+                            thermostatModeDiv.html("Heat");
+                            heatButton.css("background-color", "rgba(204, 204, 204, 1)");
+                            break;
+                        default:
+                    }
 
-                        switch (keyValuePair[1])
-                        {
-                            case off_mode:
-                                thermostatModeDiv.html("Off");
-                                offButton.css("background-color", "rgba(204, 204, 204, 1)");
-                                break;
-                            case fan_mode:
-                                thermostatModeDiv.html("Fan");
-                                fanButton.css("background-color", "rgba(204, 204, 204, 1)");
-                                break;
-                            case cool_mode:
-                                thermostatModeDiv.html("AC");
-                                acButton.css("background-color", "rgba(204, 204, 204, 1)");
-                                break;
-                            case heat_mode:
-                                thermostatModeDiv.html("Heat");
-                                heatButton.css("background-color", "rgba(204, 204, 204, 1)");
-                                break;
-                            default:
-                        }
-                    }
-                    else if (keyValuePair[0] == "temp")
-                    {
-                        thermostatTempDiv.html(keyValuePair[1] + "&#x2109");
-                    }
-                    else if (keyValuePair[0] == "target_temp" && !dontChangeTargetUI)
-                    {
-                        tempDisplayDiv.html(keyValuePair[1] + "&#x2109");
-                    }
-                    else if (keyValuePair[0] == "humidity")
-                    {
-                        thermostatHumidityDiv.html(keyValuePair[1] + "%");
-                    }
-                    else if (keyValuePair[0] == "location_temp")
-                    {
-                        outsideTempDiv.html(keyValuePair[1] + "&#x2109");
-                    }
+                    if(!dontChangeTargetUI)
+                        tempDisplayDiv.html(result[index].targetTemperature + "&#x2109");
+                }
+                else if(result[index].deviceName == temperature_device)
+                {
+                    thermostatTempDiv.html(result[index].temperature + "&#x2109");
+                    thermostatHumidityDiv.html(result[index].humidity + "%");
+                }
+                else if(result[index].deviceName == weather_sensor)
+                {
+                    outsideTempDiv.html(result[index].temperature + "&#x2109");
+                }
+                else
+                {
+                    if(result[index].deviceName.indexOf("outlet") !== -1)
+                        checkOutlet(result[index].deviceName, result[index].deviceOn);
                 }
             }
         }

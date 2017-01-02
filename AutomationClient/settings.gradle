@@ -1,0 +1,2 @@
+include ':AutomationController'
+project(':AutomationController').projectDir = new File(settingsDir, '../../../../Computer Science/Git/AutomationSystem/AutomationController')

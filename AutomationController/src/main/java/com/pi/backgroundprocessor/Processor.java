@@ -5,10 +5,7 @@ package com.pi.backgroundprocessor;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,6 +15,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.xml.sax.SAXException;
 
 import com.pi.Application;
+import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
 import com.pi.infrastructure.DeviceType;
@@ -36,7 +34,6 @@ public class Processor extends Thread
 	
 	//Background processor data structures
 	private LinkedBlockingQueue<Action> processingQueue = new LinkedBlockingQueue<>(100_000);
-	private HashMap<String, Device> deviceMap = new HashMap<>();
 	
 	//Background processor services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
@@ -44,7 +41,7 @@ public class Processor extends Thread
 	private TimeActionProcessor timeActionProcessor = null;
 	
 	//Background processor tasks
-	private int databaseTask;
+	private Task databaseTask;
 
 	public static void createBackgroundProcessor() throws Exception
 	{
@@ -98,12 +95,12 @@ public class Processor extends Thread
 		{
 			if(action != null)
 			{
-				String command = action.getDevice();
-				Device device =  deviceMap.get(command);
+				String name = action.getDevice();
+				Device device =  Device.lookupDevice(name);
 				
 				if(device == null)
 				{
-					switch (command)
+					switch (name)
 					{	
 					case DeviceType.RUN_ECHO_SERVER:
 						ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
@@ -143,23 +140,6 @@ public class Processor extends Thread
 		return processingQueue.add(action);
 	}
 	
-	public List<Action> getStates()
-	{	
-		List<Action> stateList = new ArrayList<>();
-		
-		for(Entry<String, Device> device : deviceMap.entrySet())
-		{
-			stateList.add(device.getValue().getState());
-		}
-		
-		return stateList;
-	}
-	
-	public Device getDeviceByName(String name)
-	{
-		return deviceMap.get(name);
-	}
-	
 	public TaskExecutorService getThreadExecutorService()
 	{
 		return taskService;
@@ -174,10 +154,16 @@ public class Processor extends Thread
 	{
 		Application.LOGGER.info("Loading Devices");
 		DeviceLoader deviceLoader = DeviceLoader.createNewDeviceLoader();
-		deviceLoader.populateDeviceMap(deviceMap);
+		deviceLoader.loadDevices();
 		
 		Application.LOGGER.info("Loading Device States");
-		persistenceManager.loadSavedStates(deviceMap);
+		List<Action> savedStates = persistenceManager.loadSavedStates();
+		savedStates.forEach((action) -> 
+		{
+			Device device = Device.lookupDevice(action.getDevice());
+			if(device != null)
+				device.performAction(action);
+		});		
 	}
 	
 	private void scheduleTasksAndTimers()
@@ -190,7 +176,7 @@ public class Processor extends Thread
 		{
 			try
 			{
-				persistenceManager.commit(deviceMap);
+				persistenceManager.commit(Device.getStates());
 				persistenceManager.commit(timeActionProcessor.retrieveAllTimedActions());
 			}
 			catch (Throwable e)
@@ -205,9 +191,8 @@ public class Processor extends Thread
 	 */
 	private void saveAndCloseAllDevices() throws SQLException
 	{
-		persistenceManager.commit(deviceMap);
-		deviceMap.forEach((k, v) -> v.close());
-		deviceMap.clear();
+		persistenceManager.commit(Device.getStates());
+		Device.closeAll();
 	}
 	
 	public void shutdownBackgroundProcessor()

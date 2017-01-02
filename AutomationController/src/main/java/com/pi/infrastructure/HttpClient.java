@@ -7,6 +7,8 @@ import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -23,8 +25,10 @@ import org.apache.http.client.utils.URLEncodedUtils;
  * @author Christian Everett
  *
  */
-public class HttpClient
+public class HttpClient//TODO add try with resources
 {
+	private static final String GET = "GET";
+	private static final String POST = "POST";
 	private String baseUrl = null;
 	
 	public HttpClient(String host) throws MalformedURLException
@@ -44,7 +48,7 @@ public class HttpClient
 	{
 		HttpURLConnection connection = createHTTPConnection(queryParams, path);
 		
-		connection.setRequestMethod("GET");
+		connection.setRequestMethod(GET);
 		
 		String responseBody = sendRequest(connection);
 		
@@ -61,7 +65,7 @@ public class HttpClient
 	{
 		HttpURLConnection connection = createHTTPConnection(queryParams, path);
 		
-		connection.setRequestMethod("POST");
+		connection.setRequestMethod(POST);
 		connection.setDoOutput(true);
 		
 		DataOutputStream output = new DataOutputStream(connection.getOutputStream());
@@ -75,16 +79,60 @@ public class HttpClient
 	}
 	
 	/**
+	 * @param queryParams (arg1=var1&arg2=var2)
+	 * @return Response body
+	 * @throws IOException 
+	 * @throws ClassNotFoundException 
+	 */
+	public ObjectResponse sendGetObject(String queryParams, String path) throws IOException, ClassNotFoundException
+	{
+		Object responseBody = null;
+		HttpURLConnection connection = createHTTPConnection(queryParams, path);
+		
+		connection.setRequestMethod(GET);
+		
+		if(connection.getResponseCode() == HttpURLConnection.HTTP_OK)
+		{
+			ObjectInputStream inputStream = new ObjectInputStream(connection.getInputStream());
+			responseBody = inputStream.readObject();
+			inputStream.close();
+		}
+		
+		return new ObjectResponse(responseBody, connection.getResponseCode());
+	}
+	
+	/**
+	 * @param queryParams (arg1=var1&arg2=var2)
+	 * @param path
+	 * @param resquestBody java object
+	 * @throws IOException 
+	 */
+	public ObjectResponse sendPostObject(String queryParams, String path, Object resquestBody) throws IOException
+	{
+		HttpURLConnection connection = createHTTPConnection(queryParams, path);
+		
+		connection.setRequestMethod(POST);
+		connection.setDoOutput(true);
+
+		ObjectOutputStream output = new ObjectOutputStream(connection.getOutputStream());
+		output.writeObject(resquestBody);
+		output.flush();
+		output.close();
+		
+		return new ObjectResponse(null, connection.getResponseCode());
+	}
+	
+	/**
 	 * @param queryParams
 	 * @param path
-	 * @return
+	 * @return HttpURLConnection
 	 * @throws IOException
 	 * @throws MalformedURLException
 	 */
 	private HttpURLConnection createHTTPConnection(String queryParams, String path) throws IOException, MalformedURLException
 	{
-		String url = (path == null?baseUrl:baseUrl + path);
-		url += (queryParams == null?"": "?" + queryParams);
+		String url = (path == null ? baseUrl : baseUrl + path);
+		url += (queryParams == null || queryParams.equals("") ? "" : "?" + queryParams);
 		
 		HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
 		return connection;
@@ -138,12 +186,12 @@ public class HttpClient
 	
 	public class Response
 	{
-		String reponseBody;
-		int statusCode;
+		private String response;
+		private int statusCode;
 		
 		public Response(String responseBody, int statusCode)
 		{
-			this.reponseBody = responseBody;
+			this.response = responseBody;
 			this.statusCode = statusCode;
 		}
 		
@@ -152,7 +200,7 @@ public class HttpClient
 		 */
 		public String getReponseBody()
 		{
-			return reponseBody;
+			return response;
 		}
 		/**
 		 * @return the statusCode
@@ -162,9 +210,33 @@ public class HttpClient
 			return statusCode;
 		}
 		
+		public boolean isHTTP_OK()
+		{
+			return HttpURLConnection.HTTP_OK == statusCode;
+		}
+		
 		public List<NameValuePair> parseURLEncodedData()
 		{
-			return URLEncodedUtils.parse(reponseBody, Charset.forName("utf8"));
+			return URLEncodedUtils.parse(response, Charset.forName("utf8"));
+		}
+	}
+	
+	public class ObjectResponse extends Response
+	{
+		private Object responseObject = null;
+		
+		public ObjectResponse(Object responseBody, int statusCode)
+		{
+			super("", statusCode);
+			responseObject = responseBody;
+		}
+
+		/**
+		 * @return the responseObject
+		 */
+		public Object getResponseObject()
+		{
+			return responseObject;
 		}
 	}
 }

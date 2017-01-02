@@ -3,7 +3,7 @@
  */
 package com.pi.model;
 
-import com.google.common.base.Objects;
+import java.util.Objects;
 
 /**
  * @author Christian Everett
@@ -64,6 +64,6 @@ public class TimedAction
 	@Override
 	public int hashCode()
 	{
-		return Objects.hashCode(action.hashCode(), time.hashCode());
+		return Objects.hash(action.hashCode(), time.hashCode());
 	}
 }

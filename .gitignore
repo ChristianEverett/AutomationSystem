@@ -1,3 +1,10 @@
+*.jar*
+*.war*
+*.class
+*.idea*
+*.lock
+*.bin
+
 # Windows image file caches
 Thumbs.db
 ehthumbs.db

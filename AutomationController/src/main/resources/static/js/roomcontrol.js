@@ -8,6 +8,7 @@ $(document).ready(function ()
     var led1Device = "led1";
     var led2Device = "led2";
     var temp_sensorDevice = "temp_sensor1";
+    var weatherSensor1 = "weather_sensor1";
 
     var lockButton = $("#comp-iqsu3ucu");
     var unlockButton = $("#comp-ip1tqeyl");
@@ -38,7 +39,7 @@ $(document).ready(function ()
         {ON: $("#comp-irkzqsmp1link"), OFF: $("#comp-irkzqsmolink")},
         {ON: $("#comp-irkzqs9b1link"), OFF: $("#comp-irkzqs9alink")},
         {ON: $("#comp-irkzqr1rlink"), OFF: $("#comp-irkzqr1plink")},
-        {ON: $("#comp-irkzqrtylink"), OFF: $("#comp-irkzqrtz2link")},
+        {ON: $("#comp-irkzqrtz2link"), OFF: $("#comp-irkzqrtylink")},
         {ON: $("#comp-irl4umvylink"), OFF: $("#comp-irl4umvwlink")},
         {ON: $("#comp-irl4vrsflink"), OFF: $("#comp-irl4vrsdlink")},
         {ON: $("#comp-irl4vq6klink"), OFF: $("#comp-irl4vq6ilink")},
@@ -93,11 +94,11 @@ $(document).ready(function ()
                 POST_ACTION("outlet" + (x + 1), (outletSwitchArray[x].ON.attr("id") == this.id), actionCallback);
     }
 
-    function checkOutlet(message)
+    function checkOutlet(name, isOn)
     {
-        deviceNumber = parseInt(message.device.substring(6, message.device.length)) - 1;
+        deviceNumber = parseInt(name.substring(6, name.length)) - 1;
 
-        if(message.data == "true" || message.data === true)
+        if(isOn == "true" || isOn === true)
         {
             outletSwitchArray[deviceNumber].ON.css("background-color", "rgba(204, 204, 204, 1)");
             outletSwitchArray[deviceNumber].OFF.css("background-color", "rgba(114, 114, 114, 1)");
@@ -141,47 +142,34 @@ $(document).ready(function ()
         {
             for(var x = 0; x < result.length; x++)
             {
-                switch (result[x].device)
+                switch (result[x].deviceName)
                 {
                     case temp_sensorDevice:
-                        var tempsArray = result[x].data.split("&");
-
-                        for(var i = 0; i < tempsArray.length; i++)
-                        {
-                            var temp = tempsArray[i].split("=");
-
-                            if(temp[0] == "room_temp")
-                            {
-                                roomTempDiv.html(temp[1] + "&#x2109");
-                            }
-                            else
-                            {
-                                outsideTempDiv.html(temp[1] + "&#x2109");
-                            }
-                        }
+                        roomTempDiv.html(result[x].temperature + "&#x2109");
+                        break;
+                    case weatherSensor1:
+                        outsideTempDiv.html(result[x].temperature + "&#x2109");
                         break;
                     case led1Device:
                     case led2Device:
                         var parsedColorsArray = [];
-                        var colorsArray = result[x].data.split("&");
 
-                        for(var y = 0; y < colorsArray.length; y++)
-                        {
-                            parsedColorsArray[y] = colorsArray[y].split("=").pop();
-                        }
+                        parsedColorsArray[0] = result[x].red;
+                        parsedColorsArray[1] = result[x].green;
+                        parsedColorsArray[2] = result[x].blue;
 
-                        if(result[x].device == led1Device)
+                        if(result[x].deviceName == led1Device)
                             setRGBSlider(parsedColorsArray, led1Slider);
                         else
                             setRGBSlider(parsedColorsArray, led2Slider);
 
                         break;
                     case lockDevice:
-                        setLockImg(result[x].data == "true");
+                        setLockImg(result[x].deviceOn);
                         break;
                     default:
-                        if(result[x].device.indexOf("outlet") !== -1)
-                            checkOutlet(result[x]);
+                        if(result[x].deviceName.indexOf("outlet") !== -1)
+                            checkOutlet(result[x].deviceName, result[x].deviceOn);
                 }
             }
         }
@@ -210,7 +198,7 @@ $(document).ready(function ()
             }
             else if(json.device.indexOf("outlet") !== -1)
             {
-                checkOutlet(json);
+                checkOutlet(json.device, json.data);
             }
         }
         else
