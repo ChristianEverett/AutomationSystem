@@ -1,4 +1,4 @@
-package com.pi.infrastructure;
+package com.pi.infrastructure.util;
 
 import java.io.UnsupportedEncodingException;
 import java.util.*;

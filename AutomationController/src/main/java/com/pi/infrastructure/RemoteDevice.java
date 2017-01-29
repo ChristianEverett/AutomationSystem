@@ -5,19 +5,15 @@ package com.pi.infrastructure;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.util.ArrayList;
-
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicNameValuePair;
 import org.w3c.dom.Element;
 
 import com.pi.Application;
-import com.pi.infrastructure.HttpClient.ObjectResponse;
-import com.pi.infrastructure.HttpClient.Response;
-import com.pi.model.Action;
+import com.pi.infrastructure.util.HttpClient;
+import com.pi.infrastructure.util.HttpClient.ObjectResponse;
+import com.pi.infrastructure.util.HttpClient.Response;
 import com.pi.model.DeviceState;
 
 /**
@@ -48,11 +44,11 @@ public class RemoteDevice extends Device
 	}
 
 	@Override
-	public void performAction(Action action)
+	public void performAction(DeviceState state)
 	{
 		try
 		{
-			ObjectResponse response = client.sendPostObject(METHOD_QUERY_PARAM + "=" + PERFORM_ACTION, "/" + name, action);
+			ObjectResponse response = client.sendPostObject(METHOD_QUERY_PARAM + "=" + PERFORM_ACTION, "/" + name, state);
 			if (response.getStatusCode() != HttpURLConnection.HTTP_OK)
 				throw new IOException("Status Code: " + response.getStatusCode() + " on device: " + name);
 		}
@@ -104,7 +100,7 @@ public class RemoteDevice extends Device
 
 	public interface Node
 	{
-		public boolean requestAction(Action action);
+		public boolean requestAction(DeviceState state);
 
 		public DeviceState getDeviceState(String name);
 	}

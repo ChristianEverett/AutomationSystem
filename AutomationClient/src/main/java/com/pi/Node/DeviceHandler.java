@@ -11,9 +11,9 @@ import java.util.HashMap;
 
 import com.pi.Main;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.HttpClient;
 import com.pi.infrastructure.RemoteDevice;
-import com.pi.model.Action;
+import com.pi.infrastructure.util.HttpClient;
+import com.pi.model.DeviceState;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
@@ -45,7 +45,7 @@ class DeviceHandler implements HttpHandler
 				{
 				case RemoteDevice.PERFORM_ACTION:
 					ObjectInputStream input = new ObjectInputStream(request.getRequestBody());
-					Action action = (Action) input.readObject();
+					DeviceState action = (DeviceState) input.readObject();
 					input.close();
 					if(action == null)
 						throw new IOException("Action null");
@@ -60,7 +60,9 @@ class DeviceHandler implements HttpHandler
 					break;
 				case RemoteDevice.CLOSE:
 					device.close();
+					Main.LOGGER.info("Closed: " + device.getName());
 					request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
+					request.close();
 					break;
 				default:
 					throw new IOException("Unknown method request");
@@ -73,7 +75,7 @@ class DeviceHandler implements HttpHandler
 		}
 		catch (Exception e)
 		{
-			Main.LOGGER.severe("Bad device request");
+			Main.LOGGER.severe("Bad device request: " + e.getMessage());
 			request.sendResponseHeaders(HttpURLConnection.HTTP_BAD_REQUEST, 0);
 		}
 	}

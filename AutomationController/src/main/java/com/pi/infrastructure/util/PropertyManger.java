@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.pi.infrastructure;
+package com.pi.infrastructure.util;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -45,10 +45,15 @@ public class PropertyManger
 			Application.LOGGER.severe(e.getMessage());
 		}
 	}
-	
+
 	public static String loadProperty(String key)
 	{
 		return properties.getProperty(key);
+	}
+	
+	public static String loadProperty(String key, String defaultValue)
+	{
+		return properties.getProperty(key, defaultValue);
 	}
 	
 	public static void storeProperty(String key, String value) throws IOException
@@ -64,5 +69,6 @@ public class PropertyManger
 		public static final String DBPASS = "database.password";
 		public static final String ADMIN_EMAIL = "admin.email";
 		public static final String DEVICE_CONFIG = "device.config";
+		public static final String DATABASE_POLL_FREQUENCY = "database.poll_frequency";
 	}
 }

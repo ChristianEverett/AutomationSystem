@@ -10,7 +10,6 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
-import com.pi.model.Action;
 import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
@@ -33,9 +32,9 @@ public class Switch extends Device
 	}
 
 	@Override
-	public void performAction(Action action)
+	public void performAction(DeviceState state)
 	{
-		gpioPin.setState(!Boolean.parseBoolean(action.getData()));
+		gpioPin.setState(! (Boolean)state.getParam(DeviceState.IS_ON));
 	}
 
 	@Override
@@ -48,35 +47,16 @@ public class Switch extends Device
 	@Override
 	public DeviceState getState()
 	{
-		return new SwitchState(name, gpioPin.isLow());
+		DeviceState state = new DeviceState(name);
+		state.setParam(DeviceState.IS_ON, gpioPin.isLow());
+		
+		return state;
 	}
 
 	@Override
 	public String getType()
 	{
 		return DeviceType.SWITCH;
-	}
-	
-	public static class SwitchState extends DeviceState
-	{
-		private boolean deviceOn;
-		
-		public SwitchState(String deviceName, boolean switchOn)
-		{
-			super(deviceName);
-			this.deviceOn = switchOn;
-		}
-
-		public boolean getDeviceOn()
-		{
-			return deviceOn;
-		}
-
-		@Override
-		public String getType()
-		{
-			return DeviceType.SWITCH;
-		}
 	}
 	
 	@XmlRootElement(name = DEVICE)

@@ -4,6 +4,7 @@
 package com.pi.devices;
 
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -11,7 +12,6 @@ import javax.xml.bind.annotation.XmlRootElement;
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
-import com.pi.model.Action;
 import com.pi.model.DeviceState;
 
 
@@ -27,7 +27,7 @@ public class Outlet extends Device
 	private final int OFF;
 	private final int IR_PIN;
 	private int signalRedundancy = 3;
-	private boolean state = false;
+	private AtomicBoolean isOn = new AtomicBoolean(false);
 	
 	public Outlet(String name, int headerPin, int onCode, int offCode) throws IOException
 	{
@@ -39,9 +39,9 @@ public class Outlet extends Device
 	}
 
 	@Override
-	public void performAction(Action action)
+	public void performAction(DeviceState state)
 	{
-		int code = Boolean.parseBoolean(action.getData())? ON : OFF;
+		int code = (boolean) state.getParam(DeviceState.IS_ON) ? ON : OFF;
 		
 		try
 		{
@@ -68,7 +68,7 @@ public class Outlet extends Device
 	
 	private synchronized void sendIRSignal(int code) throws IOException, InterruptedException
 	{
-		state = (code == ON) ? true : false;		
+		isOn.set((code == ON) ? true : false);		
 		
 		for(int x = 0; x < signalRedundancy; x++)
 		{
@@ -80,35 +80,16 @@ public class Outlet extends Device
 	@Override
 	public DeviceState getState()
 	{
-		return new OutletState(name, state);
+		DeviceState state = new DeviceState(name);
+		state.setParam(DeviceState.IS_ON, isOn.get());
+		
+		return state;
 	}
 
 	@Override
 	public String getType()
 	{
 		return DeviceType.OUTLET;
-	}
-	
-	public static class OutletState extends DeviceState
-	{
-		private boolean deviceOn;
-		
-		public OutletState(String deviceName, boolean deviceOn)
-		{
-			super(deviceName);
-			this.deviceOn = deviceOn;
-		}
-
-		public boolean getDeviceOn()
-		{
-			return deviceOn;
-		}
-
-		@Override
-		public String getType()
-		{
-			return DeviceType.OUTLET;
-		}
 	}
 	
 	@XmlRootElement(name = DEVICE)

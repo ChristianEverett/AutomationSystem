@@ -12,6 +12,15 @@
 		<blue>40</blue>
 	</device>
 	
+	<device device-type="device_sensor" device-name="device_sensor1">
+		<address>44:65:0d:a6:58:03</address>
+		
+	</device>
+	
+	<device device-type="switch" device-name="switch1">
+		<header>5</header>
+	</device>
+	
 	<device device-type="switch" device-name="switch2">
 		<header>7</header>
 	</device>
@@ -41,7 +50,7 @@
 			<fan>36</fan>
 			<compressor>38</compressor>
 			<heat>40</heat>
-			<modeChangeDelay>160</modeChangeDelay>
+			<modeChangeDelay>200</modeChangeDelay>
 		</device>
 	</device>
 	

@@ -3,7 +3,9 @@
  */
 package com.pi.devices;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.List;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -11,10 +13,9 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
-import com.pi.model.Action;
 import com.pi.model.DeviceState;
+import com.pi.model.Event;
 import com.pi4j.io.gpio.GpioPinDigitalInput;
-import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.event.GpioPinDigitalStateChangeEvent;
 import com.pi4j.io.gpio.event.GpioPinListenerDigital;
 
@@ -25,46 +26,59 @@ import com.pi4j.io.gpio.event.GpioPinListenerDigital;
 public class MotionSensor extends Device
 {
 	private final GpioPinDigitalInput gpioPin;
-	private List<Action> actions;
+	private List<Event> events;
+	private PrintWriter writer = new PrintWriter(new FileWriter("Motion.log"));
 	
-	public MotionSensor(String name, int headerPin, List<Action> actions) throws IOException
+	public MotionSensor(String name, int headerPin, List<Event> events) throws IOException
 	{
 		super(name);
 		gpioPin = gpioController.provisionDigitalInputPin(pins.get(headerPin).getWiringPI_Pin(), name);
-		this.actions = actions;
+		this.events = events;
 		
 		gpioPin.addListener(new GpioPinListenerDigital()
 		{
 			@Override
-			public void handleGpioPinDigitalStateChangeEvent(GpioPinDigitalStateChangeEvent event)
+			public void handleGpioPinDigitalStateChangeEvent(GpioPinDigitalStateChangeEvent gpioEvent)
 			{
-				if(event.getState().isHigh())
-				{
-					for(Action action : actions)
-					{
-						queueAction(action);
-					}
-				}	
+//				if(gpioEvent.getState().isHigh())
+//				{
+//					for(Event event : events)
+//					{
+//						event.triggerEvent();
+//					}
+//				}	
+				writer.println("Motion triggered");
 			}
 		});
 	}
 
 	@Override
-	public void performAction(Action action)
+	public void performAction(DeviceState state)
 	{
-		
 	}
 
 	@Override
 	public DeviceState getState()
 	{
-		return new MotionSensorState(name, gpioPin.isHigh());
+		DeviceState state = new DeviceState(name);
+//		ArrayList<Boolean> triggeredEvents = new ArrayList<>(events.size());
+//		
+//		for(Event event : events)
+//			triggeredEvents.add(event.isTriggered());
+		
+		state.setParam(DeviceState.IS_ON, gpioPin.isHigh());
+//		state.setParam(DeviceState.EVENTS, triggeredEvents);
+		
+		return state;
 	}
 
 	@Override
 	public void close()
 	{
 		gpioController.unprovisionPin(gpioPin);
+		
+		for(Event event : events)
+			event.cancel();
 	}
 
 	@Override
@@ -73,33 +87,11 @@ public class MotionSensor extends Device
 		return DeviceType.MOTION_SENSOR;
 	}
 	
-	public static class MotionSensorState extends DeviceState
-	{
-		private boolean motionSensed;
-		
-		public MotionSensorState(String deviceName, boolean motionSensed)
-		{
-			super(deviceName);
-			this.motionSensed = motionSensed;
-		}
-
-		public boolean getMotionSensed()
-		{
-			return motionSensed;
-		}
-
-		@Override
-		public String getType()
-		{
-			return DeviceType.MOTION_SENSOR;
-		}
-	}
-	
 	@XmlRootElement(name = DEVICE)
-	public static class MotinoSensorConfig extends DeviceConfig
+	public static class MotionSensorConfig extends DeviceConfig
 	{
 		private int headerPin; 
-		private List<Action> actions;
+		private List<Event> actions;
 
 		@Override
 		public Device buildDevice() throws IOException
@@ -114,7 +106,7 @@ public class MotionSensor extends Device
 		}
 
 		@XmlElement
-		public void setActions(List<Action> actions)
+		public void setActions(List<Event> actions)
 		{
 			this.actions = actions;
 		}

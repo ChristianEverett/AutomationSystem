@@ -12,9 +12,10 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
 import com.pi.backgroundprocessor.Processor;
-import com.pi.infrastructure.Email;
-import static com.pi.infrastructure.PropertyManger.loadProperty;
-import static com.pi.infrastructure.PropertyManger.PropertyKeys;
+import com.pi.infrastructure.util.Email;
+
+import static com.pi.infrastructure.util.PropertyManger.PropertyKeys;
+import static com.pi.infrastructure.util.PropertyManger.loadProperty;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -56,7 +57,7 @@ public class Application extends WebMvcAutoConfiguration
 			if (args.length != 0)
 				LOGGER.setUseParentHandlers(false);
 			else
-				LOGGER.setLevel(Level.SEVERE);
+				;//LOGGER.setLevel(Level.SEVERE);
 			LOGGER.addHandler(new FileHandler(loadProperty(PropertyKeys.LOGFILE)));
 		}
 		catch (Exception e)
@@ -70,7 +71,6 @@ public class Application extends WebMvcAutoConfiguration
 			// Run the background processor
 			Processor.createBackgroundProcessor();
 			Processor processor = Processor.getBackgroundProcessor();
-			processor.setPriority(Thread.MAX_PRIORITY);
 
 			Runtime.getRuntime().addShutdownHook(new Thread()
 			{
@@ -84,7 +84,8 @@ public class Application extends WebMvcAutoConfiguration
 
 			// Run the Spring Dispatcher
 			SpringApplication.run(Application.class, args);
-
+						
+			processor.loadDevicesAndDeviceStates();
 			processor.start();
 			LOGGER.info("------------Service Running-------------");
 

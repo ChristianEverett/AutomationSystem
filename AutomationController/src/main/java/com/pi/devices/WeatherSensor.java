@@ -16,10 +16,8 @@ import org.jsoup.nodes.Element;
 
 import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
-import com.pi.devices.Thermostat.TemperatureDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
-import com.pi.model.Action;
 import com.pi.model.DeviceState;
 
 /**
@@ -64,14 +62,17 @@ public class WeatherSensor extends Device
 	}
 
 	@Override
-	public void performAction(Action action)
+	public void performAction(DeviceState state)
 	{
 	}
 
 	@Override
 	public DeviceState getState()
 	{
-		return new WeatherSensorState(name, locationTempature);
+		DeviceState state = new DeviceState(name);
+		state.setParam(DeviceState.TEMPATURE, locationTempature);
+		
+		return state;
 	}
 
 	@Override
@@ -84,28 +85,6 @@ public class WeatherSensor extends Device
 	public String getType()
 	{
 		return DeviceType.WEATHER_SENSOR;
-	}
-	
-	public static class WeatherSensorState extends DeviceState implements TemperatureDevice
-	{
-		private int temperature;
-		
-		public WeatherSensorState(String deviceName, int temperature)
-		{
-			super(deviceName);
-			this.temperature = temperature;
-		}
-
-		public int getTemperature()
-		{
-			return temperature;
-		}
-
-		@Override
-		public String getType()
-		{
-			return DeviceType.WEATHER_SENSOR;
-		}
 	}
 	
 	@XmlRootElement(name = DEVICE)

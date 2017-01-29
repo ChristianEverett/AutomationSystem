@@ -5,14 +5,11 @@ package com.pi.backgroundprocessor;
 
 import java.util.Calendar;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map.Entry;
-import java.util.Set;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
-import com.pi.infrastructure.TaskMap;
+import com.pi.infrastructure.util.TaskMap;
 import com.pi.model.TimedAction;
 
 /**
@@ -60,19 +57,21 @@ public class TimeActionProcessor
 			initalDelay = 86_400 + initalDelay;
 		
 		TimerRunnable task = new TimerRunnable(timedAction);
-		return bgp.getThreadExecutorService().scheduleTask(task, initalDelay, 60L * 60L * 24L, TimeUnit.SECONDS);
+		return bgp.getTaskExecutorService().scheduleTask(task, initalDelay, 60L * 60L * 24L, TimeUnit.SECONDS);
 	}
 	
 	public synchronized void load(TimedAction timedAction)
 	{
-		timerMap.put(timedAction, scheduleTimer(timedAction));
+		if(timedAction.getAction() != null)
+			timerMap.put(timedAction, scheduleTimer(timedAction));
 	}
 	
 	public synchronized void load(Collection<TimedAction> timedActions)
 	{
 		for(TimedAction timedAction : timedActions)
 		{
-			timerMap.put(timedAction, scheduleTimer(timedAction));
+			if(timedAction.getAction() != null)
+				timerMap.put(timedAction, scheduleTimer(timedAction));
 		}
 	}
 	
@@ -81,7 +80,7 @@ public class TimeActionProcessor
 		return timerMap.get(id);	
 	}
 	
-	public Collection<Entry<Integer, TimedAction>> retrieveAllTimedActions()
+	public List<TimedAction> retrieveAllTimedActions()
 	{
 		return timerMap.getAllValues();
 	}

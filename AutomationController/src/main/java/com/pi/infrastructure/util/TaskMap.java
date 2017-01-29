@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.pi.infrastructure;
+package com.pi.infrastructure.util;
 
 import java.util.AbstractMap;
 import java.util.ArrayList;
@@ -74,15 +74,15 @@ public class TaskMap<V>
 		return put(item, task);
 	}
 	
-	public Collection<Entry<Integer, V>> getAllValues()
+	public List<V> getAllValues()
 	{
-		Collection<Entry<Integer, V>> valueCollection = new ArrayList<>();
+		List<V> valueCollection = new ArrayList<>();
 		
 		for(Iterator<Entry<Integer, V>> iter = hashToValueMap.entrySet().iterator(); iter.hasNext(); )
 		{
 			Entry<Integer, V> element = iter.next();
 			
-			valueCollection.add(new AbstractMap.SimpleEntry<Integer, V>(element.getKey(), element.getValue()));
+			valueCollection.add(element.getValue());
 		}
 		
 		return valueCollection;

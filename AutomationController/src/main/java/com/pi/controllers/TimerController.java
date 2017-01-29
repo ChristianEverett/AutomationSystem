@@ -4,8 +4,8 @@
 package com.pi.controllers;
 
 import java.util.Collection;
-import java.util.Map.Entry;
-
+import java.util.Collections;
+import java.util.List;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -29,7 +29,7 @@ public class TimerController
 {
 	private static final String PATH = "/timer";
 	
-	Processor bgp; 
+	private Processor bgp; 
 	
 	public TimerController()
 	{
@@ -37,9 +37,11 @@ public class TimerController
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
-	public @ResponseBody Collection<Entry<Integer, TimedAction>> getTimers(HttpServletResponse response)
+	public @ResponseBody Collection<TimedAction> getTimers(HttpServletResponse response)
 	{
-		return bgp.getTimeActionProcessor().retrieveAllTimedActions();
+		List<TimedAction> timedActions = bgp.getTimeActionProcessor().retrieveAllTimedActions();
+		Collections.sort(bgp.getTimeActionProcessor().retrieveAllTimedActions());
+		return timedActions;
 	}
 	
 	@RequestMapping(value = (PATH + "/add"), method = RequestMethod.POST)
@@ -47,6 +49,12 @@ public class TimerController
 	{
 		bgp.getTimeActionProcessor().load(timer);
 		return timer.hashCode();
+	}
+	
+	@RequestMapping(value = (PATH + "/addGroup"), method = RequestMethod.POST)
+	public void addTimers(HttpServletRequest request, HttpServletResponse response, @RequestBody Collection<TimedAction> timers)
+	{
+		bgp.getTimeActionProcessor().load(timers);
 	}
 	
 	@RequestMapping(value = (PATH + "/{id}"), method = RequestMethod.POST)

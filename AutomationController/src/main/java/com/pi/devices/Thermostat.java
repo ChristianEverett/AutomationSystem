@@ -5,7 +5,6 @@ package com.pi.devices;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -13,18 +12,12 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import javax.xml.bind.annotation.XmlElement;
-import javax.xml.bind.annotation.XmlElements;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicNameValuePair;
-
+import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
-import com.pi.devices.TemperatureSensor.TempatureState;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
-import com.pi.infrastructure.HttpClient;
-import com.pi.model.Action;
 import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
@@ -49,6 +42,7 @@ public class Thermostat extends Device
 	private long modeChangeDelay = 0;
 	private long fanTurnOffDelay = 40;
 	private AtomicBoolean fanLock = new AtomicBoolean(false);
+	private AtomicBoolean modeChangeLock = new AtomicBoolean(false);
 	
 	private final int MAX_TEMP = 75;
 	private final int MIN_TEMP = 60;
@@ -79,18 +73,23 @@ public class Thermostat extends Device
 		
 		updateTask = createTask(() ->
 		{
-			update();
-		}, 60L, INTERVAL, TimeUnit.SECONDS);
+			try
+			{
+				update();
+			}
+			catch (Exception e)
+			{
+				Application.LOGGER.severe(e.getMessage());
+			}
+		}, INTERVAL, INTERVAL, TimeUnit.SECONDS);
 	}
 
 	@Override
-	public void performAction(Action action)
+	public void performAction(DeviceState state)
 	{
-		HashMap<String, String> responseParams = HttpClient.URLEncodedDataToHashMap(action.getData());
+		Integer targetTemp = (Integer) state.getParam(DeviceState.TARGET_TEMPATURE);
+		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParam(DeviceState.TARGET_MODE)).toUpperCase());
 		
-		int targetTemp = (int) Float.parseFloat(responseParams.get(QueryParams.TARGET_TEMP));
-		ThermostatMode mode = ThermostatMode.valueOf(responseParams.get(QueryParams.TARGET_MODE).toUpperCase());
-
 		if (targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
 		{
 			lock.lock();
@@ -100,11 +99,15 @@ public class Thermostat extends Device
 			update();
 		}
 	}
+	
 	@Override
 	public DeviceState getState()
 	{
 		lock.lock();
-		ThermostatState state = new ThermostatState(name, targetTempInFehrenheit, currentMode.toString(), targetMode.toString());
+		DeviceState state = new DeviceState(name);
+		state.setParam(DeviceState.TARGET_TEMPATURE, targetTempInFehrenheit);
+		state.setParam(DeviceState.MODE, currentMode.toString());
+		state.setParam(DeviceState.TARGET_MODE, targetMode.toString());
 		lock.unlock();
 
 		return state;
@@ -126,7 +129,7 @@ public class Thermostat extends Device
 	{
 		lock.lock();
 		
-		if (!targetTempatureReached())
+		if (!targetTempatureReached() && !modeChangeLock.get())
 		{
 			switch (targetMode)
 			{
@@ -158,6 +161,9 @@ public class Thermostat extends Device
 		else 
 		{
 			turnOff();
+			modeChangeLock.set(true);
+			
+			createTask(() -> {modeChangeLock.set(false);}, modeChangeDelay, TimeUnit.SECONDS); 
 		}
 		
 		lock.unlock();
@@ -196,11 +202,12 @@ public class Thermostat extends Device
 	{
 		for(String sensor : temperatureSensors)
 		{
-			TemperatureDevice state = (TemperatureDevice) Device.getDeviceState(sensor);
+			DeviceState state = (DeviceState) Device.getDeviceState(sensor);
 			
 			if(state != null)
 			{
-				if(compareTemperatures(state.getTemperature()))
+				Integer temperature = (Integer)state.getParam(DeviceState.TEMPATURE);
+				if(temperature != null && compareTemperatures(temperature))
 					return true;
 			}
 		}
@@ -232,7 +239,7 @@ public class Thermostat extends Device
 		}
 
 		/**
-		 * @return the tempature
+		 * @return the temperature
 		 */
 		public float getTemperature()
 		{
@@ -245,60 +252,6 @@ public class Thermostat extends Device
 		public float getHumidity()
 		{
 			return humidity;
-		}
-	}
-	
-	public enum ThermostatMode
-	{
-		OFF_MODE("off_mode"), HEAT_MODE("heat_mode"), COOL_MODE("cool_mode"), FAN_MODE("fan_mode");
-		
-		private String name;
-		
-		private ThermostatMode(String name)
-		{
-			this.name = name;
-		}
-		
-		@Override
-		public String toString()
-		{
-			return this.name;
-		}
-	}
-	
-	public static class ThermostatState extends DeviceState
-	{
-		private int targetTemperature;
-		private String mode;
-		private String targetMode;
-
-		public ThermostatState(String deviceName, int targetTemperature, String mode, String targetMode)
-		{
-			super(deviceName);
-			this.targetTemperature = targetTemperature;
-			this.mode = mode;
-			this.targetMode = targetMode;
-		}
-
-		public int getTargetTemperature()
-		{
-			return targetTemperature;
-		}
-
-		public String getMode()
-		{
-			return mode;
-		}	
-		
-		public String getTargetMode()
-		{
-			return targetMode;
-		}
-
-		@Override
-		public String getType()
-		{
-			return DeviceType.THERMOSTAT;
 		}
 	}
 	
@@ -351,14 +304,21 @@ public class Thermostat extends Device
 		}
 	}
 	
-	public interface TemperatureDevice
+	public enum ThermostatMode
 	{
-		public int getTemperature();
-	}
-	
-	private interface QueryParams
-	{
-		public static final String TARGET_TEMP = "target_temp";
-		public static final String TARGET_MODE = "target_mode";
+		OFF_MODE("off_mode"), HEAT_MODE("heat_mode"), COOL_MODE("cool_mode"), FAN_MODE("fan_mode");
+		
+		private String name;
+		
+		private ThermostatMode(String name)
+		{
+			this.name = name;
+		}
+		
+		@Override
+		public String toString()
+		{
+			return this.name;
+		}
 	}
 }

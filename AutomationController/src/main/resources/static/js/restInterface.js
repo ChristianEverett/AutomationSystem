@@ -1,6 +1,16 @@
 /**
  * Created by Christian Everett on 8/4/2016.
  */
+
+function CREATE_STATE(device, params)
+{
+ return JSON.stringify(
+     {
+         "name": device,
+         "params": params
+     });
+}
+
 function GET_STATE(device, callback)
 {
     jQuery.ajax(
@@ -56,7 +66,7 @@ function POST_ACTION(device, data, callback)
             async: true,
             type: "POST",
             contentType: "application/json",
-            url: "/action/add",
+            url: "/action/" + device,
             headers: 
             {
             	//'Connection': 'keep-alive',
@@ -64,11 +74,7 @@ function POST_ACTION(device, data, callback)
             	'Pragma': 'no-cache',
             	'Expires': '0'
             },
-            data:JSON.stringify(
-                {
-                    "device": device,
-                    "data": data
-                }),
+            data: CREATE_STATE(device, data),
             success: callback,
             error: function (xhr,status,error)
             {
@@ -76,7 +82,7 @@ function POST_ACTION(device, data, callback)
             }
         });
 }
-
+// NOT IN USE ----------------------------------------------------------
 function GET_TIMERS(callback)
 {
     jQuery.ajax(

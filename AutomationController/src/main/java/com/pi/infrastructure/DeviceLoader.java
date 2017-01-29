@@ -3,6 +3,9 @@
  */
 package com.pi.infrastructure;
 
+import static com.pi.infrastructure.util.PropertyManger.PropertyKeys;
+import static com.pi.infrastructure.util.PropertyManger.loadProperty;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
@@ -18,8 +21,6 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.pi.Application;
-import static com.pi.infrastructure.PropertyManger.loadProperty;
-import static com.pi.infrastructure.PropertyManger.PropertyKeys;
 
 /**
  * @author Christian Everett
@@ -48,6 +49,11 @@ public class DeviceLoader
 	
 	public void loadDevices()
 	{
+		loadDevice(null);
+	}
+	
+	public void loadDevice(String name)//TODO fix remove device reload
+	{
 		NodeList deviceList = xmlDocument.getElementsByTagName(DEVICE);
 		
 		for (int x = 0; x < deviceList.getLength(); x++)
@@ -57,8 +63,10 @@ public class DeviceLoader
 			if(node.getNodeType() == Node.ELEMENT_NODE)
 			{
 				Element element = (Element) node;
-							
-				Device.createNewDevice(element);
+				String deviceName = element.getAttribute(DeviceLoader.DEVICE_NAME);
+				
+				if(name == null || deviceName.equals(name))
+					Device.createNewDevice(element);
 			}
 		}
 	}

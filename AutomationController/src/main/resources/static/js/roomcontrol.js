@@ -63,27 +63,36 @@ $(document).ready(function ()
 
     function onLockUnlockButtonClick(event)
     {
+        var params = {};
+        
         if($(this).attr("id") == unlockButton.attr("id"))
         {
-            POST_ACTION(lockDevice, "false", actionCallback);
+            params["isOn"] = false;
+            POST_ACTION(lockDevice, params, actionCallback);
         }
         else
         {
-            POST_ACTION(lockDevice, "true", actionCallback);
+            params["isOn"] = true;
+            POST_ACTION(lockDevice, params, actionCallback);
         }
     }
 
     function onColorSliderChange(color)
     {
+        var params = {};
         var colorObject = color.toRgb();
+
+        params["red"] = colorObject.r;
+        params["green"] = colorObject.g;
+        params["blue"] = colorObject.b;
 
         if($(this).attr("id") == led1Slider.attr("id"))
         {
-            POST_ACTION(led1Device, "red=" + colorObject.r + "&green=" + colorObject.g + "&blue=" + colorObject.b, actionCallback);
+            POST_ACTION(led1Device, params, actionCallback);
         }
         else
         {
-            POST_ACTION(led2Device, "red=" + colorObject.r + "&green=" + colorObject.g + "&blue=" + colorObject.b, actionCallback);
+            POST_ACTION(led2Device, params, actionCallback);
         }
     }
 
@@ -91,7 +100,11 @@ $(document).ready(function ()
     {
         for(var x = 0; x < outletSwitchArray.length; x++)
             if(outletSwitchArray[x].ON.attr("id") == this.id || outletSwitchArray[x].OFF.attr("id") == this.id)
-                POST_ACTION("outlet" + (x + 1), (outletSwitchArray[x].ON.attr("id") == this.id), actionCallback);
+            {
+                var params = {};
+                params["isOn"] = (outletSwitchArray[x].ON.attr("id") == this.id);
+                POST_ACTION("outlet" + (x + 1), params, actionCallback);
+            }
     }
 
     function checkOutlet(name, isOn)
@@ -142,34 +155,34 @@ $(document).ready(function ()
         {
             for(var x = 0; x < result.length; x++)
             {
-                switch (result[x].deviceName)
+                switch (result[x].name)
                 {
                     case temp_sensorDevice:
-                        roomTempDiv.html(result[x].temperature + "&#x2109");
+                        roomTempDiv.html(result[x].params["temperature"] + "&#x2109");
                         break;
                     case weatherSensor1:
-                        outsideTempDiv.html(result[x].temperature + "&#x2109");
+                        outsideTempDiv.html(result[x].params["temperature"] + "&#x2109");
                         break;
                     case led1Device:
                     case led2Device:
                         var parsedColorsArray = [];
 
-                        parsedColorsArray[0] = result[x].red;
-                        parsedColorsArray[1] = result[x].green;
-                        parsedColorsArray[2] = result[x].blue;
+                        parsedColorsArray[0] = result[x].params["red"];
+                        parsedColorsArray[1] = result[x].params["green"];
+                        parsedColorsArray[2] = result[x].params["blue"];
 
-                        if(result[x].deviceName == led1Device)
+                        if(result[x].name == led1Device)
                             setRGBSlider(parsedColorsArray, led1Slider);
                         else
                             setRGBSlider(parsedColorsArray, led2Slider);
 
                         break;
                     case lockDevice:
-                        setLockImg(result[x].deviceOn);
+                        setLockImg(result[x].params["isOn"]);
                         break;
                     default:
-                        if(result[x].deviceName.indexOf("outlet") !== -1)
-                            checkOutlet(result[x].deviceName, result[x].deviceOn);
+                        if(result[x].name.indexOf("outlet") !== -1)
+                            checkOutlet(result[x].name, result[x].params["isOn"]);
                 }
             }
         }
@@ -185,9 +198,9 @@ $(document).ready(function ()
         {
             var json = jQuery.parseJSON(this.data);
 
-            if (json.device == lockDevice)
+            if (json.name == lockDevice)
             {
-                if(json.data == "true")
+                if(json.params.isOn)
                 {
                     setLockImg(true);
                 }
@@ -196,9 +209,9 @@ $(document).ready(function ()
                     setLockImg(false);
                 }
             }
-            else if(json.device.indexOf("outlet") !== -1)
+            else if(json.name.indexOf("outlet") !== -1)
             {
-                checkOutlet(json.device, json.data);
+                checkOutlet(json.name, json.params.isOn);
             }
         }
         else

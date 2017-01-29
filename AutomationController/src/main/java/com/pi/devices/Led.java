@@ -17,8 +17,7 @@ import org.apache.http.message.BasicNameValuePair;
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
-import com.pi.infrastructure.HttpClient;
-import com.pi.model.Action;
+import com.pi.infrastructure.util.HttpClient;
 import com.pi.model.DeviceState;
 import com.pi4j.wiringpi.Gpio;
 import com.pi4j.wiringpi.SoftPwm;
@@ -33,13 +32,17 @@ public class Led extends Device
 	private final int RED_PIN;
 	private final int GREEN_PIN;
 	private final int BLUE_PIN;
-
+	boolean testSwitch = false;
 	private Color currentColor = new Color(0, 0, 0);
 	
 	public Led(String name, int red, int green, int blue) throws IOException
 	{
 		super(name);
 		Process pr = rt.exec("sudo pigpiod");
+//		Gpio.wiringPiSetup();
+//		SoftPwm.softPwmCreate(23, 0, 100);
+//		SoftPwm.softPwmCreate(24, 0, 100);
+//		SoftPwm.softPwmCreate(25, 0, 100);
 		
 		this.RED_PIN = pins.get(red).getBCM_Pin();
 		this.GREEN_PIN = pins.get(green).getBCM_Pin();
@@ -47,38 +50,14 @@ public class Led extends Device
 	}
 
 	@Override
-	public void performAction(Action action)
+	public void performAction(DeviceState state)
 	{
 		try
 		{
-			int red = 0, green = 0, blue = 0;
+			Integer red = (Integer) state.getParam(DeviceState.RED);
+			Integer green = (Integer) state.getParam(DeviceState.GREEN);
+			Integer blue = (Integer) state.getParam(DeviceState.BLUE);
 			
-			for(NameValuePair pair : HttpClient.parseURLEncodedData(action.getData()))
-			{
-				switch (pair.getName())
-				{
-				case QueryParams.RED:
-					red = Integer.parseInt(pair.getValue());
-					break;
-				case QueryParams.GREEN:
-					green = Integer.parseInt(pair.getValue());
-					break;
-				case QueryParams.BLUE:
-					blue = Integer.parseInt(pair.getValue());
-					break;
-	
-				default:
-					break;
-				}
-			}
-			boolean testSwitch = false;
-			if (testSwitch)
-			{
-				Gpio.wiringPiSetup();
-				SoftPwm.softPwmCreate(23, 20, 100);
-				SoftPwm.softPwmWrite(23, 40);
-			}
-			//TODO use better strategy
 			rt.exec("pigs p " + RED_PIN + " " + (255 - red));
 			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green));
 			rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue));
@@ -109,47 +88,18 @@ public class Led extends Device
 	@Override
 	public DeviceState getState()
 	{
-		return new LedState(name, currentColor);
+		DeviceState state = new DeviceState(name);
+		state.setParam(DeviceState.RED, currentColor.getRed());
+		state.setParam(DeviceState.GREEN, currentColor.getGreen());
+		state.setParam(DeviceState.BLUE, currentColor.getBlue());
+		
+		return state;
 	}
 	
 	@Override
 	public String getType()
 	{
 		return DeviceType.LED;
-	}
-	
-	public static class LedState extends DeviceState
-	{
-		int red, green, blue;
-		
-		public LedState(String deviceName, Color color)
-		{
-			super(deviceName);
-			red = color.getRed();
-			green = color.getGreen();
-			blue = color.getBlue();
-		}
-
-		public int getRed()
-		{
-			return red;
-		}
-
-		public int getGreen()
-		{
-			return green;
-		}
-
-		public int getBlue()
-		{
-			return blue;
-		}
-
-		@Override
-		public String getType()
-		{
-			return DeviceType.LED;
-		}
 	}
 	
 	@XmlRootElement(name = DEVICE)
@@ -180,12 +130,5 @@ public class Led extends Device
 		{
 			this.blue = blue;
 		}
-	}
-	
-	private interface QueryParams
-	{
-		public static final String RED = "red";
-		public static final String GREEN = "green";
-		public static final String BLUE = "blue";
 	}
 }

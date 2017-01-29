@@ -3,32 +3,24 @@
  */
 package com.pi.infrastructure;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.Map.Entry;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
-
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.XmlAttribute;
 
 import org.w3c.dom.Element;
-import org.w3c.dom.NodeList;
-
 import com.pi.Application;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.backgroundprocessor.TaskExecutorService;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
-import com.pi.devices.*;
 import com.pi.infrastructure.RemoteDevice.Node;
 import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
-import com.pi.model.Action;
 import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
@@ -87,10 +79,10 @@ public abstract class Device
 	public abstract String getType();
 	
 	/**
-	 * @param action
+	 * @param state
 	 * @throws IOException
 	 */
-	public abstract void performAction(Action action);
+	public abstract void performAction(DeviceState state);
 
 	/**
 	 * @return action representing the current state of the device. If device is
@@ -166,31 +158,48 @@ public abstract class Device
 		return stateList;
 	}
 	
-	public static boolean queueAction(Action action)
+	public static boolean queueAction(DeviceState state)
 	{
 		if(node == null)
 		{
-			return Processor.getBackgroundProcessor().scheduleAction(action);
+			return Processor.getBackgroundProcessor().scheduleAction(state);
 		}
 		else 
 		{
-			return node.requestAction(action);
+			return node.requestAction(state);
 		}
 	}
 	
-	protected Task createTask(Runnable task, Long delay, TimeUnit unit)
+	public static Task createTask(Runnable task, Long delay, TimeUnit unit)
 	{
 		return taskService.scheduleTask(task, delay, unit);
 	}
 	
-	protected Task createTask(Runnable task, Long delay, Long interval, TimeUnit unit)
+	public static Task createTask(Runnable task, Long delay, Long interval, TimeUnit unit)
 	{
 		return taskService.scheduleTask(task, delay, interval, unit);
 	}
 	
+	public static boolean close(String name)
+	{
+		Device device = deviceMap.remove(name);
+		
+		if(device != null)
+		{
+			device.close();	
+			return true;
+		}
+		
+		return false;
+	}
+	
 	public static void closeAll()
 	{
-		deviceMap.entrySet().forEach((Entry<String, Device> entry) -> {entry.getValue().close();});
+		deviceMap.entrySet().forEach((Entry<String, Device> entry) -> 
+		{
+			Application.LOGGER.info("closing: " + entry.getKey());
+			entry.getValue().close();
+		});
 		deviceMap.clear();
 	}
 	
@@ -225,6 +234,7 @@ public abstract class Device
 			
 			Device device = config.buildDevice();
 			deviceMap.put(name, device);
+			Application.LOGGER.info("Loaded: " + name);
 		}
 		catch (Exception e)
 		{

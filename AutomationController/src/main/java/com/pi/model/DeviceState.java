@@ -1,40 +1,77 @@
-/**
- * 
- */
 package com.pi.model;
 
-import java.io.Serializable;
+import java.util.HashMap;
 import java.util.Objects;
 
-/**
- * @author Christian Everett
- *
- */
-public abstract class DeviceState implements Serializable
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.pi.infrastructure.DatabaseElement;
+
+public class DeviceState extends DatabaseElement
 {
-	private String deviceName;
-
-	public DeviceState(String deviceName)
+	private String name;
+	private HashMap<String, Object> params = new HashMap<>();
+	
+	public final static String RED = "red";
+	public final static String GREEN = "green";
+	public final static String BLUE = "blue";
+	
+	public final static String IS_ON = "isOn";
+	
+	public final static String TEMPATURE = "temperature";
+	public final static String HUMIDITY = "humidity";
+	
+	public final static String TARGET_TEMPATURE = "target_temp";
+	public final static String MODE = "mode";
+	public final static String TARGET_MODE = "target_mode"; 
+	
+	public final static String EVENTS = "events";
+	
+	public DeviceState()
 	{
-		this.deviceName = deviceName;
+		
 	}
 	
-	public abstract String getType();
-	
-	/**
-	 * @return the deviceName
-	 */
-	public String getDeviceName()
+	public DeviceState(String name)
 	{
-		return deviceName;
+		this.name = name;
+	}
+	
+	public DeviceState(String name, Integer id)
+	{
+		super(id);
+		this.name = name;
 	}
 
-	/**
-	 * @param deviceName the deviceName to set
-	 */
-	public void setDeviceName(String deviceName)
+	public String getName()
 	{
-		this.deviceName = deviceName;
+		return name;
+	}
+
+	public void setName(String name)
+	{
+		this.name = name;
+	}
+
+	public HashMap<String, Object> getParams()
+	{
+		return params;
+	}
+
+	public void setParams(HashMap<String, Object> params)
+	{
+		this.params = params;
+	}
+	
+	@JsonIgnore
+	public void setParam(String key, Object object)
+	{
+		params.put(key, object);
+	}
+	
+	@JsonIgnore
+	public Object getParam(String key)
+	{
+		return params.get(key);
 	}
 	
 	@Override
@@ -44,12 +81,12 @@ public abstract class DeviceState implements Serializable
 			return false;
 		DeviceState deviceState = (DeviceState) object;
 		
-		return Objects.equals(deviceName, deviceState.getDeviceName());
+		return Objects.equals(name, deviceState.getName()) && params.equals(deviceState.getParams());
 	}
 
 	@Override
 	public int hashCode()
 	{
-		return Objects.hash(deviceName);
+		return Objects.hash(name, params.hashCode());
 	}
 }

@@ -4,7 +4,9 @@
 package com.pi.backgroundprocessor;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.sql.SQLException;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -18,9 +20,9 @@ import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
-import com.pi.infrastructure.DeviceType;
-import com.pi.model.Action;
-
+import com.pi.infrastructure.util.PropertyManger;
+import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
+import com.pi.model.DeviceState;
 
 /**
  * @author Christian Everett
@@ -31,179 +33,242 @@ public class Processor extends Thread
 {
 	private static Processor singleton = null;
 	private AtomicBoolean processorRunning = new AtomicBoolean(false);
-	
-	//Background processor data structures
-	private LinkedBlockingQueue<Action> processingQueue = new LinkedBlockingQueue<>(100_000);
-	
-	//Background processor services
+
+	// Background processor data structures
+	private LinkedBlockingQueue<DeviceState> processingQueue = new LinkedBlockingQueue<>(50_000);
+	private HashMap<String, InetAddress> nodeMap = new HashMap<>();
+
+	// Background processor services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
 	private PersistenceManager persistenceManager = null;
 	private TimeActionProcessor timeActionProcessor = null;
-	
-	//Background processor tasks
+	private DeviceLoader deviceLoader = null;
+
+	// Background processor tasks
 	private Task databaseTask;
 
 	public static void createBackgroundProcessor() throws Exception
 	{
-		if(singleton != null)
+		if (singleton != null)
 			throw new Exception("Background Processor already created");
 		singleton = new Processor();
-		
-		singleton.loadDevices();
+
 		singleton.scheduleTasksAndTimers();
 	}
-	
+
 	public static synchronized Processor getBackgroundProcessor()
 	{
-		if(singleton == null)
-			throw new NullPointerException("Background Processor null");
+		if (singleton == null)
+			throw new NullPointerException("Background Processor has not been created");
 		return singleton;
 	}
-	
-	private Processor() throws Exception 
+
+	private Processor() throws Exception
 	{
 		persistenceManager = PersistenceManager.loadPersistanceManager();
 		TimeActionProcessor.createTimeActionProcessor(this);
 		timeActionProcessor = TimeActionProcessor.getTimeActionProcessor();
-	}	
+		deviceLoader = DeviceLoader.createNewDeviceLoader();
+	}
 
 	@Override
 	public void run()
 	{
+		this.setPriority(Thread.MAX_PRIORITY);
+
 		try
 		{
 			processorRunning.set(true);
-			
-			while(true)
+
+			while (true)
 			{
-				Action result = processingQueue.take();
-				
-				if(result != null)
+				DeviceState result = processingQueue.take();
+
+				if (result != null)
 					processAction(result);
 			}
-		} 
-		catch (InterruptedException e)
+		}
+		catch (Exception e)
 		{
 			processorRunning.set(false);
 			Application.LOGGER.info(e.getMessage());
 		}
 	}
-	
-	private void processAction(Action action) throws InterruptedException
+
+	private synchronized void processAction(DeviceState state) throws Exception
 	{
 		try
 		{
-			if(action != null)
+			if (state != null)
 			{
-				String name = action.getDevice();
-				Device device =  Device.lookupDevice(name);
-				
-				if(device == null)
-				{
-					switch (name)
-					{	
-					case DeviceType.RUN_ECHO_SERVER:
-						ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
-						//process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-						process.start();
-						break;
-						
-					case DeviceType.RELOAD_DEVICES:
-						saveAndCloseAllDevices();
-						loadDevices();
-						Application.LOGGER.info("Reloaded Devices");
-						break;
-						
-					case DeviceType.SHUTDOWN:
-						shutdownBackgroundProcessor();
-						break;
+				String deviceToApplyState = state.getName();
+				Device device = Device.lookupDevice(deviceToApplyState);
+				String deviceToConfig = (String)state.getParam(PROCESSOR_ACTIONS.DEVICE);
 
-					default:
-						Application.LOGGER.severe("Action not Supported");
-						break;
-					}
-				}
-				else 
+				switch (deviceToApplyState)
 				{
-					device.performAction(action);
+				case PROCESSOR_ACTIONS.RUN_ECHO_SERVER:
+					ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
+					// process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+					process.start();
+					break;
+
+				case PROCESSOR_ACTIONS.RELOAD_DEVICE:
+					
+					device = Device.lookupDevice(deviceToConfig);
+
+					if (device != null)
+					{
+						DeviceState savedState = device.getState();
+						Device.close(deviceToConfig);
+						deviceLoader.loadDevice(deviceToConfig);
+						device = Device.lookupDevice(deviceToConfig);
+						
+						if(device != null)
+						{
+							device.performAction(savedState);
+							Application.LOGGER.info("Reloaded " + deviceToConfig);
+						}
+						else 
+							Application.LOGGER.info("Could not load: " + deviceToConfig);
+					}
+	
+					break;
+				case PROCESSOR_ACTIONS.RELOAD_DEVICE_ALL:
+					saveAndCloseAllDevices();
+					loadDevicesAndDeviceStates();
+					Application.LOGGER.info("Reloaded Devices");
+					break;
+				case PROCESSOR_ACTIONS.LOAD_DEVICE:
+					deviceLoader.loadDevice(deviceToConfig);
+					break;
+
+				case PROCESSOR_ACTIONS.CLOSE_DEVICE:
+					Device.close(deviceToConfig);
+					break;
+
+				case PROCESSOR_ACTIONS.SAVE_DATA:
+					save();
+					break;
+
+				case PROCESSOR_ACTIONS.SHUTDOWN:
+					shutdownBackgroundProcessor();
+					break;
+
+				default:
+					if (device != null)
+					{
+						device.performAction(state);
+					}
+					else
+					{
+						Application.LOGGER.severe("Can't find device for : " + deviceToApplyState);
+					}
+					break;
 				}
-			}	
+			}
 		}
-		catch(IOException | SQLException | ParserConfigurationException | SAXException e)
+		catch (Exception e)
+		{
+			if(e instanceof InterruptedException)
+				throw e;
+			Application.LOGGER.severe(e.getMessage());
+		}
+	}
+
+	public synchronized void registerNode(String node, InetAddress address)
+	{
+		nodeMap.put(node, address);
+	}
+	
+	public synchronized boolean scheduleAction(DeviceState state)
+	{
+		return processingQueue.add(state);
+	}
+
+	public TaskExecutorService getTaskExecutorService()
+	{
+		return taskService;
+	}
+
+	public TimeActionProcessor getTimeActionProcessor()
+	{
+		return timeActionProcessor;
+	}
+
+	public void loadDevicesAndDeviceStates() throws ParserConfigurationException, SAXException, IOException, SQLException
+	{
+		Application.LOGGER.info("Loading Devices");
+		deviceLoader.loadDevices();
+
+		Application.LOGGER.info("Loading Device States");
+		List<DeviceState> savedStates = persistenceManager.loadDeviceStates();
+		savedStates.forEach((action) ->
+		{
+			Device device = Device.lookupDevice(action.getName());
+			if (device != null)
+				device.performAction(action);
+		});
+	}
+
+	private void scheduleTasksAndTimers()
+	{
+		try
+		{
+			Application.LOGGER.info("Scheduling Timers");
+			timeActionProcessor.load(persistenceManager.loadTimedActions());
+
+			Application.LOGGER.info("Scheduling Database Task");
+			Long interval = Long.parseLong(PropertyManger.loadProperty(PropertyKeys.DATABASE_POLL_FREQUENCY, "2"));
+
+			databaseTask = taskService.scheduleTask(() ->
+			{
+				try
+				{
+					save();
+				}
+				catch (Throwable e)
+				{
+					Application.LOGGER.severe(e.getMessage());
+				}
+			}, 1L, interval, TimeUnit.HOURS);
+			
+			Application.LOGGER.info("Starting Node Discovery Service");
+			//NodeDiscovererService.startDiscovering();
+		}
+		catch (Exception e)
 		{
 			Application.LOGGER.severe(e.getMessage());
 		}
 	}
 
-	public synchronized boolean scheduleAction(Action action)
+	/**
+	 * @throws SQLException
+	 */
+	private void save() throws SQLException
 	{
-		return processingQueue.add(action);
+		persistenceManager.commitStates(Device.getStates());
+		persistenceManager.commitTimers(timeActionProcessor.retrieveAllTimedActions());
 	}
-	
-	public TaskExecutorService getThreadExecutorService()
-	{
-		return taskService;
-	}
-	
-	public TimeActionProcessor getTimeActionProcessor()
-	{
-		return timeActionProcessor;
-	}
-	
-	private void loadDevices() throws ParserConfigurationException, SAXException, IOException, SQLException
-	{
-		Application.LOGGER.info("Loading Devices");
-		DeviceLoader deviceLoader = DeviceLoader.createNewDeviceLoader();
-		deviceLoader.loadDevices();
-		
-		Application.LOGGER.info("Loading Device States");
-		List<Action> savedStates = persistenceManager.loadSavedStates();
-		savedStates.forEach((action) -> 
-		{
-			Device device = Device.lookupDevice(action.getDevice());
-			if(device != null)
-				device.performAction(action);
-		});		
-	}
-	
-	private void scheduleTasksAndTimers()
-	{
-		Application.LOGGER.info("Scheduling Timers");		
-		timeActionProcessor.load(persistenceManager.loadTimers());
-		
-		Application.LOGGER.info("Scheduling Tasks");		
-		databaseTask = taskService.scheduleTask(() ->
-		{
-			try
-			{
-				persistenceManager.commit(Device.getStates());
-				persistenceManager.commit(timeActionProcessor.retrieveAllTimedActions());
-			}
-			catch (Throwable e)
-			{
-				Application.LOGGER.severe(e.getMessage());
-			}
-		}, 1L, 2L, TimeUnit.HOURS);	
-	}
-	
+
 	/**
 	 * @throws SQLException
 	 */
 	private void saveAndCloseAllDevices() throws SQLException
 	{
-		persistenceManager.commit(Device.getStates());
+		save();
 		Device.closeAll();
 	}
-	
+
 	public void shutdownBackgroundProcessor()
-	{	
+	{
 		try
 		{
-			if(processorRunning.get())
+			if (processorRunning.get())
 				this.interrupt();
 			Application.LOGGER.info("Stopping all background tasks");
 			taskService.cancelAllTasks();
-			//Shutdown all devices and save their state
+			// Shutdown all devices and save their state
 			Application.LOGGER.info("Saving Device States and shutting down");
 			saveAndCloseAllDevices();
 			persistenceManager.close();
@@ -212,9 +277,22 @@ public class Processor extends Thread
 		{
 			Application.LOGGER.severe(e.getMessage());
 		}
-		finally 
+		finally
 		{
 			Application.LOGGER.info("System has been shutdown.");
-		}    
-	}	
+		}
+	}
+
+	private interface PROCESSOR_ACTIONS
+	{
+		public static final String RELOAD_DEVICE_ALL = "reload_device_all";
+		public static final String RELOAD_DEVICE = "reload_device";
+		public static final String LOAD_DEVICE = "load_device";
+		public static final String CLOSE_DEVICE = "close_device";
+		public static final String SAVE_DATA = "save_data";
+		public static final String RUN_ECHO_SERVER = "run_echo_server";
+		public static final String SHUTDOWN = "shutdown";
+		
+		public static final String DEVICE = "device";
+	}
 }

@@ -3,29 +3,30 @@
  */
 package com.pi.Node;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.MalformedURLException;
-import java.util.HashMap;
-import java.util.concurrent.Callable;
-import java.util.function.Function;
+import java.net.Socket;
+import java.util.concurrent.TimeUnit;
 
-import org.apache.tomcat.util.net.URL;
 import org.w3c.dom.Element;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pi.Main;
+import com.pi.backgroundprocessor.NodeDiscovererService.Probe;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
-import com.pi.infrastructure.HttpClient;
-import com.pi.infrastructure.HttpClient.ObjectResponse;
-import com.pi.infrastructure.HttpClient.Response;
 import com.pi.infrastructure.RemoteDevice;
 import com.pi.infrastructure.RemoteDevice.Node;
-import com.pi.model.Action;
+import com.pi.infrastructure.util.HttpClient;
+import com.pi.infrastructure.util.HttpClient.ObjectResponse;
+import com.pi.infrastructure.util.HttpClient.Response;
 import com.pi.model.DeviceState;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -41,6 +42,9 @@ public class NodeController implements HttpHandler, Node
 	
 	private HttpServer server = null;
 	private static final int QUEUE = 5;
+	
+	private static final String BROADCAST_ADDRESS = "255.255.255.255";
+	private Probe probe = new Probe("");//TODO
 	
 	private static final String AUTOMATION_CONTROLLER_API = "http://10.0.0.24:8080";
 	
@@ -62,6 +66,26 @@ public class NodeController implements HttpHandler, Node
 			server.createContext(RemoteDevice.REMOTE_CONFIG_PATH, this);
 			server.setExecutor(null); // creates a default executor
 			server.start();
+			
+//			Device.createTask(() -> 
+//			{
+//				try
+//				{//TODO finish
+//					DatagramSocket clientSocket = new DatagramSocket();
+//					InetAddress IPAddress = InetAddress.getByName(BROADCAST_ADDRESS);
+//					ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+//					ObjectOutputStream objectOutput = new ObjectOutputStream(outputStream);
+//					objectOutput.writeObject(probe);
+//
+//					DatagramPacket sendPacket = new DatagramPacket(outputStream.toByteArray(), outputStream.toByteArray().length, IPAddress, 9876);
+//					clientSocket.send(sendPacket);
+//				}
+//				catch (Exception e)
+//				{
+//					Main.LOGGER.severe(e.getMessage());
+//				}
+//				
+//			}, 5L, 5L, TimeUnit.SECONDS);
 		}
 		catch (Exception e)
 		{
@@ -71,9 +95,8 @@ public class NodeController implements HttpHandler, Node
 
 	public void handle(HttpExchange request) throws IOException
 	{
-		try
+		try(ObjectInputStream input = new ObjectInputStream(request.getRequestBody()))
 		{
-			ObjectInputStream input = new ObjectInputStream(request.getRequestBody());
 			Element element = (Element) input.readObject();
 			
 			String name = element.getAttribute(DeviceLoader.DEVICE_NAME);
@@ -90,17 +113,17 @@ public class NodeController implements HttpHandler, Node
 	}
 
 	@Override
-	public boolean requestAction(Action action)
+	public boolean requestAction(DeviceState state)
 	{
 		String json;
 		
 		try
 		{
 			ObjectMapper mapper = new ObjectMapper();
-			json = mapper.writeValueAsString(new Action());
+			json = mapper.writeValueAsString(state);
 			
 			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_API);
-			Response response = client.sendPost(null, "/action/add", json);
+			Response response = client.sendPost(null, "/action/" + state.getName(), json);
 			
 			if(!response.isHTTP_OK())
 				throw new IOException("Could not request action from Controller got response: " + response.getStatusCode());

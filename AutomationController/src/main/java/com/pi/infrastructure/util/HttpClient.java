@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.pi.infrastructure;
+package com.pi.infrastructure.util;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -25,7 +25,7 @@ import org.apache.http.client.utils.URLEncodedUtils;
  * @author Christian Everett
  *
  */
-public class HttpClient//TODO add try with resources
+public class HttpClient
 {
 	private static final String GET = "GET";
 	private static final String POST = "POST";
@@ -68,14 +68,20 @@ public class HttpClient//TODO add try with resources
 		connection.setRequestMethod(POST);
 		connection.setDoOutput(true);
 		
-		DataOutputStream output = new DataOutputStream(connection.getOutputStream());
-		output.writeBytes(resquestBody);
-		output.flush();
-		output.close();
-		
-		String responseBody = sendRequest(connection);
-		
-		return new Response(responseBody, connection.getResponseCode());
+		try(DataOutputStream output = new DataOutputStream(connection.getOutputStream()))
+		{
+			output.writeBytes(resquestBody);
+			output.flush();
+			output.close();
+			
+			String responseBody = sendRequest(connection);
+			
+			return new Response(responseBody, connection.getResponseCode());
+		}
+		catch(IOException e)
+		{
+			throw e;
+		}
 	}
 	
 	/**
@@ -93,9 +99,15 @@ public class HttpClient//TODO add try with resources
 		
 		if(connection.getResponseCode() == HttpURLConnection.HTTP_OK)
 		{
-			ObjectInputStream inputStream = new ObjectInputStream(connection.getInputStream());
-			responseBody = inputStream.readObject();
-			inputStream.close();
+			try(ObjectInputStream inputStream = new ObjectInputStream(connection.getInputStream()))
+			{
+				responseBody = inputStream.readObject();
+				inputStream.close();
+			}
+			catch(IOException e)
+			{
+				throw e;
+			}
 		}
 		
 		return new ObjectResponse(responseBody, connection.getResponseCode());
@@ -114,12 +126,18 @@ public class HttpClient//TODO add try with resources
 		connection.setRequestMethod(POST);
 		connection.setDoOutput(true);
 
-		ObjectOutputStream output = new ObjectOutputStream(connection.getOutputStream());
-		output.writeObject(resquestBody);
-		output.flush();
-		output.close();
-		
-		return new ObjectResponse(null, connection.getResponseCode());
+		try(ObjectOutputStream output = new ObjectOutputStream(connection.getOutputStream()))
+		{
+			output.writeObject(resquestBody);
+			output.flush();
+			output.close();
+			
+			return new ObjectResponse(null, connection.getResponseCode());
+		}
+		catch(IOException e)
+		{
+			throw e;
+		}
 	}
 	
 	/**
@@ -141,23 +159,28 @@ public class HttpClient//TODO add try with resources
 	private String sendRequest(HttpURLConnection connection) throws IOException
 	{
 		String responseBody = "";
-		Scanner body = new Scanner(new BufferedReader(new InputStreamReader(connection.getInputStream())));
-		
-		switch (connection.getResponseCode())
+		try(Scanner body = new Scanner(new BufferedReader(new InputStreamReader(connection.getInputStream()))))
 		{
-		case HttpURLConnection.HTTP_OK:
-			while(body.hasNextLine())
+			switch (connection.getResponseCode())
 			{
-				responseBody += body.nextLine();
+			case HttpURLConnection.HTTP_OK:
+				while(body.hasNextLine())
+				{
+					responseBody += body.nextLine();
+				}
+				break;
+	
+			default:
+				break;
 			}
-			break;
-
-		default:
-			break;
+			body.close();
+			
+			return responseBody;
 		}
-		body.close();
-		
-		return responseBody;
+		catch(IOException e)
+		{
+			throw e;
+		}
 	}
 	
 	public static List<NameValuePair> parseURLEncodedData(String data)

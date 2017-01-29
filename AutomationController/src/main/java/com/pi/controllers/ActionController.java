@@ -5,8 +5,6 @@ package com.pi.controllers;
 
 import java.io.ObjectOutputStream;
 import java.util.Collection;
-import java.util.Map.Entry;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -20,7 +18,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.pi.Application;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.infrastructure.Device;
-import com.pi.model.Action;
 import com.pi.model.DeviceState;
 
 /**
@@ -33,10 +30,11 @@ public class ActionController
 {
 	private static final String PATH = "/action";
 	
-	private static Processor PROCESSOR = Processor.getBackgroundProcessor();
+	private static Processor bgp = null;
 	
 	public ActionController()
 	{
+		bgp = Processor.getBackgroundProcessor();
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
@@ -76,10 +74,10 @@ public class ActionController
 		}
 	}
 	
-	@RequestMapping(value = (PATH + "/add"), method = RequestMethod.POST)
-	public void addAction(HttpServletRequest request, HttpServletResponse response, @RequestBody Action action)
+	@RequestMapping(value = (PATH + "/{device}"), method = RequestMethod.POST)
+	public void scheduleAction(HttpServletRequest request, HttpServletResponse response, @RequestBody DeviceState state)
 	{
-		PROCESSOR.scheduleAction(action);
+		bgp.scheduleAction(state);
 	}
 	
 	private DeviceState getState(HttpServletResponse response, String deviceName)
