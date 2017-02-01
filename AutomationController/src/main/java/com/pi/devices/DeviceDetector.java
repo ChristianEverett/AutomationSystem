@@ -3,15 +3,14 @@
  */
 package com.pi.devices;
 
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -34,39 +33,37 @@ public class DeviceDetector extends Device
 	private Pattern regex = Pattern.compile(MAC_ADDRESS_REGEX);
 	private Task scanningTask = null;
 	private Map<String, Event> addressEventMap;
-	private PrintWriter writer = new PrintWriter(new FileWriter("MAC.log"));
 
 	public DeviceDetector(String name, List<String> addresses, List<Event> events) throws IOException
 	{
 		super(name);
 		addressEventMap = new HashMap<>(addresses.size());
 		
-//		for(int x = 0; x < addresses.size() && x < events.size(); x++)
-//		{
-//			Matcher match = regex.matcher(addresses.get(x));
-//			if(match.matches())
-//				addressEventMap.put(addresses.get(x), events.get(x));
-//			else
-//				Application.LOGGER.severe("MAC Address is not in a valid format: " + addresses.get(x));
-//		}
-//		setupScanner();
-//		
-//		for(String address : addresses)
-//			registerAddress(address);
-//		
-//		scanningTask = createTask(() -> 
-//		{
-//			try
-//			{
-//				String MAC = scan();
-//				//addressEventMap.get(MAC).triggerEvent();
-//				writer.println("Got MAC: " + MAC);
-//			}
-//			catch (Throwable e)
-//			{
-//				Application.LOGGER.severe(e.getMessage());
-//			}
-//		}, 5L, 1L, TimeUnit.SECONDS);
+		for(int x = 0; x < addresses.size() && x < events.size(); x++)
+		{
+			Matcher match = regex.matcher(addresses.get(x));
+			if(match.matches())
+				addressEventMap.put(addresses.get(x), events.get(x));
+			else
+				Application.LOGGER.severe("MAC Address is not in a valid format: " + addresses.get(x));
+		}
+		setupScanner();
+		
+		for(String address : addresses)
+			registerAddress(address);
+		
+		scanningTask = createTask(() -> 
+		{
+			try
+			{
+				String MAC = scan();
+				addressEventMap.get(MAC).triggerEvent();
+			}
+			catch (Throwable e)
+			{
+				Application.LOGGER.severe(e.getMessage());
+			}
+		}, 5L, 1L, TimeUnit.SECONDS);
 	}
 
 	@Override
@@ -78,6 +75,7 @@ public class DeviceDetector extends Device
 	@Override
 	public void performAction(DeviceState state)
 	{
+
 	}
 
 	@Override

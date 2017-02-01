@@ -17,6 +17,7 @@ import org.apache.http.message.BasicNameValuePair;
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.infrastructure.util.HttpClient;
 import com.pi.model.DeviceState;
 import com.pi4j.wiringpi.Gpio;
@@ -44,9 +45,9 @@ public class Led extends Device
 //		SoftPwm.softPwmCreate(24, 0, 100);
 //		SoftPwm.softPwmCreate(25, 0, 100);
 		
-		this.RED_PIN = pins.get(red).getBCM_Pin();
-		this.GREEN_PIN = pins.get(green).getBCM_Pin();
-		this.BLUE_PIN = pins.get(blue).getBCM_Pin();
+		this.RED_PIN = GPIO_PIN.getBCM_Pin(red);
+		this.GREEN_PIN = GPIO_PIN.getBCM_Pin(green);
+		this.BLUE_PIN = GPIO_PIN.getBCM_Pin(blue);
 	}
 
 	@Override

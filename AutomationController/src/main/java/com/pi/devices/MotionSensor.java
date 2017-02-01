@@ -13,6 +13,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
 import com.pi4j.io.gpio.GpioPinDigitalInput;
@@ -32,7 +33,7 @@ public class MotionSensor extends Device
 	public MotionSensor(String name, int headerPin, List<Event> events) throws IOException
 	{
 		super(name);
-		gpioPin = gpioController.provisionDigitalInputPin(pins.get(headerPin).getWiringPI_Pin(), name);
+		gpioPin = gpioController.provisionDigitalInputPin(GPIO_PIN.getWiringPI_Pin(headerPin), name);
 		this.events = events;
 		
 		gpioPin.addListener(new GpioPinListenerDigital()

@@ -52,7 +52,7 @@ public class DeviceLoader
 		loadDevice(null);
 	}
 	
-	public void loadDevice(String name)//TODO fix remove device reload
+	public void loadDevice(String name)
 	{
 		NodeList deviceList = xmlDocument.getElementsByTagName(DEVICE);
 		

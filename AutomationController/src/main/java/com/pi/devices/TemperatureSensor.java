@@ -11,6 +11,7 @@ import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 
 /**
@@ -35,7 +36,7 @@ public class TemperatureSensor extends Device
 		{
 			try
 			{
-				SensorReading reading = readSensor(pins.get(headerPin).getBCM_Pin(), sensortype);
+				SensorReading reading = readSensor(GPIO_PIN.getBCM_Pin(headerPin), sensortype);
 				sensorTempature = Math.round((1.8F * reading.getTempature()) + 32);
 				sensorHumidity = Math.round(reading.getHumidity());
 			}

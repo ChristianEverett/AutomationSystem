@@ -1,5 +1,10 @@
 <?xml version="1.0"?>
 <devices>
+	<device device-type="motion_sensor" device-name="motion_sensor1">
+		<header></header>
+		
+	</device>
+
 	<device device-type="led" device-name="led1">
 		<red>33</red>
 		<green>35</green>
@@ -34,7 +39,7 @@
 		<sensorType>11</sensorType>
 	</device>
 
-	<device device-type="remote_device" device-name="">
+	<device device-type="remote_device" device-name="temp_sensor2">
 		<url>http://10.0.0.105:8080</url>
 		<device device-type="temp_sensor" device-name="temp_sensor2">
 			<header>32</header>
@@ -42,7 +47,7 @@
 		</device>
 	</device>
 	
-	<device device-type="remote_device" device-name="">
+	<device device-type="remote_device" device-name="thermostat1">
 		<url>http://10.0.0.105:8080</url>
 		<device device-type="thermostat" device-name="thermostat1">
 			<sensor>temp_sensor2</sensor>

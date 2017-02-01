@@ -24,6 +24,12 @@ public abstract class DatabaseElement implements Serializable
 	}
 	
 	@JsonIgnore
+	public void setDatabaseID(Integer databaseID)
+	{
+		this.databaseID = databaseID;
+	}
+	
+	@JsonIgnore
 	public boolean isInDatabase()
 	{
 		return databaseID > 0;

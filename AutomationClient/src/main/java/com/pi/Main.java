@@ -29,6 +29,6 @@ public class Main
 			}
 		});
 		
-		NodeController.getInstance();
+		NodeController.getInstance(args[0]);
 	}
 }

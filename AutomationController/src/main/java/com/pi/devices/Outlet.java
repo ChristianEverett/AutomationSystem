@@ -12,6 +12,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 
 
@@ -35,7 +36,7 @@ public class Outlet extends Device
 		this.ON = onCode;
 		this.OFF = offCode;
 		this.headerPin = headerPin;
-		IR_PIN = pins.get(headerPin).getWiringPI_Pin().getAddress();
+		IR_PIN = GPIO_PIN.getWiringPI_Pin(headerPin).getAddress();
 	}
 
 	@Override

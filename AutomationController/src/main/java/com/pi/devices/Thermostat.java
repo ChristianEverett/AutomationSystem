@@ -18,6 +18,7 @@ import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
@@ -65,9 +66,9 @@ public class Thermostat extends Device
 		//Make task non-null
 		fanTurnOffDelayTask = createTask(() -> {}, 0L, TimeUnit.MILLISECONDS);
 		
-		FAN = gpioController.provisionDigitalOutputPin(pins.get(fanHeader).getWiringPI_Pin(), PinState.HIGH);
-		COMPRESSOR = gpioController.provisionDigitalOutputPin(pins.get(compressorHeader).getWiringPI_Pin(), PinState.HIGH);
-		HEAT = gpioController.provisionDigitalOutputPin(pins.get(heatHeader).getWiringPI_Pin(), PinState.HIGH);
+		FAN = gpioController.provisionDigitalOutputPin(GPIO_PIN.getWiringPI_Pin(fanHeader), PinState.HIGH);
+		COMPRESSOR = gpioController.provisionDigitalOutputPin(GPIO_PIN.getWiringPI_Pin(compressorHeader), PinState.HIGH);
+		HEAT = gpioController.provisionDigitalOutputPin(GPIO_PIN.getWiringPI_Pin(heatHeader), PinState.HIGH);
 		
 		this.modeChangeDelay = modeChangeDelay;
 		

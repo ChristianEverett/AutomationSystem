@@ -90,9 +90,18 @@ public class Event extends DatabaseElement
 	{
 		this.preEventState = preEventAction;
 	}
-
+	
+	/**
+	 * 
+	 * @return true if the event is still in an active period
+	 */
 	public Boolean isTriggered()
 	{
 		return isTriggered.get();
+	}
+	
+	public interface EventDevice
+	{
+		public void addEvent(Event event);
 	}
 }

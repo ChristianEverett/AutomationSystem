@@ -36,7 +36,6 @@ public class Processor extends Thread
 
 	// Background processor data structures
 	private LinkedBlockingQueue<DeviceState> processingQueue = new LinkedBlockingQueue<>(50_000);
-	private HashMap<String, InetAddress> nodeMap = new HashMap<>();
 
 	// Background processor services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
@@ -175,11 +174,6 @@ public class Processor extends Thread
 			Application.LOGGER.severe(e.getMessage());
 		}
 	}
-
-	public synchronized void registerNode(String node, InetAddress address)
-	{
-		nodeMap.put(node, address);
-	}
 	
 	public synchronized boolean scheduleAction(DeviceState state)
 	{
@@ -234,7 +228,7 @@ public class Processor extends Thread
 			}, 1L, interval, TimeUnit.HOURS);
 			
 			Application.LOGGER.info("Starting Node Discovery Service");
-			//NodeDiscovererService.startDiscovering();
+			NodeDiscovererService.startDiscovering();
 		}
 		catch (Exception e)
 		{
@@ -268,6 +262,7 @@ public class Processor extends Thread
 				this.interrupt();
 			Application.LOGGER.info("Stopping all background tasks");
 			taskService.cancelAllTasks();
+			NodeDiscovererService.stopDiscovering();
 			// Shutdown all devices and save their state
 			Application.LOGGER.info("Saving Device States and shutting down");
 			saveAndCloseAllDevices();

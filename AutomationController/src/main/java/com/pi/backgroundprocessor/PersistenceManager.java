@@ -22,6 +22,7 @@ import com.pi.infrastructure.MySQLHandler;
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
 import com.pi.model.TimedAction;
+import com.sun.corba.se.impl.oa.poa.ActiveObjectMap.Key;
 
 /**
  * @author Christian Everett
@@ -118,10 +119,12 @@ class PersistenceManager
 		
 		while(result.next())
 		{
+			int id = result.getInt(1);
 			byte[] bytes = result.getBytes(3);
 			try(ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes)))
 			{
 				DatabaseElement element = (DatabaseElement) input.readObject();
+				element.setDatabaseID(id);
 				elements.add(element);
 			}
 			catch(Exception e)
@@ -149,17 +152,18 @@ class PersistenceManager
 		commit(events, TABLES.EVENT_TABLE, EVENT_TABLE_COLUMNS.DATA);
 	}
 	
-	private void commit(List<? extends DatabaseElement> list, String table, String dataColunm) throws SQLException
+	private synchronized void commit(List<? extends DatabaseElement> list, String table, String dataColunm) throws SQLException
 	{
-		lock.lock();
 		for(DatabaseElement object : list)
 		{
 			if(object.isInDatabase())
 				dbHandler.UPDATE_OBJECT(table, dataColunm, object, object.getDatabaseID().toString());
 			else
-				dbHandler.INSERT_OBJECT(table, dataColunm, object);
+			{
+				int key = dbHandler.INSERT_OBJECT(table, dataColunm, object);
+				object.setDatabaseID(key);
+			}
 		}
-		lock.unlock();
 	}
 	
 	private String toMySqlString(String string)

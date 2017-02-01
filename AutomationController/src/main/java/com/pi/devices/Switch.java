@@ -10,6 +10,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
@@ -28,7 +29,7 @@ public class Switch extends Device
 	{
 		super(name);
 		this.headerPin = headerPin;
-		gpioPin = gpioController.provisionDigitalOutputPin(pins.get(headerPin).getWiringPI_Pin(), name, PinState.HIGH);
+		gpioPin = gpioController.provisionDigitalOutputPin(GPIO_PIN.getWiringPI_Pin(headerPin), name, PinState.HIGH);
 	}
 
 	@Override

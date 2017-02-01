@@ -13,13 +13,16 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.util.concurrent.TimeUnit;
 
 import org.w3c.dom.Element;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pi.Main;
+import com.pi.backgroundprocessor.NodeDiscovererService;
 import com.pi.backgroundprocessor.NodeDiscovererService.Probe;
+import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
 import com.pi.infrastructure.RemoteDevice;
@@ -44,22 +47,31 @@ public class NodeController implements HttpHandler, Node
 	private static final int QUEUE = 5;
 	
 	private static final String BROADCAST_ADDRESS = "255.255.255.255";
-	private Probe probe = new Probe("");//TODO
+	private DatagramSocket clientSocket = null;
+	private Probe probe = null;
+	private String nodeID = null;
+	private Task broadcastTask = null;
 	
 	private static final String AUTOMATION_CONTROLLER_API = "http://10.0.0.24:8080";
+	private static String AUTOMATION_CONTROLLER_ADDRESS = null;
+	private static String AUTOMATION_CONTROLLER_PORT = "8080";
 	
-	public static NodeController getInstance()
+	public static NodeController getInstance(String nodeID)
 	{
 		if(instance == null)
-			instance = new NodeController();
+			instance = new NodeController(nodeID);
 		
 		return instance;
 	}
 	
-	private NodeController()
+	private NodeController(String nodeID)
 	{
 		try
 		{
+			this.nodeID = nodeID;
+			probe = new Probe(nodeID, Probe.BROAD_CAST);
+			clientSocket = new DatagramSocket();
+			clientSocket.setSoTimeout(5000);
 			Device.registerRemoteDeviceLookup(this);
 			
 			server = HttpServer.create(new InetSocketAddress(8080), QUEUE);
@@ -67,25 +79,40 @@ public class NodeController implements HttpHandler, Node
 			server.setExecutor(null); // creates a default executor
 			server.start();
 			
-//			Device.createTask(() -> 
-//			{
-//				try
-//				{//TODO finish
-//					DatagramSocket clientSocket = new DatagramSocket();
-//					InetAddress IPAddress = InetAddress.getByName(BROADCAST_ADDRESS);
-//					ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-//					ObjectOutputStream objectOutput = new ObjectOutputStream(outputStream);
-//					objectOutput.writeObject(probe);
-//
-//					DatagramPacket sendPacket = new DatagramPacket(outputStream.toByteArray(), outputStream.toByteArray().length, IPAddress, 9876);
-//					clientSocket.send(sendPacket);
-//				}
-//				catch (Exception e)
-//				{
-//					Main.LOGGER.severe(e.getMessage());
-//				}
-//				
-//			}, 5L, 5L, TimeUnit.SECONDS);
+			broadcastTask = Device.createTask(() -> 
+			{		
+				try
+				{
+					InetAddress IPAddress = InetAddress.getByName(BROADCAST_ADDRESS);
+					ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+					ObjectOutputStream objectOutput = new ObjectOutputStream(outputStream);
+					objectOutput.writeObject(probe);
+
+					DatagramPacket sendPacket = new DatagramPacket(outputStream.toByteArray(), outputStream.toByteArray().length, IPAddress, NodeDiscovererService.DISCOVERY_PORT);
+					clientSocket.send(sendPacket);
+					
+					byte[] packet = new byte[1024];
+					DatagramPacket receivePacket = new DatagramPacket(packet, packet.length);
+					Probe probe = null;
+					while (probe == null || probe.getType() != Probe.BROAD_CAST_ACK)
+					{
+						clientSocket.receive(receivePacket);
+						probe = NodeDiscovererService.extractProbeFromDatagram(receivePacket);
+					}
+					
+					Main.LOGGER.info("This Node has been registered as: " + nodeID);
+					setAutomationControllerAddress(receivePacket.getAddress());
+					broadcastTask.cancel();
+				}
+				catch(SocketTimeoutException e)
+				{		
+				}
+				catch (Exception e)
+				{
+					Main.LOGGER.severe(e.getMessage());
+				}
+				
+			}, 5L, 5L, TimeUnit.SECONDS);
 		}
 		catch (Exception e)
 		{
@@ -93,6 +120,11 @@ public class NodeController implements HttpHandler, Node
 		}
 	}
 
+	private void setAutomationControllerAddress(InetAddress address)
+	{
+		AUTOMATION_CONTROLLER_ADDRESS = "http://" + address.getHostAddress() + ":" + AUTOMATION_CONTROLLER_PORT;
+	}
+	
 	public void handle(HttpExchange request) throws IOException
 	{
 		try(ObjectInputStream input = new ObjectInputStream(request.getRequestBody()))
@@ -122,7 +154,7 @@ public class NodeController implements HttpHandler, Node
 			ObjectMapper mapper = new ObjectMapper();
 			json = mapper.writeValueAsString(state);
 			
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_API);
+			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
 			Response response = client.sendPost(null, "/action/" + state.getName(), json);
 			
 			if(!response.isHTTP_OK())
@@ -141,7 +173,7 @@ public class NodeController implements HttpHandler, Node
 	{
 		try
 		{
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_API);
+			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
 			ObjectResponse response = client.sendGetObject(null, "/action/AC/" + name);
 			
 			return (DeviceState) response.getResponseObject();

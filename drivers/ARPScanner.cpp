@@ -95,9 +95,16 @@ void registerMACAddress(std::string address)
 
 std::string scan()
 {
-	numbytes = recvfrom(sockfd, buf, MAX_ETHERNET_FRAME_SIZE, 0, NULL, NULL);
+	std::string mac;
 
-	return lookForMACAddresses(ethernetHeader);
+	do
+	{
+		numbytes = recvfrom(sockfd, buf, MAX_ETHERNET_FRAME_SIZE, 0, NULL, NULL);
+
+		mac = lookForMACAddresses(ethernetHeader);
+	} while(mac.empty());
+
+	return mac;
 }
 
 std::string lookForMACAddresses(const struct ether_header *ethernetHeader)

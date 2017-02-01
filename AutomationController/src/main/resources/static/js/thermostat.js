@@ -155,22 +155,18 @@ $(document).ready(function ()
 
             if (json.params.target_mode == fan_mode)
             {
-                thermostatModeDiv.html("Fan");
                 fanButton.css("background-color", "rgba(204, 204, 204, 1)");
             }
             else if (json.params.target_mode == cool_mode)
             {
-                thermostatModeDiv.html("AC");
                 acButton.css("background-color", "rgba(204, 204, 204, 1)");
             }
             else if (json.params.target_mode == heat_mode)
             {
-                thermostatModeDiv.html("Heat");
                 heatButton.css("background-color", "rgba(204, 204, 204, 1)");
             }
             else if (json.params.target_mode == off_mode)
             {
-                thermostatModeDiv.html("Off");
                 offButton.css("background-color", "rgba(204, 204, 204, 1)");
             }
             else
