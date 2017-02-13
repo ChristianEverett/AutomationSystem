@@ -1,4 +1,4 @@
-package com.pi.infrastructure;
+package com.pi.model;
 
 import java.io.Serializable;
 
@@ -29,9 +29,14 @@ public abstract class DatabaseElement implements Serializable
 		this.databaseID = databaseID;
 	}
 	
-	@JsonIgnore
-	public boolean isInDatabase()
+	protected String toMySqlString(String string)
 	{
-		return databaseID > 0;
+		return ("'" + string + "'");
 	}
+	
+	@JsonIgnore
+	public abstract Object getDatabaseIdentification();
+	
+	@JsonIgnore
+	public abstract String getDatabaseIdentificationForQuery();
 }

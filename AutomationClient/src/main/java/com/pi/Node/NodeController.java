@@ -52,7 +52,6 @@ public class NodeController implements HttpHandler, Node
 	private String nodeID = null;
 	private Task broadcastTask = null;
 	
-	private static final String AUTOMATION_CONTROLLER_API = "http://10.0.0.24:8080";
 	private static String AUTOMATION_CONTROLLER_ADDRESS = null;
 	private static String AUTOMATION_CONTROLLER_PORT = "8080";
 	
@@ -159,6 +158,8 @@ public class NodeController implements HttpHandler, Node
 			
 			if(!response.isHTTP_OK())
 				throw new IOException("Could not request action from Controller got response: " + response.getStatusCode());
+			
+			return true;
 		}
 		catch (IOException e)
 		{

@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.pi.infrastructure.DatabaseElement;
 
 public class DeviceState extends DatabaseElement
 {
@@ -24,7 +23,7 @@ public class DeviceState extends DatabaseElement
 	public final static String MODE = "mode";
 	public final static String TARGET_MODE = "target_mode"; 
 	
-	public final static String EVENTS = "events";
+	public final static String MAC = "mac";
 	
 	public DeviceState()
 	{
@@ -88,5 +87,17 @@ public class DeviceState extends DatabaseElement
 	public int hashCode()
 	{
 		return Objects.hash(name, params.hashCode());
+	}
+
+	@Override
+	public Object getDatabaseIdentification()
+	{
+		return name;
+	}
+
+	@Override
+	public String getDatabaseIdentificationForQuery()
+	{
+		return toMySqlString(name);
 	}
 }

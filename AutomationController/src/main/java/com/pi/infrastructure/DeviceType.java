@@ -7,6 +7,7 @@ import com.pi.devices.DeviceDetector.DeviceDetectorConfig;
 import com.pi.devices.Led.LedConfig;
 import com.pi.devices.MotionSensor.MotionSensorConfig;
 import com.pi.devices.Outlet.OutletConfig;
+import com.pi.devices.PILed.PILedConfig;
 import com.pi.devices.Switch.SwitchConfig;
 import com.pi.devices.TemperatureSensor.TemperatureSensorConfig;
 import com.pi.devices.Thermostat.ThermostatConfig;
@@ -18,7 +19,7 @@ import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
  */
 public abstract class DeviceType
 {
-	
+	public static final String PI_LED = "pi_led";
 	public static final String LED = "led";
 	public static final String OUTLET = "outlet";
 	public static final String SWITCH = "switch";
@@ -35,6 +36,7 @@ public abstract class DeviceType
 	{
 		Device.registerDevice(DeviceType.REMOTE_DEVICE, RemoteDeviceConfig.class);
 		
+		Device.registerDevice(DeviceType.PI_LED, PILedConfig.class);
 		Device.registerDevice(DeviceType.LED, LedConfig.class);
 		Device.registerDevice(DeviceType.MOTION_SENSOR, MotionSensorConfig.class);
 		Device.registerDevice(DeviceType.OUTLET, OutletConfig.class);

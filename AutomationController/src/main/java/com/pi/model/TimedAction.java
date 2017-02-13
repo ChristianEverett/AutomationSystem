@@ -10,7 +10,6 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.Application;
-import com.pi.infrastructure.DatabaseElement;
 
 /**
  * @author Christian Everett
@@ -111,5 +110,17 @@ public class TimedAction extends DatabaseElement implements Comparable<TimedActi
 			result = getMinute().compareTo(other.getMinute());
 		
 		return result;
+	}
+
+	@Override
+	public Object getDatabaseIdentification()
+	{
+		return getDatabaseID();
+	}
+
+	@Override
+	public String getDatabaseIdentificationForQuery()
+	{
+		return getDatabaseID().toString();
 	}
 }

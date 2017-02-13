@@ -36,6 +36,7 @@ public class Processor extends Thread
 
 	// Background processor data structures
 	private LinkedBlockingQueue<DeviceState> processingQueue = new LinkedBlockingQueue<>(50_000);
+	private HashMap<String, InetAddress> nodeMap = new HashMap<>();
 
 	// Background processor services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
@@ -173,6 +174,17 @@ public class Processor extends Thread
 				throw e;
 			Application.LOGGER.severe(e.getMessage());
 		}
+	}
+	
+	public synchronized void registerNode(String node, InetAddress address)
+	{
+		nodeMap.put(node, address);
+		Application.LOGGER.info("Registered Node: " + node);
+	}
+	
+	public InetAddress lookupNodeAddress(String node)
+	{
+		return nodeMap.get(node);
 	}
 	
 	public synchronized boolean scheduleAction(DeviceState state)

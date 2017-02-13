@@ -164,7 +164,7 @@ public class Thermostat extends Device
 			turnOff();
 			modeChangeLock.set(true);
 			
-			createTask(() -> {modeChangeLock.set(false);}, modeChangeDelay, TimeUnit.SECONDS); 
+			createTask(() -> {modeChangeLock.set(false);}, modeChangeDelay, TimeUnit.MINUTES); 
 		}
 		
 		lock.unlock();

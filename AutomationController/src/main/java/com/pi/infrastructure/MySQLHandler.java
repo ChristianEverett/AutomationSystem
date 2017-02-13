@@ -114,10 +114,10 @@ public class MySQLHandler
 		String line = "INSERT INTO " + table + "(name, " + objectColunmName + ") VALUES (?, ?)";
 		PreparedStatement pstmt = connection.prepareStatement(line);
 		
-	    pstmt.setString(1, object.getClass().toString());
+	    pstmt.setString(1, object.getClass().getName());
 	    pstmt.setObject(2, object);
 	    pstmt.executeUpdate();
-		ResultSet result = statement.getGeneratedKeys();
+		ResultSet result = pstmt.getGeneratedKeys();
 		
 		int key = 0;
 		

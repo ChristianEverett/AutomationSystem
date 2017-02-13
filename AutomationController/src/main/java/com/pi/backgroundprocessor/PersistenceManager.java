@@ -12,17 +12,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 import com.pi.Application;
-import com.pi.infrastructure.DatabaseElement;
 import com.pi.infrastructure.MySQLHandler;
+import com.pi.model.DatabaseElement;
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
 import com.pi.model.TimedAction;
-import com.sun.corba.se.impl.oa.poa.ActiveObjectMap.Key;
 
 /**
  * @author Christian Everett
@@ -115,60 +115,77 @@ class PersistenceManager
 	private List<? extends DatabaseElement> load(String table) throws SQLException
 	{
 		List<DatabaseElement> elements = new ArrayList<>();
-		ResultSet result = dbHandler.SELECT(stateStatement, "*", table, null);
 		
-		while(result.next())
+		synchronized (this)
 		{
-			int id = result.getInt(1);
-			byte[] bytes = result.getBytes(3);
-			try(ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes)))
+			ResultSet result = dbHandler.SELECT(stateStatement, "*", table, null);
+			
+			while(result.next())
 			{
-				DatabaseElement element = (DatabaseElement) input.readObject();
-				element.setDatabaseID(id);
-				elements.add(element);
+				int id = result.getInt(1);
+				byte[] bytes = result.getBytes(3);
+				try(ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes)))
+				{
+					DatabaseElement element = (DatabaseElement) input.readObject();
+					element.setDatabaseID(id);
+					elements.add(element);
+				}
+				catch(Exception e)
+				{
+					Application.LOGGER.severe(e.getMessage());
+				}
 			}
-			catch(Exception e)
-			{
-				Application.LOGGER.severe(e.getMessage());
-			}
+			
+			result.close();
 		}
-		
-		result.close();
 		return elements;
 	}
 	
 	public void commitStates(List<DeviceState> states) throws SQLException
 	{	
-		commit(states, TABLES.DEVICE_STATE_TABLE, DEVICE_STATE_TABLE_COLUMNS.DATA);
+		commit(states, TABLES.DEVICE_STATE_TABLE, DEVICE_STATE_TABLE_COLUMNS.DATA, DEVICE_STATE_TABLE_COLUMNS.NAME);
 	}
 	
 	public void commitTimers(List<TimedAction> timers) throws SQLException
 	{		
-		commit(timers, TABLES.TIMED_ACTION_TABLE, TIMED_ACTION_TABLE_COLUMNS.DATA);
+		commit(timers, TABLES.TIMED_ACTION_TABLE, TIMED_ACTION_TABLE_COLUMNS.DATA, TIMED_ACTION_TABLE_COLUMNS.ID);
 	}
 	
 	public void commitEvents(List<Event> events) throws SQLException
 	{
-		commit(events, TABLES.EVENT_TABLE, EVENT_TABLE_COLUMNS.DATA);
+		commit(events, TABLES.EVENT_TABLE, EVENT_TABLE_COLUMNS.DATA, EVENT_TABLE_COLUMNS.ID);
 	}
 	
-	private synchronized void commit(List<? extends DatabaseElement> list, String table, String dataColunm) throws SQLException
+	private void commit(List<? extends DatabaseElement> list, String table, String dataColunm, String updateOnColumn) throws SQLException
 	{
-		for(DatabaseElement object : list)
+		synchronized (this)
 		{
-			if(object.isInDatabase())
-				dbHandler.UPDATE_OBJECT(table, dataColunm, object, object.getDatabaseID().toString());
-			else
+			HashSet<Object> set = getDatabaseMap(table);
+			
+			for(DatabaseElement object : list)
 			{
-				int key = dbHandler.INSERT_OBJECT(table, dataColunm, object);
-				object.setDatabaseID(key);
+				if(set.contains(object.getDatabaseIdentification()))
+					dbHandler.UPDATE_OBJECT(table, dataColunm, object, object.getDatabaseIdentificationForQuery());
+				else
+				{
+					int key = dbHandler.INSERT_OBJECT(table, dataColunm, object);
+					object.setDatabaseID(key);
+				}
 			}
 		}
 	}
 	
-	private String toMySqlString(String string)
+	private HashSet<Object> getDatabaseMap(String table) throws SQLException
 	{
-		return ("'" + string + "'");
+		List<? extends DatabaseElement> list = load(table);
+		HashSet<Object> set = new HashSet<>(list.size());	
+		
+		for(DatabaseElement element : list)
+		{
+			set.add(element.getDatabaseIdentification());
+		}
+		
+		return set;
 	}
 	
 	public void close() throws SQLException

@@ -34,7 +34,6 @@ public abstract class Device
 {
 	private static HashMap<String, Device> deviceMap = new HashMap<>();
 	private static HashMap<String, Class<?>> registeredDeviceConfigs = new HashMap<>();
-	private static HashMap<String, InetAddress> nodeMap = new HashMap<>();
 	private static TaskExecutorService taskService = new TaskExecutorService(2);
 
 	protected static Runtime rt = Runtime.getRuntime();
@@ -76,12 +75,6 @@ public abstract class Device
 		registeredDeviceConfigs.put(name, type);
 	}
 	
-	public static synchronized void registerNode(String node, InetAddress address)
-	{
-		nodeMap.put(node, address);
-		Application.LOGGER.info("Registered Node: " + node);
-	}
-	
 	/**
 	 * @return the type of device
 	 */
@@ -89,6 +82,7 @@ public abstract class Device
 	
 	/**
 	 * @param state
+	 * @throws Exception 
 	 * @throws IOException
 	 */
 	public abstract void performAction(DeviceState state);
@@ -96,14 +90,16 @@ public abstract class Device
 	/**
 	 * @return action representing the current state of the device. If device is
 	 *         closed returns null
+	 * @throws IOException 
 	 */
-	public abstract DeviceState getState();
+	public abstract DeviceState getState() throws IOException;
 
 	/**
 	 * Shutdown device and release resources. All future calls to performAction
 	 * will do nothing
+	 * @throws IOException 
 	 */
-	public abstract void close();
+	public abstract void close() throws IOException;
 
 	public static final void registerRemoteDeviceLookup(Node node)
 	{
@@ -136,7 +132,16 @@ public abstract class Device
 		Device device = lookupDevice(name);
 		
 		if(device != null)
-			return device.getState();
+		{
+			try
+			{
+				return device.getState();
+			}
+			catch (Exception e)
+			{
+				Application.LOGGER.severe("Could not get state: " + name + " " + e.getMessage());
+			}
+		}
 		else if(node != null)
 		{
 			try
@@ -161,7 +166,9 @@ public abstract class Device
 		
 		for(Entry<String, Device> device : deviceMap.entrySet())
 		{
-			stateList.add(device.getValue().getState());
+			DeviceState state = getDeviceState(device.getKey());
+			if(state != null)
+				stateList.add(state);
 		}
 		
 		return stateList;
@@ -175,7 +182,26 @@ public abstract class Device
 		}
 		else 
 		{
-			return node.requestAction(state);
+			Device device = lookupDevice(state.getName());
+			
+			if(device != null)
+			{
+				try
+				{
+					device.performAction(state);
+					return true;
+				}
+				catch(Exception e)
+				{
+					Application.LOGGER.severe(e.getMessage());
+				}
+				
+				return false;
+			}
+			else
+			{
+				return node.requestAction(state);
+			}
 		}
 	}
 	
@@ -193,10 +219,17 @@ public abstract class Device
 	{
 		Device device = deviceMap.remove(name);
 		
-		if(device != null)
+		try
 		{
-			device.close();	
-			return true;
+			if (device != null)
+			{
+				device.close();
+				return true;
+			} 
+		}
+		catch (Exception e)
+		{
+			Application.LOGGER.severe("Failed to close " + name + " Got:" + e.getMessage());
 		}
 		
 		return false;
@@ -207,12 +240,12 @@ public abstract class Device
 		deviceMap.entrySet().forEach((Entry<String, Device> entry) -> 
 		{
 			Application.LOGGER.info("closing: " + entry.getKey());
-			entry.getValue().close();
+			close(entry.getKey());
 		});
 		deviceMap.clear();
 	}
 	
-	public static void createNewDevice(Element element)
+	public static void createNewDevice(Element element)//TODO smart device create
 	{
 		String type = element.getAttribute(DeviceLoader.DEVICE_TYPE);
 		String name = element.getAttribute(DeviceLoader.DEVICE_NAME);
@@ -232,13 +265,19 @@ public abstract class Device
 			
 			//Extract inner device for RemoteDevice type
 			if (DeviceType.REMOTE_DEVICE.equals(type))
-			{//TODO 
+			{
 				Element deviceElement = (Element) element.getElementsByTagName(DeviceLoader.DEVICE).item(0);
 				name = deviceElement.getAttribute(DeviceLoader.DEVICE_NAME);
 				type = deviceElement.getAttribute(DeviceLoader.DEVICE_TYPE);
-				config.setName(name);
-				((RemoteDeviceConfig)config).setElement(deviceElement);
-				((RemoteDeviceConfig)config).setType(type);
+				String nodeID = element.getElementsByTagName("nodeID").item(0).getTextContent();
+
+				InetAddress address = Processor.getBackgroundProcessor().lookupNodeAddress(nodeID);
+				if (address == null)
+					return;
+						
+				((RemoteDeviceConfig) config).setElement(deviceElement);
+				((RemoteDeviceConfig) config).setType(type);
+				((RemoteDeviceConfig) config).setUrl("http://" + address.getHostAddress() + ":8080");
 			}
 			
 			Device device = config.buildDevice();

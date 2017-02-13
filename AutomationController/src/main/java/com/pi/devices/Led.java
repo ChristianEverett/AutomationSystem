@@ -106,7 +106,7 @@ public class Led extends Device
 	@XmlRootElement(name = DEVICE)
 	public static class LedConfig extends DeviceConfig
 	{
-		int red, green, blue;
+		private int red, green, blue;
 
 		@Override
 		public Device buildDevice() throws IOException

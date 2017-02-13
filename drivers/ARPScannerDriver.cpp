@@ -13,6 +13,7 @@
 void setup();
 std::string scan();
 void registerMACAddress(std::string address);
+void shutdownScanner();
 const char *name;
 
 JNIEXPORT void JNICALL
@@ -39,5 +40,5 @@ Java_com_pi_devices_DeviceDetector_scan(JNIEnv *env, jobject obj)
 JNIEXPORT void JNICALL
 Java_com_pi_devices_DeviceDetector_stopScanning(JNIEnv *env, jobject obj)
 {
-	std::cout << "In stop";
+	shutdownScanner();
 }

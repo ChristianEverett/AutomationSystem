@@ -1,10 +1,26 @@
 <?xml version="1.0"?>
 <devices>
-	<device device-type="motion_sensor" device-name="motion_sensor1">
-		<header></header>
-		
+
+	<device device-type="pi_led" device-name="pi_led2">	
 	</device>
 
+	<device device-type="remote_device" device-name="pi_led1">
+		<nodeID>1</nodeID>
+		<device device-type="pi_led" device-name="pi_led1">	
+		</device>
+	</device>
+		
+	<device device-type="remote_device" device-name="motion_sensor1">	
+		<nodeID>1</nodeID>
+		<device device-type="motion_sensor" device-name="motion_sensor1">
+			<header>7</header>	
+		</device>
+	</device>
+
+	<device device-type="device_sensor" device-name="device_sensor1">
+		<address>44:65:0d:a6:58:03</address>	
+	</device>
+	
 	<device device-type="led" device-name="led1">
 		<red>33</red>
 		<green>35</green>
@@ -15,11 +31,6 @@
 		<red>36</red>
 		<green>38</green>
 		<blue>40</blue>
-	</device>
-	
-	<device device-type="device_sensor" device-name="device_sensor1">
-		<address>44:65:0d:a6:58:03</address>
-		
 	</device>
 	
 	<device device-type="switch" device-name="switch1">
@@ -40,7 +51,7 @@
 	</device>
 
 	<device device-type="remote_device" device-name="temp_sensor2">
-		<url>http://10.0.0.105:8080</url>
+		<nodeID>1</nodeID>
 		<device device-type="temp_sensor" device-name="temp_sensor2">
 			<header>32</header>
 			<sensorType>22</sensorType>
@@ -48,14 +59,14 @@
 	</device>
 	
 	<device device-type="remote_device" device-name="thermostat1">
-		<url>http://10.0.0.105:8080</url>
+		<nodeID>1</nodeID>
 		<device device-type="thermostat" device-name="thermostat1">
 			<sensor>temp_sensor2</sensor>
 			<sensor>weather_sensor1</sensor>
 			<fan>36</fan>
 			<compressor>38</compressor>
 			<heat>40</heat>
-			<modeChangeDelay>200</modeChangeDelay>
+			<modeChangeDelay>10</modeChangeDelay>
 		</device>
 	</device>
 	

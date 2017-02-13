@@ -176,6 +176,7 @@ $(document).ready(function ()
         }
 
         dontChangeTargetUI = false;
+        GET_STATES(refreshPage);
     }
 
     function refreshPage(result, status, xhr)

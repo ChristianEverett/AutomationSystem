@@ -101,7 +101,6 @@ public class RemoteDevice extends Device
 	public interface Node
 	{
 		public boolean requestAction(DeviceState state);
-
 		public DeviceState getDeviceState(String name);
 	}
 
@@ -127,7 +126,6 @@ public class RemoteDevice extends Device
 			this.type = type;
 		}
 
-		@XmlElement
 		public void setUrl(String url)
 		{
 			this.url = url;

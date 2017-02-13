@@ -62,7 +62,7 @@ public class NodeDiscovererService extends Thread
 				DatagramPacket receivePacket = listenForProbe();
 				Probe probe = extractProbeFromDatagram(receivePacket);
 						
-				Device.registerNode(probe.getNodeName(), receivePacket.getAddress());
+				Processor.getBackgroundProcessor().registerNode(probe.getNodeName(), receivePacket.getAddress());
 				replyToNode(receivePacket.getAddress(), receivePacket.getPort());
 			}
 		}
