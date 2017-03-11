@@ -3,42 +3,37 @@ package com.pi.model;
 import java.util.HashMap;
 import java.util.Objects;
 
+import org.hibernate.type.SetType;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.pi.infrastructure.Device;
 
 public class DeviceState extends DatabaseElement
 {
 	private String name;
+	private String type;
 	private HashMap<String, Object> params = new HashMap<>();
-	
-	public final static String RED = "red";
-	public final static String GREEN = "green";
-	public final static String BLUE = "blue";
-	
-	public final static String IS_ON = "isOn";
-	
-	public final static String TEMPATURE = "temperature";
-	public final static String HUMIDITY = "humidity";
-	
-	public final static String TARGET_TEMPATURE = "target_temp";
-	public final static String MODE = "mode";
-	public final static String TARGET_MODE = "target_mode"; 
-	
-	public final static String MAC = "mac";
 	
 	public DeviceState()
 	{
 		
 	}
 	
-	public DeviceState(String name)
+	public static DeviceState create(String name, String type)
 	{
-		this.name = name;
+		DeviceState state = new DeviceState();
+		state.name = name;
+		state.type = type;
+		return state;
 	}
 	
-	public DeviceState(String name, Integer id)
+	public static DeviceState load(String name, String type, Integer id)
 	{
-		super(id);
-		this.name = name;
+		DeviceState state = new DeviceState();
+		state.setName(name);
+		state.setDatabaseID(id);
+		state.SetType(type);
+		return state;
 	}
 
 	public String getName()
@@ -59,6 +54,16 @@ public class DeviceState extends DatabaseElement
 	public void setParams(HashMap<String, Object> params)
 	{
 		this.params = params;
+	}
+	
+	public String getType()
+	{
+		return type;
+	}
+	
+	public void SetType(String type)
+	{
+		this.type = type;
 	}
 	
 	@JsonIgnore
@@ -98,6 +103,6 @@ public class DeviceState extends DatabaseElement
 	@Override
 	public String getDatabaseIdentificationForQuery()
 	{
-		return toMySqlString(name);
+		return name;
 	}
 }

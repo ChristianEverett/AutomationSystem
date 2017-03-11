@@ -33,14 +33,16 @@
 
 const std::string lookForMACAddresses(const struct ether_header *);
 void string_to_mac(std::string const& s, u_int8_t*);
+const int unRegisterMACAddress(std::string);
 void shutdownScanner();
 
-std::map<unsigned long long, std::string> macAddresses;
-std::atomic<bool> stop(false);
+static std::map<unsigned long long, std::string> macAddresses;
+static std::atomic<bool> stop(false);
 
 static int sockfd;
 static ssize_t numbytes;
 static uint8_t buf[MAX_ETHERNET_FRAME_SIZE];
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 /* Header structures */
 static struct ether_header *ethernetHeader = (struct ether_header *) buf;
 //static struct iphdr *ipHeader = (struct iphdr *) (buf + sizeof(struct ether_header));
@@ -111,8 +113,31 @@ void registerMACAddress(std::string stringAddress)
 		addressNumber.address[ETH_ALEN - x - 1] = address[x];
 	}
 
+	if (pthread_mutex_lock(&mutex) != 0)
+		perror("mutex lock");
+
 	std::pair<unsigned long long, std::string> newPair(addressNumber.number, stringAddress);
 	macAddresses.insert(newPair);
+
+	if (pthread_mutex_unlock(&mutex) != 0)
+		perror("mutex unlock");
+}
+
+const int unRegisterMACAddress(std::string stringAddress)
+{
+	u_int8_t address[ETH_ALEN];
+	string_to_mac(stringAddress, address);
+
+	AddressNumber addressNumber;
+
+	for (int x = 0; x < ETH_ALEN; x++)
+	{
+		addressNumber.address[ETH_ALEN - x - 1] = address[x];
+	}
+
+	int numberElementsRemoved = macAddresses.erase(addressNumber.number);
+
+	return numberElementsRemoved;
 }
 
 const std::string scan()
@@ -123,7 +148,7 @@ const std::string scan()
 	{
 		numbytes = recvfrom(sockfd, buf, MAX_ETHERNET_FRAME_SIZE, 0, NULL, NULL);
 
-		if (stop)
+		if (stop.load())
 			return "";
 
 		try
@@ -135,7 +160,7 @@ const std::string scan()
 		{
 		}
 	}
-	while (!stop);
+	while (!stop.load());
 
 	stop = false;
 
@@ -151,7 +176,13 @@ const std::string lookForMACAddresses(const struct ether_header *ethernetHeader)
 		addressNumber.address[ETH_ALEN - x - 1] = ethernetHeader->ether_shost[x];
 	}
 
+	if (pthread_mutex_lock(&mutex) != 0)
+		perror("mutex lock");
+
 	std::string stringAddress = macAddresses.at(addressNumber.number);
+
+	if (pthread_mutex_unlock(&mutex) != 0)
+		perror("mutex unlock");
 
 	return stringAddress;
 }

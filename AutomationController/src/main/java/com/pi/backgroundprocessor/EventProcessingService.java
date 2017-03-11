@@ -1,11 +1,12 @@
 package com.pi.backgroundprocessor;
 
-import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
@@ -16,9 +17,9 @@ public class EventProcessingService
 	private Processor processor = null;
 	
 	//Table to map IDs to events and to devices listening to the event
-	private HashMap<Integer, EventRecord> eventRecords = new HashMap<>();
+	private HashMap<Integer, Event> events = new HashMap<>();
 	//Table to map devices to the events they trigger
-	private HashMap<String, List<EventRecord>> mapDevicesToTriggerEvents = new HashMap<>();
+	private HashMap<String, List<Event>> mapDevicesToTriggerEvents = new HashMap<>();
 	
 	private EventProcessingService(Processor processor)
 	{
@@ -33,20 +34,22 @@ public class EventProcessingService
 		return singlton;
 	}
 	
-	public synchronized void update(String deviceName, DeviceState state)
+	public synchronized void update(DeviceState state)
 	{
-		List<EventRecord> eventRecords = mapDevicesToTriggerEvents.get(deviceName);
+		List<Event> events = mapDevicesToTriggerEvents.get(state.getName());
 		
-		for(EventRecord eventRecord : eventRecords)
+		if (events != null)
 		{
-			Event event = eventRecord.getEvent();
-			if(event.updateAndCheckIfTriggered(state))
+			for (Event event : events)
 			{
-				for(Entry<String, DeviceState> element : eventRecord.getRegisteredDevices())
+				if (event.updateAndCheckIfTriggered(state))
 				{
-					processor.scheduleAction(element.getValue());
+					for (Entry<String, DeviceState> element : event.getRegisteredDevices())
+					{
+						processor.scheduleAction(element.getValue());
+					}
 				}
-			}
+			} 
 		}
 	}
 	
@@ -55,14 +58,12 @@ public class EventProcessingService
 	 * @param id
 	 * @param deviceName
 	 */
-	public synchronized void mapEvent(Integer id, String deviceName, DeviceState state)
+	public synchronized void mapEvent(Integer id, DeviceState state)
 	{
-		if(eventRecords.get(id) == null)
+		if(events.get(id) == null)
 			throw new RuntimeException("There is no event mapped at: " + id);
 		
-		List<Entry<String, DeviceState>> pairs = eventRecords.get(id).getRegisteredDevices();
-		
-		pairs.add(new AbstractMap.SimpleEntry<String, DeviceState>(deviceName, state));
+		events.get(id).registerListener(state);
 	}
 	
 	/**
@@ -72,18 +73,10 @@ public class EventProcessingService
 	 */
 	public synchronized void unmapEvent(Integer id, String deviceName)
 	{
-		if(eventRecords.get(id) == null)
+		if(events.get(id) == null)
 			throw new RuntimeException("There is no device event mapped at: " + id);
 		
-		List<Entry<String, DeviceState>> pairs = eventRecords.get(id).getRegisteredDevices();
-		
-		for(Iterator<Entry<String, DeviceState>> iter = pairs.iterator(); iter.hasNext();)
-		{
-			if(iter.next().getKey().equals(deviceName))
-			{
-				iter.remove();	
-			}
-		}
+		events.get(id).unRegisterListener(deviceName);	
 	}
 	
 	/**
@@ -94,17 +87,19 @@ public class EventProcessingService
 	public synchronized Integer createEvent(Event event)
 	{
 		Integer id = event.hashCode();
-		
-		EventRecord eventRecord = new EventRecord(event);
-		eventRecords.put(id, eventRecord);
+
+		events.put(id, event);
 		
 		for(String deviceName : event.getDependencyDevices())
 		{
-			List<EventRecord> records = mapDevicesToTriggerEvents.get(deviceName);
+			List<Event> records = mapDevicesToTriggerEvents.get(deviceName);
 			
 			if(records == null)
+			{
 				records = new LinkedList<>();
-			records.add(eventRecord);
+				mapDevicesToTriggerEvents.put(deviceName, records);
+			}
+			records.add(event);
 		}
 		
 		return id;
@@ -112,18 +107,18 @@ public class EventProcessingService
 	
 	public synchronized void removeEvent(Integer id)
 	{
-		EventRecord eventRecord = eventRecords.remove(id);
+		Event event = events.remove(id);
 		
-		if(eventRecord == null)
+		if(event == null)
 			throw new RuntimeException("There is no event mapped at: " + id);
 		
-		for(String deviceName : eventRecord.getEvent().getDependencyDevices())
+		for(String deviceName : event.getDependencyDevices())
 		{
-			List<EventRecord> eventRecords = mapDevicesToTriggerEvents.get(deviceName);
+			List<Event> events = mapDevicesToTriggerEvents.get(deviceName);
 			
-			for(Iterator<EventRecord> iter = eventRecords.iterator(); iter.hasNext();)
+			for(Iterator<Event> iter = events.iterator(); iter.hasNext();)
 			{
-				if(iter.next().getEvent().equals(eventRecord))
+				if(iter.next().equals(events))
 				{
 					iter.remove();
 					break;
@@ -132,24 +127,18 @@ public class EventProcessingService
 		}
 	}
 	
-	private static class EventRecord
+	public synchronized List<Event> getAllEvents()
 	{
-		private Event event = null;
-		private List<Entry<String, DeviceState>> registeredDevices = new LinkedList<>();
+		return new ArrayList<>(events.values());
+	}
+	
+	public synchronized List<String> getAllListenersForEvent(Integer id)
+	{
+		Event event = events.get(id);
 		
-		public EventRecord(Event event)
-		{
-			this.event = event;
-		}
-
-		public Event getEvent()
-		{
-			return event;
-		}
-
-		public List<Entry<String, DeviceState>> getRegisteredDevices()
-		{
-			return registeredDevices;
-		}
+		if(event == null)
+			throw new RuntimeException("There is no event mapped at: " + id);
+		
+		return new ArrayList<>(event.getDependencyDevices());
 	}
 }

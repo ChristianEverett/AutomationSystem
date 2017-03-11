@@ -23,6 +23,8 @@ import com.pi.Main;
 import com.pi.backgroundprocessor.NodeDiscovererService;
 import com.pi.backgroundprocessor.NodeDiscovererService.Probe;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
+import com.pi.controllers.ActionController;
+import com.pi.controllers.EventController;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
 import com.pi.infrastructure.RemoteDevice;
@@ -135,6 +137,7 @@ public class NodeController implements HttpHandler, Node
 
 			server.createContext("/" + name, new DeviceHandler(Device.lookupDevice(name)));
 			request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
+			request.close();
 		}
 		catch (Exception e)
 		{
@@ -146,22 +149,20 @@ public class NodeController implements HttpHandler, Node
 	@Override
 	public boolean requestAction(DeviceState state)
 	{
-		String json;
-		
 		try
 		{
 			ObjectMapper mapper = new ObjectMapper();
-			json = mapper.writeValueAsString(state);
+			String json = mapper.writeValueAsString(state);
 			
 			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
-			Response response = client.sendPost(null, "/action/" + state.getName(), json);
+			Response response = client.sendPostJson(null, ActionController.PATH + "/" + state.getName(), json);
 			
 			if(!response.isHTTP_OK())
 				throw new IOException("Could not request action from Controller got response: " + response.getStatusCode());
 			
 			return true;
 		}
-		catch (IOException e)
+		catch (Exception e)
 		{
 			Main.LOGGER.severe("Could not request action. " + e.getMessage());
 		}
@@ -175,15 +176,35 @@ public class NodeController implements HttpHandler, Node
 		try
 		{
 			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
-			ObjectResponse response = client.sendGetObject(null, "/action/AC/" + name);
+			ObjectResponse response = client.sendGetObject(null, ActionController.PATH + "/AC/" + name);
 			
 			return (DeviceState) response.getResponseObject();
 		}
-		catch (IOException | ClassNotFoundException e)
+		catch (Exception e)
 		{
 			Main.LOGGER.severe("Could not connect to Automation Controller. " + e.getMessage());
 		}
 		
 		return null;
+	}
+
+	@Override
+	public void notifyAutomationControllerOfStateUpdate(DeviceState state)
+	{
+		try
+		{
+			ObjectMapper mapper = new ObjectMapper();
+			String json = mapper.writeValueAsString(state);
+			
+			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
+			Response response = client.sendPostJson(null, EventController.PATH + "/AC/update", json);
+			
+			if(!response.isHTTP_OK())
+				throw new IOException("Could not update event record on automation controller got: " + response.getStatusCode());
+		}
+		catch (Exception e)
+		{
+			Main.LOGGER.severe("Could not connect to Automation Controller. " + e.getMessage());
+		}
 	}
 }

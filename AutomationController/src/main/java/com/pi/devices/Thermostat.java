@@ -18,6 +18,7 @@ import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
@@ -86,10 +87,10 @@ public class Thermostat extends Device
 	}
 
 	@Override
-	public void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
-		Integer targetTemp = (Integer) state.getParam(DeviceState.TARGET_TEMPATURE);
-		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParam(DeviceState.TARGET_MODE)).toUpperCase());
+		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE);
+		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParam(Params.TARGET_MODE)).toUpperCase());
 		
 		if (targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
 		{
@@ -102,13 +103,13 @@ public class Thermostat extends Device
 	}
 	
 	@Override
-	public DeviceState getState()
+	public DeviceState getState(Boolean forDatabase)
 	{
 		lock.lock();
-		DeviceState state = new DeviceState(name);
-		state.setParam(DeviceState.TARGET_TEMPATURE, targetTempInFehrenheit);
-		state.setParam(DeviceState.MODE, currentMode.toString());
-		state.setParam(DeviceState.TARGET_MODE, targetMode.toString());
+		DeviceState state = Device.createNewDeviceState(name);
+		state.setParam(Params.TARGET_TEMPATURE, targetTempInFehrenheit);
+		state.setParam(Params.MODE, currentMode.toString());
+		state.setParam(Params.TARGET_MODE, targetMode.toString());
 		lock.unlock();
 
 		return state;
@@ -207,7 +208,7 @@ public class Thermostat extends Device
 			
 			if(state != null)
 			{
-				Integer temperature = (Integer)state.getParam(DeviceState.TEMPATURE);
+				Integer temperature = (Integer)state.getParam(Params.TEMPATURE);
 				if(temperature != null && compareTemperatures(temperature))
 					return true;
 			}
@@ -220,6 +221,15 @@ public class Thermostat extends Device
 	{
 		return (targetMode.equals(ThermostatMode.COOL_MODE) && temperature <= targetTempInFehrenheit)
 				|| (targetMode.equals(ThermostatMode.HEAT_MODE) && temperature >= targetTempInFehrenheit);
+	}
+	
+	@Override
+	public List<String> getExpectedParams()
+	{
+		List<String> list = new ArrayList<>();
+		list.add(Params.TARGET_TEMPATURE);
+		list.add(Params.TARGET_MODE);
+		return list;
 	}
 	
 	@Override

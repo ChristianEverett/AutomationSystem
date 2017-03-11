@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
 <devices>
 
+	<device device-type="bluetooth_adapter" device-name="bluetooth1">	
+	</device>
+
 	<device device-type="pi_led" device-name="pi_led2">	
 	</device>
 
@@ -18,7 +21,6 @@
 	</device>
 
 	<device device-type="device_sensor" device-name="device_sensor1">
-		<address>44:65:0d:a6:58:03</address>	
 	</device>
 	
 	<device device-type="led" device-name="led1">
@@ -66,7 +68,7 @@
 			<fan>36</fan>
 			<compressor>38</compressor>
 			<heat>40</heat>
-			<modeChangeDelay>10</modeChangeDelay>
+			<modeChangeDelay>17</modeChangeDelay>
 		</device>
 	</device>
 	

@@ -20,6 +20,7 @@ import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
+import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import com.pi.model.DeviceState;
@@ -33,6 +34,7 @@ public class Processor extends Thread
 {
 	private static Processor singleton = null;
 	private AtomicBoolean processorRunning = new AtomicBoolean(false);
+	private AtomicBoolean shutdownProcessor = new AtomicBoolean(false);
 
 	// Background processor data structures
 	private LinkedBlockingQueue<DeviceState> processingQueue = new LinkedBlockingQueue<>(50_000);
@@ -42,6 +44,8 @@ public class Processor extends Thread
 	private TaskExecutorService taskService = new TaskExecutorService(2);
 	private PersistenceManager persistenceManager = null;
 	private TimeActionProcessor timeActionProcessor = null;
+	private EventProcessingService eventProcessingService = null;
+	private DeviceLoggingService deviceLoggingService = null;
 	private DeviceLoader deviceLoader = null;
 
 	// Background processor tasks
@@ -69,6 +73,7 @@ public class Processor extends Thread
 		TimeActionProcessor.createTimeActionProcessor(this);
 		timeActionProcessor = TimeActionProcessor.getTimeActionProcessor();
 		deviceLoader = DeviceLoader.createNewDeviceLoader();
+		eventProcessingService = EventProcessingService.startEventProcessingService(this);
 	}
 
 	@Override
@@ -80,11 +85,11 @@ public class Processor extends Thread
 		{
 			processorRunning.set(true);
 
-			while (true)
+			while (!shutdownProcessor.get())
 			{
 				DeviceState result = processingQueue.take();
 
-				if (result != null)
+				if (!shutdownProcessor.get() && result != null)
 					processAction(result);
 			}
 		}
@@ -119,14 +124,14 @@ public class Processor extends Thread
 
 					if (device != null)
 					{
-						DeviceState savedState = device.getState();
-						Device.close(deviceToConfig);
+						DeviceState savedState = device.getState(false);
+						Device.closeDevice(deviceToConfig);
 						deviceLoader.loadDevice(deviceToConfig);
 						device = Device.lookupDevice(deviceToConfig);
 						
 						if(device != null)
 						{
-							device.performAction(savedState);
+							device.execute(savedState);
 							Application.LOGGER.info("Reloaded " + deviceToConfig);
 						}
 						else 
@@ -144,7 +149,7 @@ public class Processor extends Thread
 					break;
 
 				case PROCESSOR_ACTIONS.CLOSE_DEVICE:
-					Device.close(deviceToConfig);
+					Device.closeDevice(deviceToConfig);
 					break;
 
 				case PROCESSOR_ACTIONS.SAVE_DATA:
@@ -158,7 +163,7 @@ public class Processor extends Thread
 				default:
 					if (device != null)
 					{
-						device.performAction(state);
+						device.execute(state);
 					}
 					else
 					{
@@ -202,6 +207,21 @@ public class Processor extends Thread
 		return timeActionProcessor;
 	}
 
+	public EventProcessingService geEventProcessingService()
+	{
+		return eventProcessingService;
+	}
+	
+	public PersistenceManager getPersistenceManger()
+	{
+		return persistenceManager;
+	}
+	
+	public DeviceLoggingService getDeviceLoggingService()
+	{
+		return deviceLoggingService;
+	}
+	
 	public void loadDevicesAndDeviceStates() throws ParserConfigurationException, SAXException, IOException, SQLException
 	{
 		Application.LOGGER.info("Loading Devices");
@@ -213,7 +233,7 @@ public class Processor extends Thread
 		{
 			Device device = Device.lookupDevice(action.getName());
 			if (device != null)
-				device.performAction(action);
+				device.execute(action);
 		});
 	}
 
@@ -241,6 +261,9 @@ public class Processor extends Thread
 			
 			Application.LOGGER.info("Starting Node Discovery Service");
 			NodeDiscovererService.startDiscovering();
+			
+			Application.LOGGER.info("Starting Device Logging Service");
+			deviceLoggingService = DeviceLoggingService.start(this);
 		}
 		catch (Exception e)
 		{
@@ -253,8 +276,9 @@ public class Processor extends Thread
 	 */
 	private void save() throws SQLException
 	{
-		persistenceManager.commitStates(Device.getStates());
+		persistenceManager.commitStates(Device.getStates(true));
 		persistenceManager.commitTimers(timeActionProcessor.retrieveAllTimedActions());
+		persistenceManager.commitEvents(eventProcessingService.getAllEvents());
 	}
 
 	/**
@@ -271,10 +295,15 @@ public class Processor extends Thread
 		try
 		{
 			if (processorRunning.get())
-				this.interrupt();
+			{
+				shutdownProcessor.set(true);
+				//Queue a No-Op to wakeup background processor
+				processingQueue.add(Device.createNewDeviceState(DeviceType.UNKNOWN));
+			}
 			Application.LOGGER.info("Stopping all background tasks");
 			taskService.cancelAllTasks();
 			NodeDiscovererService.stopDiscovering();
+			deviceLoggingService.stop();
 			// Shutdown all devices and save their state
 			Application.LOGGER.info("Saving Device States and shutting down");
 			saveAndCloseAllDevices();

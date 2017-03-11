@@ -111,16 +111,4 @@ public class TimedAction extends DatabaseElement implements Comparable<TimedActi
 		
 		return result;
 	}
-
-	@Override
-	public Object getDatabaseIdentification()
-	{
-		return getDatabaseID();
-	}
-
-	@Override
-	public String getDatabaseIdentificationForQuery()
-	{
-		return getDatabaseID().toString();
-	}
 }

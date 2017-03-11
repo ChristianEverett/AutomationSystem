@@ -20,6 +20,7 @@ import com.pi.Application;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.backgroundprocessor.TaskExecutorService;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
+import com.pi.devices.Switch;
 import com.pi.infrastructure.RemoteDevice.Node;
 import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
 import com.pi.model.DeviceState;
@@ -49,6 +50,7 @@ public abstract class Device
 	public static final int PERFORM_ACTION = 0;
 	public static final int GET_STATE = 1;
 	public static final int CLOSE = 2;
+	public static final int GET_EXPECTED_PARAMS = 3;
 	
 	protected static final String DEVICE = "device";
 	
@@ -85,14 +87,15 @@ public abstract class Device
 	 * @throws Exception 
 	 * @throws IOException
 	 */
-	public abstract void performAction(DeviceState state);
+	protected abstract void performAction(DeviceState state);
 
 	/**
+	 * @param forDatabase
 	 * @return action representing the current state of the device. If device is
 	 *         closed returns null
 	 * @throws IOException 
 	 */
-	public abstract DeviceState getState() throws IOException;
+	public abstract DeviceState getState(Boolean forDatabase) throws IOException;
 
 	/**
 	 * Shutdown device and release resources. All future calls to performAction
@@ -100,7 +103,69 @@ public abstract class Device
 	 * @throws IOException 
 	 */
 	public abstract void close() throws IOException;
+	
+	/**
+	 * @return list of params this device expects
+	 */
+	public abstract List<String> getExpectedParams();
 
+	public DeviceState getState() throws IOException{return getState(false);}
+	
+	public final void execute(DeviceState state)
+	{
+		if(validate(state))
+			performAction(state);
+		
+		try
+		{
+			if(!(this instanceof RemoteDevice) && !(this instanceof AsynchronousDevice))
+				update(getState(false));
+		}
+		catch (IOException e)
+		{
+			Application.LOGGER.severe(e.getMessage());
+		}
+	}
+	
+	protected void update(DeviceState state)
+	{
+		if(node != null)
+		{
+			node.notifyAutomationControllerOfStateUpdate(state);
+		}
+		else
+		{
+			Processor.getBackgroundProcessor().geEventProcessingService().update(state);
+		}
+	}
+	
+	/**
+	 * @param state
+	 * @param expectedParams
+	 * @return true if the state contains all the expected param's of the correct type, otherwise return false
+	 */
+	public boolean validate(DeviceState state)
+	{
+		if(state == null)
+			return false;
+		
+		List<String> expectedParams = getExpectedParams();
+		
+		for(String expectedParam : expectedParams)
+		{
+			Object param = state.getParam(expectedParam);
+			
+			if(param == null)
+				return false;
+			Class<?> type = DeviceType.paramTypes.get(expectedParam);
+			
+			if(type == null || !type.isInstance(param))
+				return false;
+		}
+		
+		return true;
+	}
+	
 	public static final void registerRemoteDeviceLookup(Node node)
 	{
 		Device.node = node;
@@ -129,13 +194,18 @@ public abstract class Device
 	 */
 	public static final DeviceState getDeviceState(String name)
 	{
+		return getDeviceState(name, false);
+	}
+	
+	public static final DeviceState getDeviceState(String name, Boolean forDatabase)
+	{
 		Device device = lookupDevice(name);
 		
 		if(device != null)
 		{
 			try
 			{
-				return device.getState();
+				return device.getState(forDatabase);
 			}
 			catch (Exception e)
 			{
@@ -146,6 +216,7 @@ public abstract class Device
 		{
 			try
 			{
+				//Don't pass forDatabase param, automation node should never need device config
 				return node.getDeviceState(name);
 			}
 			catch (Exception e)
@@ -158,15 +229,16 @@ public abstract class Device
 	}
 	
 	/**
+	 * @param forDatabase
 	 * @return all device states
 	 */
-	public static List<DeviceState> getStates()
+	public static List<DeviceState> getStates(Boolean forDatabase)
 	{	
 		List<DeviceState> stateList = new ArrayList<>();
 		
 		for(Entry<String, Device> device : deviceMap.entrySet())
 		{
-			DeviceState state = getDeviceState(device.getKey());
+			DeviceState state = getDeviceState(device.getKey(), forDatabase);
 			if(state != null)
 				stateList.add(state);
 		}
@@ -215,7 +287,7 @@ public abstract class Device
 		return taskService.scheduleTask(task, delay, interval, unit);
 	}
 	
-	public static boolean close(String name)
+	public static boolean closeDevice(String name)
 	{
 		Device device = deviceMap.remove(name);
 		
@@ -223,6 +295,7 @@ public abstract class Device
 		{
 			if (device != null)
 			{
+				Application.LOGGER.info("Closing: " + name);
 				device.close();
 				return true;
 			} 
@@ -240,7 +313,7 @@ public abstract class Device
 		deviceMap.entrySet().forEach((Entry<String, Device> entry) -> 
 		{
 			Application.LOGGER.info("closing: " + entry.getKey());
-			close(entry.getKey());
+			closeDevice(entry.getKey());
 		});
 		deviceMap.clear();
 	}
@@ -290,6 +363,13 @@ public abstract class Device
 		}
 	}
 
+	public static DeviceState createNewDeviceState(String name)
+	{
+		Device device = lookupDevice(name);
+		
+		return DeviceState.create(name, device != null ? device.getType() : DeviceType.UNKNOWN);
+	}
+	
 	protected static abstract class DeviceConfig
 	{
 		protected String name;
@@ -300,6 +380,6 @@ public abstract class Device
 			this.name = name;
 		}
 		
-		public abstract Device buildDevice() throws IOException;
+		public abstract Device buildDevice() throws Exception;
 	}
 }

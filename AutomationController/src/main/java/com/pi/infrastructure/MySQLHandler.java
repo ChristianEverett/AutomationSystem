@@ -15,6 +15,7 @@ public class MySQLHandler
 		Class.forName("com.mysql.jdbc.Driver");
 		// Setup the connection with the DB
 		connection = DriverManager.getConnection("jdbc:mysql://localhost/?user=" + username + "&password=" + password);
+		connection.setAutoCommit(false);
 	}
 	
 	public void loadDatabase(final String DATABASE) throws Exception
@@ -109,12 +110,12 @@ public class MySQLHandler
 		statement.executeUpdate(line);
 	}
 	
-	public int INSERT_OBJECT(String table, String objectColunmName, Object object) throws SQLException
+	public int INSERT_OBJECT(String table, String name, Object object) throws SQLException
 	{
-		String line = "INSERT INTO " + table + "(name, " + objectColunmName + ") VALUES (?, ?)";
+		String line = "INSERT INTO " + table + "(name, data) VALUES (?, ?)";
 		PreparedStatement pstmt = connection.prepareStatement(line);
 		
-	    pstmt.setString(1, object.getClass().getName());
+	    pstmt.setString(1, name);
 	    pstmt.setObject(2, object);
 	    pstmt.executeUpdate();
 		ResultSet result = pstmt.getGeneratedKeys();
@@ -129,12 +130,12 @@ public class MySQLHandler
 		return key;
 	}
 	
-	public void UPDATE_OBJECT(String table, String objectColunmName, Object object, String where) throws SQLException
+	public void UPDATE_OBJECT(String table, String objectColunmName, Object object, String idColunm, String where) throws SQLException
 	{
 		String line = "UPDATE " + table + " SET " + objectColunmName + " = ?";
 		
 		if(where != null)
-			line += " WHERE " + where;
+			line += " WHERE " + idColunm + " = " + where;
 		
 		PreparedStatement pstmt = connection.prepareStatement(line);
 	    pstmt.setObject(1, object);
@@ -183,6 +184,11 @@ public class MySQLHandler
 	public void commit() throws SQLException
 	{
 		connection.commit();
+	}
+	
+	public void rollback() throws SQLException
+	{
+		connection.rollback();
 	}
 	
 	public void close() throws SQLException

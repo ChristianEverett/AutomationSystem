@@ -35,8 +35,14 @@ public abstract class DatabaseElement implements Serializable
 	}
 	
 	@JsonIgnore
-	public abstract Object getDatabaseIdentification();
-	
+	public Object getDatabaseIdentification()
+	{
+		return getDatabaseID();
+	}
+
 	@JsonIgnore
-	public abstract String getDatabaseIdentificationForQuery();
+	public String getDatabaseIdentificationForQuery()
+	{
+		return getDatabaseID().toString();
+	}
 }

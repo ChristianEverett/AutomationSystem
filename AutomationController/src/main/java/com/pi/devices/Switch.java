@@ -4,12 +4,15 @@
 package com.pi.devices;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
@@ -33,9 +36,9 @@ public class Switch extends Device
 	}
 
 	@Override
-	public void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
-		gpioPin.setState(! (Boolean)state.getParam(DeviceState.IS_ON));
+		gpioPin.setState(! (Boolean)state.getParam(Params.IS_ON));
 	}
 
 	@Override
@@ -46,12 +49,20 @@ public class Switch extends Device
 	}
 
 	@Override
-	public DeviceState getState()
+	public DeviceState getState(Boolean forDatabase)
 	{
-		DeviceState state = new DeviceState(name);
-		state.setParam(DeviceState.IS_ON, gpioPin.isLow());
+		DeviceState state = Device.createNewDeviceState(name);
+		state.setParam(Params.IS_ON, gpioPin.isLow());
 		
 		return state;
+	}
+	
+	@Override
+	public List<String> getExpectedParams()
+	{
+		List<String> list = new ArrayList<>();
+		list.add(Params.IS_ON);
+		return list;
 	}
 
 	@Override

@@ -1,11 +1,9 @@
  select * from timed_action;
  select * from device_state;
  select * from event_table;
+ select * from state_log_table;
  delete from timed_action;
  delete from device_state;
-
- select * from timers;
- 
  
  CREATE TABLE java_objects ( 
  id INT AUTO_INCREMENT, 

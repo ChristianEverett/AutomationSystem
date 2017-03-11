@@ -3,12 +3,17 @@ package com.pi.devices;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.xml.bind.annotation.XmlRootElement;
+
+import org.jboss.logging.annotations.Param;
 
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
 
 public class PILed extends Device
@@ -36,9 +41,9 @@ public class PILed extends Device
 	}
 
 	@Override
-	public void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
-		Boolean isOn = (Boolean) state.getParam(DeviceState.IS_ON);
+		Boolean isOn = (Boolean) state.getParam(Params.IS_ON);
 		
 		try
 		{
@@ -62,10 +67,10 @@ public class PILed extends Device
 	}
 
 	@Override
-	public DeviceState getState() throws IOException
+	public DeviceState getState(Boolean forDatabase) throws IOException
 	{
-		DeviceState state = new DeviceState(name);
-		state.setParam(DeviceState.IS_ON, ledOn);
+		DeviceState state = Device.createNewDeviceState(name);
+		state.setParam(Params.IS_ON, ledOn);
 		
 		return state;
 	}
@@ -78,6 +83,14 @@ public class PILed extends Device
 		reader.close();
 	}
 
+	@Override
+	public List<String> getExpectedParams()
+	{
+		List<String> list = new ArrayList<>();
+		list.add(Params.IS_ON);
+		return list;
+	}
+	
 	@XmlRootElement(name = DEVICE)
 	public static class PILedConfig extends DeviceConfig
 	{

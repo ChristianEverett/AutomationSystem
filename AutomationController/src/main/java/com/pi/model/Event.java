@@ -1,125 +1,101 @@
 package com.pi.model;
 
+import java.util.AbstractMap;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map.Entry;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.pi.Application;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
-import com.pi.infrastructure.Device;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import java.util.Objects;
 
 public class Event extends DatabaseElement
 {
-	private Task stateRestoreTask = null;
-	private Integer durationMinutes = 0;
-	private HashMap<String, DeviceState> triggerEvents = new HashMap<>();
+	//In order for the event to be considered triggered, all device states in triggerEvents must be met
+	private List<DeviceState> triggerEvents = new LinkedList<>();
+	//Map to hold this events current view of the dependency devices and there last known state
 	private HashMap<String, DeviceState> triggerSetStateCache = new HashMap<>();
-	private DeviceState eventState;
-	private DeviceState preEventState;
+	
+	private List<Entry<String, DeviceState>> registeredDevices = new LinkedList<>();
 
-	private AtomicBoolean isTriggered = new AtomicBoolean(false);
-
-	public Event(DeviceState eventAction)
+	public Event()
 	{
-		this.eventState = eventAction;
-		// make task non-null
-		stateRestoreTask = Device.createTask(() ->
-		{
-		}, 0L, TimeUnit.MINUTES);
 	}
-
+	
+	@JsonIgnore
 	public boolean updateAndCheckIfTriggered(DeviceState state)
 	{
 		triggerSetStateCache.put(state.getName(), state);
 
-		for(Entry<String, DeviceState> pair: triggerEvents.entrySet())
+		for(DeviceState triggerState : triggerEvents)
 		{
-			if(!pair.getValue().equals(triggerSetStateCache.get(pair.getKey())))
+			if(!triggerState.equals(triggerSetStateCache.get(triggerState.getName())))
 				return false;
 		};
 
 		return true;
 	}
 
-	public void triggerEvent()
+	@JsonIgnore
+	public List<String> getDependencyDevices()
 	{
-		if (!stateRestoreTask.isDone())
-			stateRestoreTask.cancel();
-
-		Device device = Device.lookupDevice(eventState.getName());
-		// preEventState = device.getState(); TODO
-		Device.queueAction(eventState);
-		isTriggered.set(true);
-
-		stateRestoreTask = Device.createTask(() ->
+		List<String> deviceNames = new ArrayList<String>(triggerEvents.size());
+		
+		for(DeviceState state : triggerEvents)
 		{
-			try
-			{
-				Device.queueAction(preEventState);
-				isTriggered.set(false);
-			}
-			catch (Exception e)
-			{
-				Application.LOGGER.severe(e.getMessage());
-			}
-		}, durationMinutes.longValue(), TimeUnit.MINUTES);
-	}
-
-	public void cancel()
-	{
-		if (!stateRestoreTask.isDone())
-		{
-			stateRestoreTask.cancel();
-			if (preEventState != null)
-				Device.queueAction(preEventState);
-			isTriggered.set(false);
+			deviceNames.add(state.getName());
 		}
-	}
-
-	public Integer getDurationMinutes()
-	{
-		return durationMinutes;
-	}
-
-	public Set<String> getDependencyDevices()
-	{
-		return triggerEvents.keySet();
-	}
-
-	public void setDurationMinutes(Integer durationMinutes)
-	{
-		this.durationMinutes = durationMinutes;
-	}
-
-	/**
-	 * 
-	 * @return true if the event is still in an active period
-	 */
-	public Boolean isTriggered()
-	{
-		return isTriggered.get();
-	}
-
-	@Override
-	public Object getDatabaseIdentification()
-	{
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	@Override
-	public String getDatabaseIdentificationForQuery()
-	{
-		// TODO Auto-generated method stub
-		return null;
+		
+		return deviceNames;
 	}
 
 	@Override
 	public int hashCode()
 	{
-		// TODO Auto-generated method stub
-		return super.hashCode();
+		return Objects.hash(triggerEvents.hashCode(), triggerSetStateCache.hashCode());
+	}
+	
+	@JsonIgnore
+	public void registerListener(DeviceState state)
+	{
+		registeredDevices.add(new AbstractMap.SimpleEntry<String, DeviceState>(state.getName(), state));
+	}
+
+	@JsonIgnore
+	public void unRegisterListener(String deviceName)
+	{
+		for(Iterator<Entry<String, DeviceState>> iter = registeredDevices.iterator(); iter.hasNext();)
+			if(iter.next().getKey().equals(deviceName))
+				iter.remove();
+	}
+	
+	@JsonIgnore
+	public void setTriggerSetStateCache(HashMap<String, DeviceState> triggerSetStateCache)
+	{
+		this.triggerSetStateCache = triggerSetStateCache;
+	}
+	
+	//Json Fields ------------------------------------
+	public List<Entry<String, DeviceState>> getRegisteredDevices()
+	{
+		return registeredDevices;
+	}
+	
+	public List<DeviceState> getTriggerEvents()
+	{
+		return triggerEvents;
+	}
+
+	public void setTriggerEvents(List<DeviceState> triggerEvents)
+	{
+		this.triggerEvents = triggerEvents;
+	}
+
+	public HashMap<String, DeviceState> getTriggerSetStateCache()
+	{
+		return triggerSetStateCache;
 	}
 }

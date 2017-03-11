@@ -4,6 +4,8 @@
 package com.pi.devices;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -12,6 +14,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 
@@ -40,9 +43,9 @@ public class Outlet extends Device
 	}
 
 	@Override
-	public void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
-		int code = (boolean) state.getParam(DeviceState.IS_ON) ? ON : OFF;
+		int code = (boolean) state.getParam(Params.IS_ON) ? ON : OFF;
 		
 		try
 		{
@@ -79,12 +82,20 @@ public class Outlet extends Device
 	}
 
 	@Override
-	public DeviceState getState()
+	public DeviceState getState(Boolean forDatabase)
 	{
-		DeviceState state = new DeviceState(name);
-		state.setParam(DeviceState.IS_ON, isOn.get());
+		DeviceState state = Device.createNewDeviceState(name);
+		state.setParam(Params.IS_ON, isOn.get());
 		
 		return state;
+	}
+	
+	@Override
+	public List<String> getExpectedParams()
+	{
+		List<String> list = new ArrayList<>();
+		list.add(Params.IS_ON);
+		return list;
 	}
 
 	@Override

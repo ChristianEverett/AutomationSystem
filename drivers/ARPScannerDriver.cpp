@@ -32,7 +32,7 @@ Java_com_pi_devices_DeviceDetector_registerAddress(JNIEnv *env, jobject obj, jst
 JNIEXPORT jstring JNICALL
 Java_com_pi_devices_DeviceDetector_scan(JNIEnv *env, jobject obj)
 {
-	std::string mac = scan().c_str();
+	std::string mac = scan();
 	jstring result = env->NewStringUTF(mac.c_str());
 	return result;
 }

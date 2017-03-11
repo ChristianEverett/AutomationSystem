@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.backgroundprocessor.Processor;
+import com.pi.backgroundprocessor.TimeActionProcessor;
 import com.pi.model.TimedAction;
 
 /**
@@ -29,44 +30,45 @@ public class TimerController
 {
 	private static final String PATH = "/timer";
 	
-	private Processor bgp; 
+	private Processor bgp;
+	private TimeActionProcessor timeActionProcessor;
 	
 	public TimerController()
 	{
-		bgp = Processor.getBackgroundProcessor();
+		timeActionProcessor = Processor.getBackgroundProcessor().getTimeActionProcessor();
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
 	public @ResponseBody Collection<TimedAction> getTimers(HttpServletResponse response)
 	{
-		List<TimedAction> timedActions = bgp.getTimeActionProcessor().retrieveAllTimedActions();
-		Collections.sort(bgp.getTimeActionProcessor().retrieveAllTimedActions());
+		List<TimedAction> timedActions = timeActionProcessor.retrieveAllTimedActions();
+		Collections.sort(timeActionProcessor.retrieveAllTimedActions());
 		return timedActions;
 	}
 	
 	@RequestMapping(value = (PATH + "/add"), method = RequestMethod.POST)
 	public @ResponseBody Integer addTimer(HttpServletRequest request, HttpServletResponse response, @RequestBody TimedAction timer)
 	{
-		bgp.getTimeActionProcessor().load(timer);
+		timeActionProcessor.load(timer);
 		return timer.hashCode();
 	}
 	
 	@RequestMapping(value = (PATH + "/addGroup"), method = RequestMethod.POST)
 	public void addTimers(HttpServletRequest request, HttpServletResponse response, @RequestBody Collection<TimedAction> timers)
 	{
-		bgp.getTimeActionProcessor().load(timers);
+		timeActionProcessor.load(timers);
 	}
 	
 	@RequestMapping(value = (PATH + "/{id}"), method = RequestMethod.POST)
 	public @ResponseBody void changeTimer(HttpServletRequest request, HttpServletResponse response, @RequestBody TimedAction timer, @PathVariable("id") Integer id)
 	{
-		if(bgp.getTimeActionProcessor().getTimedActionByID(id) == null)
+		if(timeActionProcessor.getTimedActionByID(id) == null)
 		{
 			response.setStatus(404);
 			return;
 		}
 		
-		bgp.getTimeActionProcessor().updateTimedActionByID(id, timer);
+		timeActionProcessor.updateTimedActionByID(id, timer);
 	}
 	
 	@RequestMapping(value = (PATH + "/{id}"), method = RequestMethod.DELETE)
@@ -79,6 +81,6 @@ public class TimerController
 	@RequestMapping(value = PATH, method = RequestMethod.DELETE)
 	public void deleteAllTimers(HttpServletRequest request, HttpServletResponse response)
 	{
-		bgp.getTimeActionProcessor().deleteAll();
+		timeActionProcessor.deleteAll();
 	}
 }

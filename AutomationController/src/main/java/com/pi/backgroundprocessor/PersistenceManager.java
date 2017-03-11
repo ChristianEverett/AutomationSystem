@@ -16,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 
 import com.pi.Application;
 import com.pi.infrastructure.MySQLHandler;
@@ -32,12 +33,9 @@ class PersistenceManager
 {	
 	private MySQLHandler dbHandler = null;
 	
-	private Statement timerStatement;
 	private Statement stateStatement;
 	
 	private static PersistenceManager singleton = null;
-	
-	private Lock lock = new ReentrantLock();
 	
 	public static PersistenceManager loadPersistanceManager() throws Exception
 	{
@@ -89,8 +87,17 @@ class PersistenceManager
 					EVENT_TABLE_COLUMNS.DATA, "BLOB",
 					"primary key", "(id)");
 		}
+		if(!dbHandler.tableExists(TABLES.STATE_LOG_TABLE))
+		{
+			Application.LOGGER.info("Creating: " + TABLES.STATE_LOG_TABLE);
+			dbHandler.createTable(TABLES.STATE_LOG_TABLE, 
+					STATE_LOG_TABLE_COLUMNS.ID, "INT AUTO_INCREMENT",
+					STATE_LOG_TABLE_COLUMNS.NAME, "varchar(128)",
+					STATE_LOG_TABLE_COLUMNS.DATA, "BLOB",
+					"primary key", "(id)");
+		}
 		
-		timerStatement = dbHandler.createStatement();
+		dbHandler.createStatement();
 		stateStatement = dbHandler.createStatement();
 	}
 	
@@ -143,34 +150,48 @@ class PersistenceManager
 	
 	public void commitStates(List<DeviceState> states) throws SQLException
 	{	
-		commit(states, TABLES.DEVICE_STATE_TABLE, DEVICE_STATE_TABLE_COLUMNS.DATA, DEVICE_STATE_TABLE_COLUMNS.NAME);
+		commit(states, TABLES.DEVICE_STATE_TABLE, DEVICE_STATE_TABLE_COLUMNS.DATA, DEVICE_STATE_TABLE_COLUMNS.NAME, 
+				(object) -> {return object.getDatabaseIdentificationForQuery();});
 	}
 	
 	public void commitTimers(List<TimedAction> timers) throws SQLException
 	{		
-		commit(timers, TABLES.TIMED_ACTION_TABLE, TIMED_ACTION_TABLE_COLUMNS.DATA, TIMED_ACTION_TABLE_COLUMNS.ID);
+		commit(timers, TABLES.TIMED_ACTION_TABLE, TIMED_ACTION_TABLE_COLUMNS.DATA, TIMED_ACTION_TABLE_COLUMNS.ID,
+				(object) -> {return String.valueOf(object.hashCode());});
 	}
 	
 	public void commitEvents(List<Event> events) throws SQLException
 	{
-		commit(events, TABLES.EVENT_TABLE, EVENT_TABLE_COLUMNS.DATA, EVENT_TABLE_COLUMNS.ID);
+		commit(events, TABLES.EVENT_TABLE, EVENT_TABLE_COLUMNS.DATA, EVENT_TABLE_COLUMNS.ID, 
+				(object) -> {return String.valueOf(object.hashCode());});
 	}
 	
-	private void commit(List<? extends DatabaseElement> list, String table, String dataColunm, String updateOnColumn) throws SQLException
+	private void commit(List<? extends DatabaseElement> list, String table, String dataColunm, String updateOnColumn, 
+			Function<DatabaseElement, String> produceNameColumn) throws SQLException
 	{
 		synchronized (this)
 		{
 			HashSet<Object> set = getDatabaseMap(table);
 			
-			for(DatabaseElement object : list)
+			try
 			{
-				if(set.contains(object.getDatabaseIdentification()))
-					dbHandler.UPDATE_OBJECT(table, dataColunm, object, object.getDatabaseIdentificationForQuery());
-				else
+				for(DatabaseElement object : list)
 				{
-					int key = dbHandler.INSERT_OBJECT(table, dataColunm, object);
-					object.setDatabaseID(key);
+					if(set.contains(object.getDatabaseIdentification()))
+						dbHandler.UPDATE_OBJECT(table, dataColunm, object, updateOnColumn, object.getDatabaseIdentificationForQuery());
+					else
+					{
+						int key = dbHandler.INSERT_OBJECT(table, produceNameColumn.apply(object), object);
+						object.setDatabaseID(key);
+					}
 				}
+				
+				dbHandler.commit();
+			}
+			catch (Exception e)
+			{
+				Application.LOGGER.severe(e.getMessage());
+				dbHandler.rollback();
 			}
 		}
 	}
@@ -188,7 +209,25 @@ class PersistenceManager
 		return set;
 	}
 	
-	public void close() throws SQLException
+	public void commitToDeviceLog(List<DeviceState> states) throws SQLException
+	{
+		try
+		{
+			for (DeviceState state : states)
+			{
+				dbHandler.INSERT_OBJECT(TABLES.STATE_LOG_TABLE, state.getDatabaseIdentificationForQuery(), state);
+			} 
+			
+			dbHandler.commit();
+		}
+		catch (Exception e)
+		{
+			Application.LOGGER.severe(e.getMessage());
+			dbHandler.rollback();
+		}
+	}
+	
+	public synchronized void close() throws SQLException
 	{
 		dbHandler.close();
 	}
@@ -200,6 +239,7 @@ class PersistenceManager
 		public static final String TIMED_ACTION_TABLE = "timed_action";
 		public static final String DEVICE_STATE_TABLE = "device_state";
 		public static final String EVENT_TABLE = "event_table";
+		public static final String STATE_LOG_TABLE = "state_log_table";
 	}
 	
 	private interface DEVICE_STATE_TABLE_COLUMNS
@@ -217,6 +257,13 @@ class PersistenceManager
 	}
 	
 	private interface EVENT_TABLE_COLUMNS
+	{
+		public static final String ID = "id";
+		public static final String NAME = "name";
+		public static final String DATA = "data";
+	}
+	
+	private interface STATE_LOG_TABLE_COLUMNS
 	{
 		public static final String ID = "id";
 		public static final String NAME = "name";

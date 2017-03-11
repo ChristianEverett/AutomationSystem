@@ -1,14 +1,20 @@
 /**
  * 
  */
-package com.pi.devices;
+package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
+import com.pi.Application;
+import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 import com.pi4j.io.gpio.GpioPinDigitalInput;
@@ -19,7 +25,7 @@ import com.pi4j.io.gpio.event.GpioPinListenerDigital;
  * @author Christian Everett
  *
  */
-public class MotionSensor extends Device
+public class MotionSensor extends AsynchronousDevice
 {
 	private final GpioPinDigitalInput gpioPin;
 	
@@ -33,24 +39,29 @@ public class MotionSensor extends Device
 			@Override
 			public void handleGpioPinDigitalStateChangeEvent(GpioPinDigitalStateChangeEvent gpioEvent)
 			{	
-				DeviceState d = new DeviceState("pi_led1");
-				d.setParam("isOn", gpioEvent.getState().isHigh() ? false : true);
-				Device.queueAction(d);
+				try
+				{
+					update(getState());
+				}
+				catch (Exception e)
+				{
+					Application.LOGGER.severe(e.getMessage());
+				}
 			}
 		});
 	}
 
 	@Override
-	public void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
 	}
 
 	@Override
-	public DeviceState getState()
+	public DeviceState getState(Boolean forDatabase)
 	{
-		DeviceState state = new DeviceState(name);
+		DeviceState state = Device.createNewDeviceState(name);
 		
-		state.setParam(DeviceState.IS_ON, gpioPin.isHigh());
+		state.setParam(Params.IS_ON, gpioPin.isHigh());
 		
 		return state;
 	}
@@ -61,6 +72,12 @@ public class MotionSensor extends Device
 		gpioController.unprovisionPin(gpioPin);
 	}
 
+	@Override
+	public List<String> getExpectedParams()
+	{
+		return new ArrayList<String> ();
+	}
+	
 	@Override
 	public String getType()
 	{

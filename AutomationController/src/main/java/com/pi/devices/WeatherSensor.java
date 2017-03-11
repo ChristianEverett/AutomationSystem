@@ -4,6 +4,8 @@
 package com.pi.devices;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -18,6 +20,7 @@ import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
 
 /**
@@ -62,15 +65,15 @@ public class WeatherSensor extends Device
 	}
 
 	@Override
-	public void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
 	}
 
 	@Override
-	public DeviceState getState()
+	public DeviceState getState(Boolean forDatabase)
 	{
-		DeviceState state = new DeviceState(name);
-		state.setParam(DeviceState.TEMPATURE, locationTempature);
+		DeviceState state = Device.createNewDeviceState(name);
+		state.setParam(Params.TEMPATURE, locationTempature);
 		
 		return state;
 	}
@@ -81,6 +84,12 @@ public class WeatherSensor extends Device
 		weatherReadingTask.cancel();
 	}
 
+	@Override
+	public List<String> getExpectedParams()
+	{
+		return new ArrayList<String>();
+	}
+	
 	@Override
 	public String getType()
 	{

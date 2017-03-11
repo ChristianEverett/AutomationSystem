@@ -17,6 +17,7 @@ import org.apache.http.message.BasicNameValuePair;
 import com.pi.Application;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.infrastructure.util.HttpClient;
 import com.pi.model.DeviceState;
@@ -33,17 +34,12 @@ public class Led extends Device
 	private final int RED_PIN;
 	private final int GREEN_PIN;
 	private final int BLUE_PIN;
-	boolean testSwitch = false;
 	private Color currentColor = new Color(0, 0, 0);
 	
 	public Led(String name, int red, int green, int blue) throws IOException
 	{
 		super(name);
 		Process pr = rt.exec("sudo pigpiod");
-//		Gpio.wiringPiSetup();
-//		SoftPwm.softPwmCreate(23, 0, 100);
-//		SoftPwm.softPwmCreate(24, 0, 100);
-//		SoftPwm.softPwmCreate(25, 0, 100);
 		
 		this.RED_PIN = GPIO_PIN.getBCM_Pin(red);
 		this.GREEN_PIN = GPIO_PIN.getBCM_Pin(green);
@@ -51,13 +47,13 @@ public class Led extends Device
 	}
 
 	@Override
-	public void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
 		try
 		{
-			Integer red = (Integer) state.getParam(DeviceState.RED);
-			Integer green = (Integer) state.getParam(DeviceState.GREEN);
-			Integer blue = (Integer) state.getParam(DeviceState.BLUE);
+			Integer red = (Integer) state.getParam(Params.RED);
+			Integer green = (Integer) state.getParam(Params.GREEN);
+			Integer blue = (Integer) state.getParam(Params.BLUE);
 			
 			rt.exec("pigs p " + RED_PIN + " " + (255 - red));
 			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green));
@@ -87,14 +83,24 @@ public class Led extends Device
 	}
 
 	@Override
-	public DeviceState getState()
+	public DeviceState getState(Boolean forDatabase)
 	{
-		DeviceState state = new DeviceState(name);
-		state.setParam(DeviceState.RED, currentColor.getRed());
-		state.setParam(DeviceState.GREEN, currentColor.getGreen());
-		state.setParam(DeviceState.BLUE, currentColor.getBlue());
+		DeviceState state = Device.createNewDeviceState(name);
+		state.setParam(Params.RED, currentColor.getRed());
+		state.setParam(Params.GREEN, currentColor.getGreen());
+		state.setParam(Params.BLUE, currentColor.getBlue());
 		
 		return state;
+	}
+	
+	@Override
+	public List<String> getExpectedParams()
+	{
+		List<String> list = new ArrayList<>();
+		list.add(Params.RED);
+		list.add(Params.GREEN);
+		list.add(Params.BLUE);
+		return list;
 	}
 	
 	@Override

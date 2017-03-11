@@ -28,7 +28,7 @@ import com.pi.model.DeviceState;
 @Controller
 public class ActionController
 {
-	private static final String PATH = "/action";
+	public static final String PATH = "/action";
 	
 	private static Processor bgp = null;
 	
@@ -42,7 +42,7 @@ public class ActionController
 	{
 		try
 		{
-			return Device.getStates();
+			return Device.getStates(false);
 		}
 		catch (Exception e)
 		{

@@ -1,7 +1,9 @@
 
-package com.pi.devices;
+package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.annotation.XmlElement;
@@ -9,8 +11,10 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
+import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 
@@ -18,7 +22,7 @@ import com.pi.model.DeviceState;
  * @author Christian Everett
  *
  */
-public class TemperatureSensor extends Device
+public class TemperatureSensor extends AsynchronousDevice
 {
 	private static final long sensorUpdateFrequency = 25L;
 	private Task tempatureReadingTask;
@@ -37,6 +41,10 @@ public class TemperatureSensor extends Device
 			try
 			{
 				SensorReading reading = readSensor(GPIO_PIN.getBCM_Pin(headerPin), sensortype);
+				
+				if((sensorTempature != reading.getTempature()) || (sensorHumidity != reading.getHumidity()))
+					update(getState(false));
+				
 				sensorTempature = Math.round((1.8F * reading.getTempature()) + 32);
 				sensorHumidity = Math.round(reading.getHumidity());
 			}
@@ -49,16 +57,16 @@ public class TemperatureSensor extends Device
 	}
 
 	@Override
-	public void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
 	}
 
 	@Override
-	public DeviceState getState()
+	public DeviceState getState(Boolean forDatabase)
 	{
-		DeviceState state = new DeviceState(name);
-		state.setParam(DeviceState.TEMPATURE, sensorTempature);
-		state.setParam(DeviceState.HUMIDITY, sensorHumidity);
+		DeviceState state = Device.createNewDeviceState(name);
+		state.setParam(Params.TEMPATURE, sensorTempature);
+		state.setParam(Params.HUMIDITY, sensorHumidity);
 		
 		return state;
 	}
@@ -67,6 +75,12 @@ public class TemperatureSensor extends Device
 	public void close()
 	{
 		tempatureReadingTask.cancel();
+	}
+	
+	@Override
+	public List<String> getExpectedParams()
+	{
+		return new ArrayList<String> ();
 	}
 
 	private int celsiusToFahrenheit(float c)
