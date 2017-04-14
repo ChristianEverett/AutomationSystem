@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TaskExecutorService
 {
 	private Map<Integer, Future<?>> taskMap = new HashMap<>();
-	AtomicInteger atomicInteger = new AtomicInteger();
+	private AtomicInteger atomicInteger = new AtomicInteger();
 	private ScheduledExecutorService executorService;
 	
 	public TaskExecutorService(int threads)
@@ -27,7 +27,7 @@ public class TaskExecutorService
 	
 	public Task scheduleTask(Runnable task, Long delay, TimeUnit unit)
 	{
-		return new Task(-1, executorService.schedule(task, delay, unit));
+		return new Task(-1, executorService.schedule(task, delay, unit), this);
 	}
 	
 	public Task scheduleTask(Runnable task, Long delay, Long interval, TimeUnit unit)
@@ -38,7 +38,28 @@ public class TaskExecutorService
 		
 		taskMap.put(id, scheduledTask);
 		
-		return new Task(id, scheduledTask);
+		return new Task(id, scheduledTask, this);
+	}
+	
+	public Task scheduleFixedRateTask(Runnable task, Long delay, Long interval, TimeUnit unit)
+	{
+		Future<?> scheduledTask = executorService.scheduleAtFixedRate(task, delay, interval, unit);
+		
+		int id = atomicInteger.incrementAndGet();
+		
+		taskMap.put(id, scheduledTask);
+		
+		return new Task(id, scheduledTask, this);
+	}
+	
+	public boolean cancel(Integer id)
+	{
+		Future<?> task = taskMap.remove(id);
+		
+		if(task == null)
+			return false;
+		
+		return task.cancel(false);
 	}
 	
 	public void cancelAllTasks()
@@ -51,15 +72,17 @@ public class TaskExecutorService
 		taskMap.clear();
 	}
 	
-	public class Task
+	public static class Task
 	{
 		private Integer id;
 		private Future <?> task = null;
+		private TaskExecutorService service = null;
 		
-		public Task(Integer id, Future <?> task)
+		public Task(Integer id, Future <?> task, TaskExecutorService service)
 		{
 			this.id = id;
 			this.task = task;
+			this.service = service;
 		}
 		
 		public boolean isCancelled()
@@ -69,10 +92,7 @@ public class TaskExecutorService
 		
 		public boolean cancel()
 		{
-			if(taskMap.remove(id) == null)
-				return false;
-			
-			return task.cancel(false);
+			return service.cancel(id);
 		}
 		
 		public boolean isDone()

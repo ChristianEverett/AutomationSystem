@@ -27,8 +27,9 @@ import com.pi.controllers.ActionController;
 import com.pi.controllers.EventController;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceLoader;
+import com.pi.infrastructure.NodeController;
 import com.pi.infrastructure.RemoteDevice;
-import com.pi.infrastructure.RemoteDevice.Node;
+import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.util.HttpClient;
 import com.pi.infrastructure.util.HttpClient.ObjectResponse;
 import com.pi.infrastructure.util.HttpClient.Response;
@@ -41,10 +42,8 @@ import com.sun.net.httpserver.HttpServer;
  * @author Christian Everett
  *
  */
-public class NodeController implements HttpHandler, Node
+public class NodeControllerImplementation extends NodeController implements HttpHandler
 {
-	private static NodeController instance = null;
-	
 	private HttpServer server = null;
 	private static final int QUEUE = 5;
 	
@@ -57,15 +56,15 @@ public class NodeController implements HttpHandler, Node
 	private static String AUTOMATION_CONTROLLER_ADDRESS = null;
 	private static String AUTOMATION_CONTROLLER_PORT = "8080";
 	
-	public static NodeController getInstance(String nodeID)
+	public static NodeControllerImplementation start(String nodeID)
 	{
-		if(instance == null)
-			instance = new NodeController(nodeID);
+		if(singleton == null)
+			singleton = new NodeControllerImplementation(nodeID);
 		
-		return instance;
+		return (NodeControllerImplementation) singleton;
 	}
 	
-	private NodeController(String nodeID)
+	private NodeControllerImplementation(String nodeID)
 	{
 		try
 		{
@@ -73,7 +72,7 @@ public class NodeController implements HttpHandler, Node
 			probe = new Probe(nodeID, Probe.BROAD_CAST);
 			clientSocket = new DatagramSocket();
 			clientSocket.setSoTimeout(5000);
-			Device.registerRemoteDeviceLookup(this);
+			Device.registerNodeManger(this);
 			
 			server = HttpServer.create(new InetSocketAddress(8080), QUEUE);
 			server.createContext(RemoteDevice.REMOTE_CONFIG_PATH, this);
@@ -130,12 +129,11 @@ public class NodeController implements HttpHandler, Node
 	{
 		try(ObjectInputStream input = new ObjectInputStream(request.getRequestBody()))
 		{
-			Element element = (Element) input.readObject();
+			DeviceConfig config = (DeviceConfig) input.readObject();
 			
-			String name = element.getAttribute(DeviceLoader.DEVICE_NAME);
-			Device.createNewDevice(element);
+			createNewDevice(config, false);
 
-			server.createContext("/" + name, new DeviceHandler(Device.lookupDevice(name)));
+			server.createContext(createPathFromName(config.getName()), new DeviceHandler(lookupDevice(config.getName())));
 			request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
 			request.close();
 		}
@@ -146,11 +144,30 @@ public class NodeController implements HttpHandler, Node
 		}
 	}
 
+	private String createPathFromName(String name)
+	{
+		return "/" + name;
+	}
+
 	@Override
-	public boolean requestAction(DeviceState state)
+	public boolean closeDevice(String name)
+	{
+		boolean result = super.closeDevice(name);
+		server.removeContext(createPathFromName(name));
+		
+		if(deviceMap.isEmpty())
+			System.exit(0);
+		return result;
+	}
+	
+	@Override
+	public boolean scheduleAction(DeviceState state)
 	{
 		try
 		{
+			if(super.scheduleAction(state))
+				return true;
+			
 			ObjectMapper mapper = new ObjectMapper();
 			String json = mapper.writeValueAsString(state);
 			
@@ -171,10 +188,16 @@ public class NodeController implements HttpHandler, Node
 	}
 
 	@Override
-	public DeviceState getDeviceState(String name)
+	public DeviceState getDeviceState(String name, boolean isForDatabase)
 	{
 		try
 		{
+			DeviceState state = super.getDeviceState(name, isForDatabase);
+			
+			if(state != null)
+				return state;
+			
+			// Don't pass forDatabase param, automation node should never need device config
 			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
 			ObjectResponse response = client.sendGetObject(null, ActionController.PATH + "/AC/" + name);
 			
@@ -189,7 +212,7 @@ public class NodeController implements HttpHandler, Node
 	}
 
 	@Override
-	public void notifyAutomationControllerOfStateUpdate(DeviceState state)
+	public void update(DeviceState state)
 	{
 		try
 		{

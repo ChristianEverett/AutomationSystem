@@ -1,9 +1,11 @@
  select * from timed_action;
  select * from device_state;
- select * from event_table;
- select * from state_log_table;
+ select * from event;
+ select * from state_log
  delete from timed_action;
  delete from device_state;
+ delete from event;
+ delete from state_log;
  
  CREATE TABLE java_objects ( 
  id INT AUTO_INCREMENT, 
@@ -14,3 +16,12 @@
  INSERT INTO java_objects(name, object_value) VALUES ('testname99', 'text');
  select * from java_objects;
  drop table java_objects;
+ 
+ CREATE TABLE test(
+ a int,
+ ts DATETIME);
+ 
+ insert into test(a) values(2);
+ select * from test where ts > "2017-03-12 14:41";
+ drop table test;
+ drop table state_log_table;

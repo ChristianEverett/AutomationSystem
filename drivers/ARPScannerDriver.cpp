@@ -17,20 +17,20 @@ void shutdownScanner();
 const char *name;
 
 JNIEXPORT void JNICALL
-Java_com_pi_devices_DeviceDetector_setupScanner(JNIEnv *env, jobject obj)
+Java_com_pi_devices_asynchronousdevices_DeviceDetector_setupScanner(JNIEnv *env, jobject obj)
 {
 	setup();
 }
 
 JNIEXPORT void JNICALL
-Java_com_pi_devices_DeviceDetector_registerAddress(JNIEnv *env, jobject obj, jstring address)
+Java_com_pi_devices_asynchronousdevices_DeviceDetector_registerAddress(JNIEnv *env, jobject obj, jstring address)
 {
 	name = env->GetStringUTFChars(address, NULL);
 	registerMACAddress(name);
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_pi_devices_DeviceDetector_scan(JNIEnv *env, jobject obj)
+Java_com_pi_devices_asynchronousdevices_DeviceDetector_scan(JNIEnv *env, jobject obj)
 {
 	std::string mac = scan();
 	jstring result = env->NewStringUTF(mac.c_str());
@@ -38,7 +38,7 @@ Java_com_pi_devices_DeviceDetector_scan(JNIEnv *env, jobject obj)
 }
 
 JNIEXPORT void JNICALL
-Java_com_pi_devices_DeviceDetector_stopScanning(JNIEnv *env, jobject obj)
+Java_com_pi_devices_asynchronousdevices_DeviceDetector_stopScanning(JNIEnv *env, jobject obj)
 {
 	shutdownScanner();
 }

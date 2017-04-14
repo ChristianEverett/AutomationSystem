@@ -13,7 +13,7 @@ extern "C" {
  * Method:    
  * Signature: 
  */
-JNIEXPORT jobject JNICALL Java_com_pi_devices_TemperatureSensor_readSensor(JNIEnv *, jobject, jint, jint);
+JNIEXPORT jobject JNICALL Java_com_pi_devices_asynchronousdevices_TemperatureSensor_readSensor(JNIEnv *, jobject, jint, jint);
 
 #ifdef __cplusplus
 }

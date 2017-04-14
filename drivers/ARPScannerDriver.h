@@ -22,10 +22,10 @@ extern "C"
  * Method:
  * Signature:
  */
-JNIEXPORT void JNICALL Java_com_pi_devices_DeviceDetector_setupScanner(JNIEnv *, jobject);
-JNIEXPORT void JNICALL Java_com_pi_devices_DeviceDetector_registerAddress(JNIEnv *, jobject, jstring);
-JNIEXPORT jstring JNICALL Java_com_pi_devices_DeviceDetector_scan(JNIEnv *, jobject);
-JNIEXPORT void JNICALL Java_com_pi_devices_DeviceDetector_stopScanning(JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_com_pi_devices_asynchronousdevices_DeviceDetector_setupScanner(JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_com_pi_devices_asynchronousdevices_DeviceDetector_registerAddress(JNIEnv *, jobject, jstring);
+JNIEXPORT jstring JNICALL Java_com_pi_devices_asynchronousdevices_DeviceDetector_scan(JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_com_pi_devices_asynchronousdevices_DeviceDetector_stopScanning(JNIEnv *, jobject);
 
 #ifdef __cplusplus
 }

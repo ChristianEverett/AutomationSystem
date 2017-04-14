@@ -7,6 +7,7 @@ import org.hibernate.type.SetType;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.infrastructure.Device;
+import com.pi.infrastructure.NodeController;
 
 public class DeviceState extends DatabaseElement
 {
@@ -15,8 +16,7 @@ public class DeviceState extends DatabaseElement
 	private HashMap<String, Object> params = new HashMap<>();
 	
 	public DeviceState()
-	{
-		
+	{	
 	}
 	
 	public static DeviceState create(String name, String type)
@@ -32,7 +32,7 @@ public class DeviceState extends DatabaseElement
 		DeviceState state = new DeviceState();
 		state.setName(name);
 		state.setDatabaseID(id);
-		state.SetType(type);
+		state.type = type;
 		return state;
 	}
 
@@ -44,6 +44,7 @@ public class DeviceState extends DatabaseElement
 	public void setName(String name)
 	{
 		this.name = name;
+		type = NodeController.getInstance().getDeviceType(name);
 	}
 
 	public HashMap<String, Object> getParams()
@@ -61,7 +62,7 @@ public class DeviceState extends DatabaseElement
 		return type;
 	}
 	
-	public void SetType(String type)
+	public void setType(String type)
 	{
 		this.type = type;
 	}

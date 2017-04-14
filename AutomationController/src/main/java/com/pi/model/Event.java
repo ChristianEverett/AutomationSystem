@@ -8,56 +8,85 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
 
+import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.pi.infrastructure.NodeController;
 
 import java.util.Objects;
 
 public class Event extends DatabaseElement
 {
-	//In order for the event to be considered triggered, all device states in triggerEvents must be met
-	private List<DeviceState> triggerEvents = new LinkedList<>();
-	//Map to hold this events current view of the dependency devices and there last known state
-	private HashMap<String, DeviceState> triggerSetStateCache = new HashMap<>();
-	
+	// In order for the event to be considered triggered, all device states in
+	// triggerEvents must be met
+	private List<DeviceStateTriggerRange> triggerEvents = new LinkedList<>();
+	// Map to hold this events current view of the dependency devices and there
+	// last known state
+
 	private List<Entry<String, DeviceState>> registeredDevices = new LinkedList<>();
+	
+	private Boolean requireAll = true;
 
 	public Event()
 	{
 	}
-	
-	@JsonIgnore
-	public boolean updateAndCheckIfTriggered(DeviceState state)
-	{
-		triggerSetStateCache.put(state.getName(), state);
 
-		for(DeviceState triggerState : triggerEvents)
+	@JsonIgnore
+	public boolean checkIfTriggered(NodeController node)
+	{
+		if (requireAll)
 		{
-			if(!triggerState.equals(triggerSetStateCache.get(triggerState.getName())))
+			return allStatesMet(node);
+		}
+		else
+		{
+			return anyStateMet(node);
+		}
+	}
+
+	@JsonIgnore
+	private boolean allStatesMet(NodeController node)
+	{
+		for (DeviceStateTriggerRange triggerState : triggerEvents)
+		{
+			if (!triggerState.isInRange(node.getDeviceState(triggerState.getName())))
 				return false;
-		};
+		}
 
 		return true;
+	}
+
+	@JsonIgnore
+	private boolean anyStateMet(NodeController node)
+	{
+		for (DeviceStateTriggerRange triggerState : triggerEvents)
+		{
+			if (triggerState.isInRange(node.getDeviceState(triggerState.getName())))
+				return true;
+		}
+
+		return false;
 	}
 
 	@JsonIgnore
 	public List<String> getDependencyDevices()
 	{
 		List<String> deviceNames = new ArrayList<String>(triggerEvents.size());
-		
-		for(DeviceState state : triggerEvents)
+
+		for (DeviceStateTriggerRange state : triggerEvents)
 		{
 			deviceNames.add(state.getName());
 		}
-		
+
 		return deviceNames;
 	}
 
 	@Override
+	@JsonGetter
 	public int hashCode()
 	{
-		return Objects.hash(triggerEvents.hashCode(), triggerSetStateCache.hashCode());
+		return Objects.hash(triggerEvents.hashCode(), requireAll);
 	}
-	
+
 	@JsonIgnore
 	public void registerListener(DeviceState state)
 	{
@@ -67,35 +96,46 @@ public class Event extends DatabaseElement
 	@JsonIgnore
 	public void unRegisterListener(String deviceName)
 	{
-		for(Iterator<Entry<String, DeviceState>> iter = registeredDevices.iterator(); iter.hasNext();)
-			if(iter.next().getKey().equals(deviceName))
+		for (Iterator<Entry<String, DeviceState>> iter = registeredDevices.iterator(); iter.hasNext();)
+			if (iter.next().getKey().equals(deviceName))
 				iter.remove();
 	}
 	
 	@JsonIgnore
-	public void setTriggerSetStateCache(HashMap<String, DeviceState> triggerSetStateCache)
+	public void replace(Event event)
 	{
-		this.triggerSetStateCache = triggerSetStateCache;
+		setTriggerEvents(event.getTriggerEvents());
+		setRequireAll(event.getRequireAll());
 	}
-	
-	//Json Fields ------------------------------------
+
+	// Json Fields ------------------------------------
 	public List<Entry<String, DeviceState>> getRegisteredDevices()
 	{
 		return registeredDevices;
 	}
+
+	public void setRegisteredDevices(List<Entry<String, DeviceState>> devices)
+	{
+		registeredDevices.addAll(devices);
+	}
 	
-	public List<DeviceState> getTriggerEvents()
+	public List<DeviceStateTriggerRange> getTriggerEvents()
 	{
 		return triggerEvents;
 	}
 
-	public void setTriggerEvents(List<DeviceState> triggerEvents)
+	public void setTriggerEvents(List<DeviceStateTriggerRange> triggerEvents)
 	{
 		this.triggerEvents = triggerEvents;
 	}
-
-	public HashMap<String, DeviceState> getTriggerSetStateCache()
+	
+	public void setRequireAll(Boolean value)
 	{
-		return triggerSetStateCache;
+		requireAll = value;
+	}
+	
+	public Boolean getRequireAll()
+	{
+		return requireAll;
 	}
 }

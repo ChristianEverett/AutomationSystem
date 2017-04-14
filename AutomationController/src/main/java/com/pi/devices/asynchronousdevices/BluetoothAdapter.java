@@ -44,7 +44,10 @@ public class BluetoothAdapter extends AsynchronousDevice
 				{
 					String result = ping(key);
 					if(!result.isEmpty())
+					{
 						macToLastPing.put(key, new Date());
+						update(getState());
+					}
 				}
 				
 				if (keys.isEmpty())
@@ -54,7 +57,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 			{
 				Application.LOGGER.severe(e.getMessage());
 			}
-		}, 1000L, 5L, TimeUnit.MILLISECONDS);
+		}, 1000L, 500L, TimeUnit.MILLISECONDS);
 	}
 
 	@Override
@@ -65,22 +68,24 @@ public class BluetoothAdapter extends AsynchronousDevice
 
 	@Override
 	protected void performAction(DeviceState state)
-	{//TODO finish class
-		String address = (String) state.getParam(Params.MAC);
-		Boolean runScan = (Boolean) state.getParam(Params.MAC);
+	{
+		@SuppressWarnings("unchecked")
+		List<String> addresses = (List<String>) state.getParam(Params.MACS);
+		Boolean runScan = (Boolean) state.getParam(Params.SCAN);
 		
-		Matcher match = regex.matcher(address);
-		
-		if(match.matches())
+		for (String address : addresses)
 		{
-			macToLastPing.put(address, new Date());
+			Matcher match = regex.matcher(address);
+			if (match.matches())
+			{
+				macToLastPing.put(address, new Date(0));
+			} 
 		}
-		
 		if(runScan)
 		{
-			String addresses[] = scanForBluetoothDevices();
+			String newAddresses[] = scanForBluetoothDevices();
 			
-			for(String item : addresses)
+			for(String item : newAddresses)
 			{
 				macToLastPing.put(item, new Date());
 			}
@@ -91,7 +96,16 @@ public class BluetoothAdapter extends AsynchronousDevice
 	public DeviceState getState(Boolean forDatabase) throws IOException
 	{
 		DeviceState state = Device.createNewDeviceState(name);
-		state.setParam(Params.MAC, new ArrayList<>(macToLastPing.entrySet()));
+		
+		if (!forDatabase)
+		{
+			state.setParam(Params.MACS, new ArrayList<>(macToLastPing.entrySet()));
+		}
+		else 
+		{
+			state.setParam(Params.MACS, new ArrayList<>(macToLastPing.keySet()));
+		}
+		
 		return state;
 	}
 
@@ -105,7 +119,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 	public List<String> getExpectedParams()
 	{
 		List<String> list = new ArrayList<>();
-		list.add(Params.MAC);
+		list.add(Params.MACS);
 		list.add(Params.SCAN);
 		return list;
 	}

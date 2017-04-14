@@ -1,9 +1,10 @@
 /**
  * 
  */
-package com.pi.devices;
+package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -29,33 +30,47 @@ import com.pi.model.DeviceState;
  */
 public class WeatherSensor extends Device
 {
-	private Connection httpConnection;
+	private Connection weatherHttpConnection;
+	private Connection lightHttpConnection;
 	private String location;
 	private Task weatherReadingTask;
 	
 	private int locationTempature = 0;
+	private Boolean isDark = false;
 	
 	private static final long updateFrequency = 45L;
 	
 	public WeatherSensor(String name, String location) throws IOException
 	{
 		super(name);
-		this.location = location;
+		this.location = URLEncoder.encode(location, "UTF-8");
+		
+		weatherHttpConnection = Jsoup.connect("https://www.google.com/search?q=weahther+" + this.location).userAgent(
+				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+		
+		lightHttpConnection = Jsoup.connect("http://www.isitdarkoutside.com/").userAgent(
+				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
 		
 		createTask(() -> 
 		{
 			try
 			{
-				httpConnection = Jsoup.connect("http://www.google.com/search?q=weahther+" + location).userAgent(
-						"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
-				
-				Document doc = httpConnection.get();
+				Document doc = weatherHttpConnection.get();
 				Element element = doc.getElementById("wob_tm");
 
 				if (element != null)
 				{
 					locationTempature = Integer.parseInt(element.html());
+					update(getState());
 				}
+				
+				doc = lightHttpConnection.get();
+				element = doc.getElementById("answer");
+				
+				if("YES".equalsIgnoreCase(element.html()))
+					isDark = true;
+				else
+					isDark = false;
 			}
 			catch (Throwable e)
 			{
@@ -74,6 +89,7 @@ public class WeatherSensor extends Device
 	{
 		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.TEMPATURE, locationTempature);
+		state.setParam(Params.IS_DARK, isDark);
 		
 		return state;
 	}

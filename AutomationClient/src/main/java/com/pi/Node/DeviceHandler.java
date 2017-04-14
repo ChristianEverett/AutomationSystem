@@ -69,6 +69,7 @@ class DeviceHandler implements HttpHandler
 				device.close();
 				Main.LOGGER.info("Closed: " + device.getName());
 				request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
+				NodeControllerImplementation.getInstance().closeDevice(device.getName());
 				break;
 			}
 			case RemoteDevice.GET_EXPECTED_PARAMS:

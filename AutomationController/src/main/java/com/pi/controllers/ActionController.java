@@ -5,6 +5,9 @@ package com.pi.controllers;
 
 import java.io.ObjectOutputStream;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -13,12 +16,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.Application;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.infrastructure.Device;
 import com.pi.model.DeviceState;
+import com.pi.model.DeviceStateRecord;
 
 /**
  * @author Christian Everett
@@ -34,7 +39,7 @@ public class ActionController
 	
 	public ActionController()
 	{
-		bgp = Processor.getBackgroundProcessor();
+		bgp = Processor.getInstance();
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
@@ -42,7 +47,7 @@ public class ActionController
 	{
 		try
 		{
-			return Device.getStates(false);
+			return bgp.getStates(false);
 		}
 		catch (Exception e)
 		{
@@ -72,6 +77,25 @@ public class ActionController
 			response.setStatus(503);
 			Application.LOGGER.severe(e.getMessage());
 		}
+	}
+	
+	@RequestMapping(value = (PATH + "/records"), method = RequestMethod.GET)
+	public @ResponseBody Collection<DeviceStateRecord> getRecordsFor(HttpServletResponse response, 
+			@RequestParam("start") String start, @RequestParam("end") String end)
+	{
+		try
+		{
+			List<DeviceStateRecord> list = bgp.getPersistenceManger().getRecords(start, end);
+			Collections.sort(list);
+			return list;
+		}
+		catch (Exception e)
+		{
+			Application.LOGGER.severe(e.getMessage());
+			response.setStatus(503);
+		}
+		
+		return null;
 	}
 	
 	@RequestMapping(value = (PATH + "/{device}"), method = RequestMethod.POST)

@@ -11,6 +11,5 @@ public abstract class AsynchronousDevice extends Device
 	public AsynchronousDevice(String name) throws IOException
 	{
 		super(name);
-		// TODO Auto-generated constructor stub
 	}
 }

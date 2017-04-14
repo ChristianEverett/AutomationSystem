@@ -67,6 +67,7 @@ public class PropertyManger
 		public static final String LOGFILE = "log.file";
 		public static final String DBUSER = "database.username";
 		public static final String DBPASS = "database.password";
+		public static final String SQL_PROPERTIES = "database.querys";
 		public static final String ADMIN_EMAIL = "admin.email";
 		public static final String DEVICE_CONFIG = "device.config";
 		public static final String DATABASE_POLL_FREQUENCY = "database.poll_frequency";

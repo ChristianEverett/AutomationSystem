@@ -35,13 +35,13 @@ public class RemoteDevice extends Device
 	private List<String> expectedTypes = null;
 
 	@SuppressWarnings("unchecked")
-	public RemoteDevice(String name, String type, String url, Element element) throws Exception
+	public RemoteDevice(String name, String type, String url, DeviceConfig config) throws Exception
 	{
 		super(name);
 		this.type = type;
 		client = new HttpClient(url);
 
-		Response response = client.sendPostObject(null, REMOTE_CONFIG_PATH, (Serializable) element);
+		Response response = client.sendPostObject(null, REMOTE_CONFIG_PATH, (Serializable) config);
 
 		if (response.getStatusCode() != HttpURLConnection.HTTP_OK)
 			throw new IOException("Error creating device. Status Code: " + response.getStatusCode() + " on device: " + name);
@@ -136,29 +136,23 @@ public class RemoteDevice extends Device
 			return data;
 		}
 	}
-	
-	public interface Node
-	{
-		public boolean requestAction(DeviceState state);
-		public DeviceState getDeviceState(String name);
-		public void notifyAutomationControllerOfStateUpdate(DeviceState state);
-	}
 
 	@XmlRootElement(name = DEVICE)
 	public static class RemoteDeviceConfig extends DeviceConfig
 	{
-		private Element element;
+		private DeviceConfig config;
 		private String type, url;
+		private String nodeID;
 
 		@Override
 		public Device buildDevice() throws Exception
 		{
-			return new RemoteDevice(name, type, url, element);
+			return new RemoteDevice(name, type, url, config);
 		}
 
-		public void setElement(Element element)
+		public void setElement(DeviceConfig config)
 		{
-			this.element = element;
+			this.config = config;
 		}
 
 		public void setType(String type)
@@ -169,6 +163,16 @@ public class RemoteDevice extends Device
 		public void setUrl(String url)
 		{
 			this.url = url;
+		}
+		
+		public void setNodeID(String nodeID)
+		{
+			this.nodeID = nodeID;
+		}
+		
+		public String getNodeID()
+		{
+			return nodeID;
 		}
 	}
 }

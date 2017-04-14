@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 
-import com.pi.Node.NodeController;
+import com.pi.Node.NodeControllerImplementation;
 
 /**
  * @author Christian Everett
@@ -29,6 +29,6 @@ public class Main
 			}
 		});
 		
-		NodeController.getInstance(args[0]);
+		NodeControllerImplementation.start(args[0]);
 	}
 }

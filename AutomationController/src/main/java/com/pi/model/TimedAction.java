@@ -20,41 +20,45 @@ public class TimedAction extends DatabaseElement implements Comparable<TimedActi
 {
 	private String time;
 	private DeviceState state;
-	
+
 	public TimedAction()
 	{
 
 	}
-	
+
 	public TimedAction(String time, DeviceState state)
 	{
 		this.time = time;
 		this.state = state;
 	}
-	
+
 	public TimedAction(Integer id, String time, DeviceState state)
 	{
 		super(id);
 		this.time = time;
 		this.state = state;
 	}
-	
+
 	public String getTime()
 	{
 		return time;
 	}
+
 	public void setTime(String time)
 	{
 		this.time = time;
 	}
+
 	public DeviceState getAction()
 	{
 		return state;
 	}
+
 	public void setAction(DeviceState state)
 	{
 		this.state = state;
 	}
+
 	public String get12Hour()
 	{
 		SimpleDateFormat format = new SimpleDateFormat("H:mm");
@@ -66,16 +70,16 @@ public class TimedAction extends DatabaseElement implements Comparable<TimedActi
 		{
 			Application.LOGGER.severe(e.getMessage());
 		}
-		
+
 		return "";
 	}
-	
+
 	@JsonIgnore
 	public Integer getHour()
 	{
 		return Integer.parseInt(time.substring(0, time.indexOf(":")));
 	}
-	
+
 	@JsonIgnore
 	public Integer getMinute()
 	{
@@ -86,10 +90,10 @@ public class TimedAction extends DatabaseElement implements Comparable<TimedActi
 	@Override
 	public boolean equals(Object object)
 	{
-		if(!(object instanceof TimedAction))
+		if (!(object instanceof TimedAction))
 			return false;
 		TimedAction timedAction = (TimedAction) object;
-		
+
 		return (time.equals(timedAction.time) && state.equals(timedAction.state));
 	}
 
@@ -105,10 +109,10 @@ public class TimedAction extends DatabaseElement implements Comparable<TimedActi
 	public int compareTo(TimedAction other)
 	{
 		int result = getHour().compareTo(other.getHour());
-		
-		if(result == 0)
+
+		if (result == 0)
 			result = getMinute().compareTo(other.getMinute());
-		
+
 		return result;
 	}
 }

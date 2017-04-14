@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
 <devices>
 
+	<device device-type="timer" device-name="timer1">	
+	</device>
+
 	<device device-type="bluetooth_adapter" device-name="bluetooth1">	
 	</device>
 

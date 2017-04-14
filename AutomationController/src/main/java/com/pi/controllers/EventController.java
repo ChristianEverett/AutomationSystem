@@ -1,8 +1,6 @@
 package com.pi.controllers;
 
-import java.io.ObjectInputStream;
 import java.util.Collection;
-import java.util.Map.Entry;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -14,7 +12,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.Application;
-import com.pi.backgroundprocessor.EventProcessingService;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
@@ -23,23 +20,36 @@ import com.pi.model.Event;
 public class EventController
 {
 	public static final String PATH = "/event";
-	private EventProcessingService eventProcessingService;
+	private Processor processor;
 	
 	public EventController()
 	{
-		eventProcessingService = Processor.getBackgroundProcessor().geEventProcessingService();
+		processor = Processor.getInstance();
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
 	public @ResponseBody Collection<Event> getEvents(HttpServletRequest request, HttpServletResponse response)
 	{
-		return eventProcessingService.getAllEvents();
+		return processor.getEventProcessingService().getAllEvents();
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.POST)
 	public @ResponseBody Integer createEvent(HttpServletRequest request, HttpServletResponse response, @RequestBody Event event)
 	{
-		return eventProcessingService.createEvent(event);
+		return processor.getEventProcessingService().createEvent(event);
+	}
+	
+	@RequestMapping(value = (PATH + "/update/{hash}"), method = RequestMethod.POST)
+	public @ResponseBody Integer changeEvent(HttpServletRequest request, HttpServletResponse response, @RequestBody Event event
+			,@PathVariable("hash") Integer hash)
+	{
+		return processor.getEventProcessingService().changeEvent(hash, event);
+	}
+	
+	@RequestMapping(value = (PATH + "/{hash}"), method = RequestMethod.DELETE)
+	public void removeEvent(HttpServletRequest request, HttpServletResponse response, @PathVariable("hash") Integer hash)
+	{
+		processor.getEventProcessingService().removeEvent(hash);
 	}
 	
 	/*
@@ -49,15 +59,30 @@ public class EventController
 	public @ResponseBody Collection<String> getAllRegisterListeners(HttpServletRequest request, HttpServletResponse response, 
 			@PathVariable("id") Integer hash)
 	{
-		return eventProcessingService.getAllListenersForEvent(hash);
+		return processor.getEventProcessingService().getAllListenersForEvent(hash);
 	}
 	
 	@RequestMapping(value = (PATH + "/{hash}"), method = RequestMethod.POST)
 	public void registerListener(HttpServletRequest request, HttpServletResponse response, @PathVariable("hash") Integer hash,
 			@RequestBody DeviceState state)
 	{
-		eventProcessingService.mapEvent(hash, state);
-	}	
+		processor.getEventProcessingService().addListener(hash, state);
+	}
+	
+	@RequestMapping(value = (PATH + "/group/{hash}"), method = RequestMethod.POST)
+	public void registerListeners(HttpServletRequest request, HttpServletResponse response, @PathVariable("hash") Integer hash,
+			@RequestBody Collection<DeviceState> states)
+	{
+		for(DeviceState state : states)
+			processor.getEventProcessingService().addListener(hash, state);
+	}
+	
+	@RequestMapping(value = (PATH + "/{hash}/{deviceName}"), method = RequestMethod.DELETE)
+	public void unRegisterListener(HttpServletRequest request, HttpServletResponse response, @PathVariable("hash") Integer hash,
+			@PathVariable("deviceName") String deviceName)
+	{
+		processor.getEventProcessingService().removeListener(hash, deviceName);
+	}
 	
 	/*
 	 * Only used by automation clients
@@ -68,7 +93,7 @@ public class EventController
 		try//(ObjectInputStream input = new ObjectInputStream(request.getInputStream()))
 		{
 			//DeviceState state = (DeviceState) input.readObject();
-			eventProcessingService.update(state);
+			processor.update(state);
 		}
 		catch (Exception e)
 		{

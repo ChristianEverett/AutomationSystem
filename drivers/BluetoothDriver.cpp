@@ -17,13 +17,13 @@ const std::string ping(const std::string address);
 void close();
 
 JNIEXPORT void JNICALL
-Java_com_pi_devices_BluetoothAdapter_setupBluetooth(JNIEnv *env, jobject obj)
+Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_setupBluetooth(JNIEnv *env, jobject obj)
 {
 	setupBluetooth();
 }
 
 JNIEXPORT jobjectArray JNICALL
-Java_com_pi_devices_BluetoothAdapter_scanForBluetoothDevices(JNIEnv *env, jobject obj)
+Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_scanForBluetoothDevices(JNIEnv *env, jobject obj)
 {
 	std::vector<std::string> results = bluetoothScan();
 	
@@ -40,7 +40,7 @@ Java_com_pi_devices_BluetoothAdapter_scanForBluetoothDevices(JNIEnv *env, jobjec
 }
 
 JNIEXPORT jstring JNICALL
-Java_com_pi_devices_BluetoothAdapter_ping(JNIEnv *env, jobject obj, jstring mac)
+Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_ping(JNIEnv *env, jobject obj, jstring mac)
 {
 	std::string macString(env->GetStringUTFChars(mac, NULL));
 	
@@ -52,7 +52,7 @@ Java_com_pi_devices_BluetoothAdapter_ping(JNIEnv *env, jobject obj, jstring mac)
 }
 
 JNIEXPORT void JNICALL
-Java_com_pi_devices_BluetoothAdapter_closeBluetooth(JNIEnv *env, jobject obj)
+Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_closeBluetooth(JNIEnv *env, jobject obj)
 {
 	close();
 }

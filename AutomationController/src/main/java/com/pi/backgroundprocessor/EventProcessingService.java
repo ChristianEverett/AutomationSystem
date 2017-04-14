@@ -34,7 +34,7 @@ public class EventProcessingService
 		return singlton;
 	}
 	
-	public synchronized void update(DeviceState state)
+	synchronized void update(DeviceState state)
 	{
 		List<Event> events = mapDevicesToTriggerEvents.get(state.getName());
 		
@@ -42,14 +42,27 @@ public class EventProcessingService
 		{
 			for (Event event : events)
 			{
-				if (event.updateAndCheckIfTriggered(state))
-				{
-					for (Entry<String, DeviceState> element : event.getRegisteredDevices())
-					{
-						processor.scheduleAction(element.getValue());
-					}
-				}
+				checkIfTriggered(event);
 			} 
+		}
+	}
+
+	private void checkIfTriggered(Event event)
+	{
+		if (event.checkIfTriggered(processor))
+		{
+			applyTriggerStateToListnerDevices(event);
+		}
+	}
+	
+	private void applyTriggerStateToListnerDevices(Event event)
+	{
+		for (Entry<String, DeviceState> element : event.getRegisteredDevices())
+		{
+			if (!element.getValue().equals(processor.getDeviceState(element.getValue().getName())))
+			{
+				processor.scheduleAction(element.getValue());
+			}
 		}
 	}
 	
@@ -58,12 +71,13 @@ public class EventProcessingService
 	 * @param id
 	 * @param deviceName
 	 */
-	public synchronized void mapEvent(Integer id, DeviceState state)
+	public synchronized void addListener(Integer id, DeviceState state)
 	{
 		if(events.get(id) == null)
 			throw new RuntimeException("There is no event mapped at: " + id);
 		
 		events.get(id).registerListener(state);
+		checkIfTriggered(events.get(id));
 	}
 	
 	/**
@@ -71,7 +85,7 @@ public class EventProcessingService
 	 * @param id
 	 * @param deviceName
 	 */
-	public synchronized void unmapEvent(Integer id, String deviceName)
+	public synchronized void removeListener(Integer id, String deviceName)
 	{
 		if(events.get(id) == null)
 			throw new RuntimeException("There is no device event mapped at: " + id);
@@ -105,6 +119,19 @@ public class EventProcessingService
 		return id;
 	}
 	
+	public synchronized Integer changeEvent(Integer id, Event event)
+	{
+		Event oldEvent = events.remove(id);
+		
+		if(event == null)
+			throw new RuntimeException("There is no event mapped at: " + id);
+		
+		oldEvent.replace(event);
+		events.put(event.hashCode(), event);
+		
+		return oldEvent.hashCode();
+	}
+	
 	public synchronized void removeEvent(Integer id)
 	{
 		Event event = events.remove(id);
@@ -125,6 +152,12 @@ public class EventProcessingService
 				}
 			}
 		}
+	}
+	
+	public synchronized void createEvents(List<Event> events)
+	{
+		for(Event event : events)
+			createEvent(event);
 	}
 	
 	public synchronized List<Event> getAllEvents()

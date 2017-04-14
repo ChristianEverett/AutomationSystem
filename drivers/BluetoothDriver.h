@@ -22,10 +22,10 @@ extern "C"
  * Method:
  * Signature:
  */
-JNIEXPORT void JNICALL Java_com_pi_devices_BluetoothAdapter_setupBluetooth(JNIEnv *, jobject);
-JNIEXPORT jobjectArray JNICALL Java_com_pi_devices_BluetoothAdapter_scanForBluetoothDevices(JNIEnv *, jobject);
-JNIEXPORT jstring JNICALL Java_com_pi_devices_BluetoothAdapter_ping(JNIEnv *, jobject, jstring);
-JNIEXPORT void JNICALL Java_com_pi_devices_BluetoothAdapter_closeBluetooth(JNIEnv *, jobject);
+JNIEXPORT void JNICALL Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_setupBluetooth(JNIEnv *, jobject);
+JNIEXPORT jobjectArray JNICALL Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_scanForBluetoothDevices(JNIEnv *, jobject);
+JNIEXPORT jstring JNICALL Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_ping(JNIEnv *, jobject, jstring);
+JNIEXPORT void JNICALL Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_closeBluetooth(JNIEnv *, jobject);
 
 #ifdef __cplusplus
 }

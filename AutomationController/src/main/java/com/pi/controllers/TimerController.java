@@ -35,7 +35,7 @@ public class TimerController
 	
 	public TimerController()
 	{
-		timeActionProcessor = Processor.getBackgroundProcessor().getTimeActionProcessor();
+		timeActionProcessor = Processor.getInstance().getTimeActionProcessor();
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
@@ -74,7 +74,7 @@ public class TimerController
 	@RequestMapping(value = (PATH + "/{id}"), method = RequestMethod.DELETE)
 	public void deleteTimer(HttpServletRequest request, HttpServletResponse response, @PathVariable("id") Integer id)
 	{
-		if(bgp.getTimeActionProcessor().delete(id) == null)
+		if(timeActionProcessor.delete(id) == null)
 			response.setStatus(404);
 	}
 	

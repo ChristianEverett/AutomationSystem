@@ -34,7 +34,6 @@ public class Thermostat extends Device
 	private List<Integer> cachedTempatures = null;
 	private Task updateTask = null;
 	private Task fanTurnOffDelayTask = null;
-	private Lock lock = new ReentrantLock();
 	
 	private final GpioPinDigitalOutput FAN;
 	private final GpioPinDigitalOutput COMPRESSOR;
@@ -77,7 +76,7 @@ public class Thermostat extends Device
 		{
 			try
 			{
-				update();
+				process();
 			}
 			catch (Exception e)
 			{
@@ -94,84 +93,96 @@ public class Thermostat extends Device
 		
 		if (targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
 		{
-			lock.lock();
-			targetTempInFehrenheit = targetTemp;
-			targetMode = mode;
-			lock.unlock();
-			update();
+			synchronized (this)
+			{
+				targetTempInFehrenheit = targetTemp;
+				targetMode = mode;
+			}
+			process();
 		}
 	}
 	
 	@Override
-	public DeviceState getState(Boolean forDatabase)
+	public synchronized DeviceState getState(Boolean forDatabase)
 	{
-		lock.lock();
 		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.TARGET_TEMPATURE, targetTempInFehrenheit);
 		state.setParam(Params.MODE, currentMode.toString());
 		state.setParam(Params.TARGET_MODE, targetMode.toString());
-		lock.unlock();
 
 		return state;
 	}
 
 	@Override
-	public void close()
+	public synchronized void close()
 	{
-		lock.lock();
 		updateTask.cancel();
 		turnOff();
-		lock.unlock();
 	}
 	
 	/**
 	 * Check the status of the temperature Sensor and update the state of the thermostat
 	 */
-	private void update()
+	private synchronized void process()
 	{
-		lock.lock();
-		
-		if (!targetTempatureReached() && !modeChangeLock.get())
-		{
-			switch (targetMode)
-			{
-			case OFF_MODE:
-				turnOff();
-				break;
-			case FAN_MODE:
-				FAN.setState(ON);
-				COMPRESSOR.setState(OFF);
-				HEAT.setState(OFF);
-				currentMode = ThermostatMode.FAN_MODE;
-				break;
-			case COOL_MODE:
-				FAN.setState(ON);
-				COMPRESSOR.setState(ON);
-				HEAT.setState(OFF);
-				currentMode = ThermostatMode.COOL_MODE;
-				break;
-			case HEAT_MODE:
-				FAN.setState(ON);
-				COMPRESSOR.setState(OFF);
-				HEAT.setState(ON);
-				currentMode = ThermostatMode.HEAT_MODE;
-				break;
-			default:
-				break;
-			}
+		if (targetTempatureReached() && !modeChangeLock.get() && targetMode != ThermostatMode.FAN_MODE)
+		{			
+			turnOff();
+			lockThermostat();
 		}
 		else 
 		{
-			turnOff();
-			modeChangeLock.set(true);
-			
-			createTask(() -> {modeChangeLock.set(false);}, modeChangeDelay, TimeUnit.MINUTES); 
-		}
-		
-		lock.unlock();
+			if (currentMode != targetMode)
+			{
+				switch (targetMode)
+				{
+				case OFF_MODE:
+					turnOff();
+					break;
+				case FAN_MODE:
+					FAN.setState(ON);
+					COMPRESSOR.setState(OFF);
+					HEAT.setState(OFF);
+					currentMode = ThermostatMode.FAN_MODE;
+					break;
+				case COOL_MODE:
+					if (!modeChangeLock.get())
+					{
+						FAN.setState(ON);
+						COMPRESSOR.setState(ON);
+						HEAT.setState(OFF);
+						currentMode = ThermostatMode.COOL_MODE;
+						//lockThermostat();
+					}
+					break;
+				case HEAT_MODE:
+					if (!modeChangeLock.get())
+					{
+						FAN.setState(ON);
+						COMPRESSOR.setState(OFF);
+						HEAT.setState(ON);
+						currentMode = ThermostatMode.HEAT_MODE;
+						//lockThermostat();
+					}
+					break;
+				default:
+					break;
+				}
+			}	
+		}	
+	}
+
+	private synchronized void lockThermostat()
+	{
+		modeChangeLock.set(true);
+
+		createTask(() ->
+		{
+			modeChangeLock.set(false);
+		}, modeChangeDelay, TimeUnit.MINUTES);
 	}
 	
-	private void turnOff()
+	private synchronized void turnOff()
 	{
 		if (currentMode != ThermostatMode.OFF_MODE)
 		{

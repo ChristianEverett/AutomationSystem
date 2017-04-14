@@ -17,15 +17,17 @@ public class NodeDiscovererService extends Thread
 {
 	public static final String AUTOMATION_CONTROLLER = "automation_controller";
 	public static final int DISCOVERY_PORT = 9876;
+	public static Processor processor;
 
 	private static NodeDiscovererService singlton = null;
 	private DatagramSocket serverSocket = null;
 
-	public static void startDiscovering()
+	public static void startDiscovering(Processor processor)
 	{
 		if (singlton == null)
 		{
 			singlton = new NodeDiscovererService();
+			NodeDiscovererService.processor = processor;
 			singlton.start();
 		}
 	}
@@ -62,7 +64,7 @@ public class NodeDiscovererService extends Thread
 				DatagramPacket receivePacket = listenForProbe();
 				Probe probe = extractProbeFromDatagram(receivePacket);
 						
-				Processor.getBackgroundProcessor().registerNode(probe.getNodeName(), receivePacket.getAddress());
+				processor.registerNode(probe.getNodeName(), receivePacket.getAddress());
 				replyToNode(receivePacket.getAddress(), receivePacket.getPort());
 			}
 		}

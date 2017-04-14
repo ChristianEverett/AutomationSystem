@@ -68,30 +68,33 @@ public class Application extends WebMvcAutoConfiguration
 		LOGGER.info("Starting Processing Service");
 		try
 		{
-			// Run the background processor
-			Processor.createBackgroundProcessor();
-			Processor processor = Processor.getBackgroundProcessor();
-
 			Runtime.getRuntime().addShutdownHook(new Thread()
 			{
 				@Override
 				public void run()
 				{
 					Application.LOGGER.severe("Shutdown Hook Running");
-					processor.shutdownBackgroundProcessor();
+					Processor.getInstance().shutdown();
 				}
 			});
-
+			
+			// Run the background processor
+			Processor.createBackgroundProcessor();
+			Thread processorThread = new Thread(Processor.getInstance());
+			
 			// Run the Spring Dispatcher
 			SpringApplication.run(Application.class, args);
-						
-			processor.loadDevicesAndDeviceStates();
-			processor.start();
+			
+			Processor.getInstance().load();
+			processorThread.start();
+			processorThread.setPriority(Thread.MAX_PRIORITY);
+											
 			LOGGER.info("------------Service Running-------------");
 
-			processor.join();
+			processorThread.join();
 			Email.create(loadProperty(PropertyKeys.ADMIN_EMAIL)).setSubject("Automation System Shutting down").setMessageBody(
 					"Shutting down at: " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())).send();
+			LOGGER.info("------------Service Stopped-------------");
 		}
 		catch (Throwable e)
 		{

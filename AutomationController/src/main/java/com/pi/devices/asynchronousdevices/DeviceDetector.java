@@ -80,31 +80,37 @@ public class DeviceDetector extends AsynchronousDevice
 	@Override
 	protected void performAction(DeviceState state)
 	{
-		String address = (String) state.getParam(Params.MAC);
+		@SuppressWarnings("unchecked")
+		List<String> addresses = (List<String>) state.getParam(Params.MACS);
 		
-		registerMACAddress(address);
+		for (String element : addresses)
+		{
+			registerMACAddress(element);
+		}
 	}
 
 	@Override
 	public DeviceState getState(Boolean forDatabase)
 	{
+		DeviceState state = Device.createNewDeviceState(name);
+		
 		if (!forDatabase)
 		{
-			DeviceState state = Device.createNewDeviceState(name);
-			state.setParam(Params.MAC, new ArrayList<>(macToTimestamp.entrySet()));
-			return state;
+			state.setParam(Params.MACS, new ArrayList<>(macToTimestamp.entrySet()));
 		}
 		else
 		{
-			return null;
+			state.setParam(Params.MACS, new ArrayList<>(macToTimestamp.keySet()));
 		}
+		
+		return state;
 	}
 	
 	@Override
 	public List<String> getExpectedParams()
 	{
 		List<String> list = new ArrayList<>();
-		list.add(Params.MAC);
+		list.add(Params.MACS);
 		return list;
 	}
 
