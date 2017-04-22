@@ -89,7 +89,7 @@ public class RemoteDevice extends Device
 	}
 
 	@Override
-	public void close()
+	protected void tearDown()
 	{
 		try
 		{

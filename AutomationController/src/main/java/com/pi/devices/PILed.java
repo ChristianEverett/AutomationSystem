@@ -76,7 +76,7 @@ public class PILed extends Device
 	}
 
 	@Override
-	public void close() throws IOException
+	protected void tearDown() throws IOException
 	{
 		writer.write(OFF);
 		writer.close();

@@ -31,31 +31,27 @@ public class TemperatureSensor extends AsynchronousDevice
 	private int sensorTempature = -1;
 	private int sensorHumidity = -1;
 	
-	public TemperatureSensor(String name, int headerPin, int sensortype) throws IOException
+	private int sensorType = 11;
+	
+	public TemperatureSensor(String name, int headerPin, int sensorType) throws IOException
 	{
-		super(name);
+		super(name, 1L, sensorUpdateFrequency, TimeUnit.SECONDS);
 		this.headerPin = headerPin;
-
-		tempatureReadingTask = createTask(()->
-		{
-			try
-			{
-				SensorReading reading = readSensor(GPIO_PIN.getBCM_Pin(headerPin), sensortype);
-				
-				if((sensorTempature != reading.getTempature()) || (sensorHumidity != reading.getHumidity()))
-					update(getState(false));
-				
-				sensorTempature = Math.round((1.8F * reading.getTempature()) + 32);
-				sensorHumidity = Math.round(reading.getHumidity());
-			}
-			catch (Throwable e)
-			{
-				Application.LOGGER.severe(e.getClass() + " - " + e.getMessage());
-			}
-
-		}, 5L, sensorUpdateFrequency, TimeUnit.SECONDS);
+		this.sensorType = sensorType;
 	}
 
+	@Override
+	protected void update() throws Exception
+	{
+		SensorReading reading = readSensor(GPIO_PIN.getBCM_Pin(headerPin), sensorType);
+		
+		if((sensorTempature != reading.getTempature()) || (sensorHumidity != reading.getHumidity()))
+			update(getState(false));
+		
+		sensorTempature = Math.round((1.8F * reading.getTempature()) + 32);
+		sensorHumidity = Math.round(reading.getHumidity());		
+	}
+	
 	@Override
 	protected void performAction(DeviceState state)
 	{
@@ -72,7 +68,7 @@ public class TemperatureSensor extends AsynchronousDevice
 	}
 
 	@Override
-	public void close()
+	protected void tearDown()
 	{
 		tempatureReadingTask.cancel();
 	}

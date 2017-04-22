@@ -167,7 +167,7 @@ public class Processor extends NodeController implements Runnable
 	}
 
 	@Override
-	public synchronized boolean scheduleAction(DeviceState state)
+	public boolean scheduleAction(DeviceState state)
 	{
 		return processingQueue.add(state);
 	}

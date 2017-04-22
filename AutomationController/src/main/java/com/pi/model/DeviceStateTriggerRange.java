@@ -29,16 +29,24 @@ public class DeviceStateTriggerRange extends DeviceState
 	{		
 		if(!getName().equals(state.getName()) || !getType().equals(state.getType()))
 			return false;
-		
-		for(String key : getParams().keySet())
+	
+		for (String key : getParams().keySet())
 		{
 			Object value = state.getParam(key);
 			Object start = getParam(key);
 			Object end = endRange.get(key);
-			
-			if(!checkBound(start, value, key) || !checkBound(value, end, key))
+
+			if (!endRange.isEmpty())
+			{
+				if (!checkBound(start, value, key) || !checkBound(value, end, key))
+					return false;
+			}
+			else if(!start.equals(value))
+			{
 				return false;
-		}
+			}
+		} 
+		
 		
 		return true;
 	}

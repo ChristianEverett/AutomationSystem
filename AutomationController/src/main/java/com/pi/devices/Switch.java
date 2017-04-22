@@ -42,7 +42,7 @@ public class Switch extends Device
 	}
 
 	@Override
-	public void close()
+	protected void tearDown()
 	{
 		gpioPin.setState(PinState.HIGH);
 		gpioController.unprovisionPin(gpioPin);

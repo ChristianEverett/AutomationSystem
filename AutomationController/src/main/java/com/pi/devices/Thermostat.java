@@ -86,7 +86,7 @@ public class Thermostat extends Device
 	}
 
 	@Override
-	protected void performAction(DeviceState state)
+	protected synchronized void performAction(DeviceState state)
 	{
 		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE);
 		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParam(Params.TARGET_MODE)).toUpperCase());
@@ -114,7 +114,8 @@ public class Thermostat extends Device
 	}
 
 	@Override
-	public synchronized void close()
+	protected
+	synchronized void tearDown()
 	{
 		updateTask.cancel();
 		turnOff();
@@ -213,19 +214,25 @@ public class Thermostat extends Device
 	
 	private boolean targetTempatureReached()
 	{
+		boolean sensorFound = false;
+		
+		if(temperatureSensors == null || temperatureSensors.isEmpty())
+			return true;
+		
 		for(String sensor : temperatureSensors)
 		{
 			DeviceState state = (DeviceState) Device.getDeviceState(sensor);
 			
 			if(state != null)
 			{
+				sensorFound = true;
 				Integer temperature = (Integer)state.getParam(Params.TEMPATURE);
 				if(temperature != null && compareTemperatures(temperature))
 					return true;
 			}
 		}
 		
-		return false;
+		return !sensorFound;
 	}
 	
 	private boolean compareTemperatures(int temperature)

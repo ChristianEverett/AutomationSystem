@@ -26,40 +26,39 @@ public class BluetoothAdapter extends AsynchronousDevice
 {
 	private static final String MAC_ADDRESS_REGEX = "([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$";
 	private Pattern regex = Pattern.compile(MAC_ADDRESS_REGEX);
-	private Map<String, Date> macToLastPing = new ConcurrentHashMap<>();
+	private Map<String, Boolean> macToLastPing = new ConcurrentHashMap<>();
 	private Task scanningTask = null;
 
 	public BluetoothAdapter(String name) throws IOException
 	{
-		super(name);
+		super(name, 10000L, 600L, TimeUnit.MILLISECONDS);
 		setupBluetooth();
-		
-		scanningTask = createTask(() -> 
-		{
-			try
-			{
-				Set<String> keys = macToLastPing.keySet();
-				
-				for(String key : keys)
-				{
-					String result = ping(key);
-					if(!result.isEmpty())
-					{
-						macToLastPing.put(key, new Date());
-						update(getState());
-					}
-				}
-				
-				if (keys.isEmpty())
-					Thread.sleep(2000);
-			}
-			catch (Throwable e)
-			{
-				Application.LOGGER.severe(e.getMessage());
-			}
-		}, 1000L, 500L, TimeUnit.MILLISECONDS);
 	}
 
+	@Override
+	public void update() throws InterruptedException, IOException
+	{
+		Set<String> keys = macToLastPing.keySet();
+		
+		for(String key : keys)
+		{
+			String result = ping(key);
+			if(!result.isEmpty())
+			{
+				macToLastPing.put(key, true);
+			}
+			else
+			{
+				macToLastPing.put(key, false);
+			}
+		}
+		
+		if (keys.isEmpty())
+			Thread.sleep(2000);
+		else
+			update(getState());
+	}
+	
 	@Override
 	public String getType()
 	{
@@ -78,7 +77,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 			Matcher match = regex.matcher(address);
 			if (match.matches())
 			{
-				macToLastPing.put(address, new Date(0));
+				macToLastPing.put(address, false);
 			} 
 		}
 		if(runScan)
@@ -87,7 +86,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 			
 			for(String item : newAddresses)
 			{
-				macToLastPing.put(item, new Date());
+				macToLastPing.put(item, true);
 			}
 		}
 	}
@@ -104,13 +103,14 @@ public class BluetoothAdapter extends AsynchronousDevice
 		else 
 		{
 			state.setParam(Params.MACS, new ArrayList<>(macToLastPing.keySet()));
+			state.setParam(Params.SCAN, false);
 		}
 		
 		return state;
 	}
 
 	@Override
-	public void close() throws IOException
+	protected void tearDown() throws IOException
 	{
 		closeBluetooth();
 	}

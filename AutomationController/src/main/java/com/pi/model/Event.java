@@ -1,13 +1,9 @@
 package com.pi.model;
 
-import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map.Entry;
-
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.infrastructure.NodeController;
@@ -19,10 +15,9 @@ public class Event extends DatabaseElement
 	// In order for the event to be considered triggered, all device states in
 	// triggerEvents must be met
 	private List<DeviceStateTriggerRange> triggerEvents = new LinkedList<>();
-	// Map to hold this events current view of the dependency devices and there
-	// last known state
 
-	private List<Entry<String, DeviceState>> registeredDevices = new LinkedList<>();
+	private List<DeviceState> triggerStates = new LinkedList<>();
+//	private List<DeviceState> invertedTriggerStates = new LinkedList<>();
 	
 	private Boolean requireAll = true;
 
@@ -90,14 +85,14 @@ public class Event extends DatabaseElement
 	@JsonIgnore
 	public void registerListener(DeviceState state)
 	{
-		registeredDevices.add(new AbstractMap.SimpleEntry<String, DeviceState>(state.getName(), state));
+		triggerStates.add(state);
 	}
 
 	@JsonIgnore
 	public void unRegisterListener(String deviceName)
 	{
-		for (Iterator<Entry<String, DeviceState>> iter = registeredDevices.iterator(); iter.hasNext();)
-			if (iter.next().getKey().equals(deviceName))
+		for (Iterator<DeviceState> iter = triggerStates.iterator(); iter.hasNext();)
+			if (iter.next().getName().equals(deviceName))
 				iter.remove();
 	}
 	
@@ -109,15 +104,25 @@ public class Event extends DatabaseElement
 	}
 
 	// Json Fields ------------------------------------
-	public List<Entry<String, DeviceState>> getRegisteredDevices()
+	public List<DeviceState> getTriggerStates()
 	{
-		return registeredDevices;
+		return triggerStates;
 	}
 
-	public void setRegisteredDevices(List<Entry<String, DeviceState>> devices)
+	public void setTriggerStates(List<DeviceState> devices)
 	{
-		registeredDevices.addAll(devices);
+		triggerStates.addAll(devices);
 	}
+	
+//	public List<DeviceState> getInvertedTriggerStates()
+//	{
+//		return invertedTriggerStates;
+//	}
+//
+//	public void setInvertedTriggerStates(List<DeviceState> devices)
+//	{
+//		invertedTriggerStates.addAll(devices);
+//	}
 	
 	public List<DeviceStateTriggerRange> getTriggerEvents()
 	{

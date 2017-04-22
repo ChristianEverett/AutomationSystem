@@ -20,7 +20,7 @@ import com.pi4j.io.gpio.GpioFactory;
  */
 public abstract class Device
 {
-	private static TaskExecutorService taskService = new TaskExecutorService(2);
+	private static TaskExecutorService taskService = new TaskExecutorService(3);
 
 	protected static Runtime rt = Runtime.getRuntime();
 	protected static GpioController gpioController = GpioFactory.getInstance();
@@ -83,7 +83,7 @@ public abstract class Device
 	 * 
 	 * @throws IOException
 	 */
-	public abstract void close() throws IOException;
+	protected abstract void tearDown() throws IOException;
 
 	/**
 	 * @return list of params this device expects
@@ -106,6 +106,11 @@ public abstract class Device
 				Application.LOGGER.severe(e.getMessage());
 			}
 		}
+	}
+	
+	public void close() throws IOException
+	{
+		tearDown();
 	}
 
 	protected void update(DeviceState state)

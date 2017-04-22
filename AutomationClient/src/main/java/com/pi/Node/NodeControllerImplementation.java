@@ -156,7 +156,10 @@ public class NodeControllerImplementation extends NodeController implements Http
 		server.removeContext(createPathFromName(name));
 		
 		if(deviceMap.isEmpty())
+		{
+			Main.LOGGER.severe("Shutting Down");
 			System.exit(0);
+		}
 		return result;
 	}
 	

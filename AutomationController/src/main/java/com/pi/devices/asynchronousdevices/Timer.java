@@ -17,18 +17,19 @@ import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
 
-public class Timer extends AsynchronousDevice implements Runnable
+public class Timer extends AsynchronousDevice
 {
 	private static final SimpleDateFormat formatter = new SimpleDateFormat("a hh:mm");
 	private Task timer = null;
 
 	public Timer(String name) throws IOException
 	{
-		super(name);
-		LocalDateTime now = LocalDateTime.now();
-		long second = now.getSecond();
-		
-		timer = createFixedRateTask(this, 60 - second, 60L, TimeUnit.SECONDS);
+		this(name, LocalDateTime.now().getSecond());
+	}
+	
+	private Timer(String name, long second) throws IOException
+	{
+		super(name, 60 - second, 60L, TimeUnit.SECONDS, true);
 	}
 
 	@Override
@@ -45,6 +46,11 @@ public class Timer extends AsynchronousDevice implements Runnable
 	}
 	
 	@Override
+	protected void update() throws Exception
+	{
+	}
+	
+	@Override
 	protected void performAction(DeviceState state)
 	{
 	}
@@ -58,7 +64,7 @@ public class Timer extends AsynchronousDevice implements Runnable
 	}
 
 	@Override
-	public void close() throws IOException
+	protected void tearDown() throws IOException
 	{
 		timer.cancel();
 	}

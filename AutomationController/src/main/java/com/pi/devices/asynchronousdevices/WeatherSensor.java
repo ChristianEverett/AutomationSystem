@@ -5,7 +5,14 @@ package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -16,9 +23,11 @@ import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
+import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
@@ -28,57 +37,74 @@ import com.pi.model.DeviceState;
  * @author Christian Everett
  *
  */
-public class WeatherSensor extends Device
+public class WeatherSensor extends AsynchronousDevice
 {
 	private Connection weatherHttpConnection;
 	private Connection lightHttpConnection;
+	private Connection sunRiseHttpConnection;
 	private String location;
 	private Task weatherReadingTask;
 	
 	private int locationTempature = 0;
 	private Boolean isDark = false;
 	
+	private DateTimeFormatter parseFormat = new DateTimeFormatterBuilder().appendPattern("h:mm a").toFormatter();
+	
 	private static final long updateFrequency = 45L;
 	
 	public WeatherSensor(String name, String location) throws IOException
 	{
-		super(name);
+		super(name, 10L, updateFrequency, TimeUnit.SECONDS);
 		this.location = URLEncoder.encode(location, "UTF-8");
 		
-		weatherHttpConnection = Jsoup.connect("https://www.google.com/search?q=weahther+" + this.location).userAgent(
+		weatherHttpConnection = Jsoup.connect("http://www.google.com/search?q=weahther+" + this.location).userAgent(
 				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
 		
-		lightHttpConnection = Jsoup.connect("http://www.isitdarkoutside.com/").userAgent(
-				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+//		lightHttpConnection = Jsoup.connect("http://www.isitdarkoutside.com/").userAgent(
+//				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
 		
-		createTask(() -> 
-		{
-			try
-			{
-				Document doc = weatherHttpConnection.get();
-				Element element = doc.getElementById("wob_tm");
-
-				if (element != null)
-				{
-					locationTempature = Integer.parseInt(element.html());
-					update(getState());
-				}
-				
-				doc = lightHttpConnection.get();
-				element = doc.getElementById("answer");
-				
-				if("YES".equalsIgnoreCase(element.html()))
-					isDark = true;
-				else
-					isDark = false;
-			}
-			catch (Throwable e)
-			{
-				Application.LOGGER.severe(e.getClass() + " - " + e.getMessage());
-			}
-		}, 5L, updateFrequency, TimeUnit.SECONDS);
+		sunRiseHttpConnection = Jsoup.connect("http://www.google.com/search?q=sun+rise+sun+set").userAgent(
+				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
 	}
 
+	@Override
+	protected void update() throws IOException, ParseException
+	{
+		Document document = weatherHttpConnection.get();
+		Element element = document.getElementById("wob_tm");
+
+		locationTempature = Integer.parseInt(element.html());
+
+//		document = lightHttpConnection.get();
+//		element = document.getElementById("answer");
+//		
+//		if ("YES".equalsIgnoreCase(element.html()))
+//			isDark = true;
+//		else
+//			isDark = false;
+		
+		document = sunRiseHttpConnection.get();
+		Elements elements = document.getElementsByClass("vk_ans");
+		
+		String sunRiseString = elements.first().html();
+		String sunSetString = elements.last().html();
+		
+		LocalTime sunRise = LocalTime.parse(sunRiseString, parseFormat);
+		LocalTime sunSet = LocalTime.parse(sunSetString, parseFormat);
+		
+		LocalTime now = LocalTime.now();
+		
+		boolean isBeforeSunRise = now.isBefore(sunRise);
+		boolean isAfterSunSet = now.isAfter(sunSet);
+		
+		if(isBeforeSunRise || isAfterSunSet)
+			isDark = true;
+		else
+			isDark = false;
+		
+		update(getState());		
+	}
+	
 	@Override
 	protected void performAction(DeviceState state)
 	{
@@ -95,7 +121,7 @@ public class WeatherSensor extends Device
 	}
 
 	@Override
-	public void close()
+	protected void tearDown()
 	{
 		weatherReadingTask.cancel();
 	}

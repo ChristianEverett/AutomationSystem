@@ -39,18 +39,16 @@ public class MotionSensor extends AsynchronousDevice
 			@Override
 			public void handleGpioPinDigitalStateChangeEvent(GpioPinDigitalStateChangeEvent gpioEvent)
 			{	
-				try
-				{
-					update(getState());
-				}
-				catch (Exception e)
-				{
-					Application.LOGGER.severe(e.getMessage());
-				}
+				MotionSensor.super.run();
 			}
 		});
 	}
 
+	@Override
+	protected void update() throws Exception
+	{
+	}
+	
 	@Override
 	protected void performAction(DeviceState state)
 	{
@@ -67,7 +65,7 @@ public class MotionSensor extends AsynchronousDevice
 	}
 
 	@Override
-	public void close()
+	protected void tearDown()
 	{
 		gpioController.unprovisionPin(gpioPin);
 	}

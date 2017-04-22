@@ -41,22 +41,8 @@ public class DeviceDetector extends AsynchronousDevice
 	
 	public DeviceDetector(String name) throws IOException
 	{
-		super(name);
+		super(name, 10000L, 1L, TimeUnit.MILLISECONDS);
 		setupScanner();	
-		
-		scanningTask = createTask(() -> 
-		{
-			try
-			{
-				String MAC = scan();
-				macToTimestamp.put(MAC, new Date());
-				update(getState());
-			}
-			catch (Throwable e)
-			{
-				Application.LOGGER.severe(e.getMessage());
-			}
-		}, 1000L, 1L, TimeUnit.MILLISECONDS);
 	}
 
 	private void registerMACAddress(String address)
@@ -71,6 +57,13 @@ public class DeviceDetector extends AsynchronousDevice
 			Application.LOGGER.severe("MAC Address is not in a valid format: " + address);
 	}
 
+	@Override
+	protected void update() throws Exception
+	{
+		String MAC = scan();
+		macToTimestamp.put(MAC, new Date());	
+	}
+	
 	@Override
 	public String getType()
 	{
@@ -115,7 +108,7 @@ public class DeviceDetector extends AsynchronousDevice
 	}
 
 	@Override
-	public void close()
+	protected void tearDown()
 	{
 		scanningTask.cancel();
 		stopScanning();

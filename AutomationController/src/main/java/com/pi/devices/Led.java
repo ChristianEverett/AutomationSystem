@@ -68,7 +68,7 @@ public class Led extends Device
 	}
 
 	@Override
-	public void close()
+	protected void tearDown()
 	{
 		try
 		{

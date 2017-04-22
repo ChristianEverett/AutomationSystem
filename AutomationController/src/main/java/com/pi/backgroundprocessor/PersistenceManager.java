@@ -49,6 +49,7 @@ public class PersistenceManager
 	public static final String READ_EVENT_TABLE = "readEventTable";
 	public static final String INSERT_EVENT = "writeEvent";
 	public static final String UPDATE_EVENT = "updateEvent";
+	public static final String DELETE_EVENT = "deleteEvent";
 
 	public static final String READ_FROM_DEVICE_LOG = "readDeviceLog";
 	public static final String WRITE_TO_DEVICE_LOG = "writeDeviceLog";
@@ -281,6 +282,19 @@ public class PersistenceManager
 		return list;
 	}
 
+	public void deleteEvent(Event event) throws IOException, SQLException
+	{
+		delete(DELETE_EVENT, event);
+	}
+	
+	public void delete(String deleteQuery, DatabaseElement element) throws IOException, SQLException
+	{//TODO
+		PreparedStatement statement = dbHandler.createSQLStatment(deleteQuery);
+		statement.setString(1, element.getDatabaseIdentificationForQuery());
+		dbHandler.commit();
+		statement.close();
+	}
+	
 	public synchronized void close() throws SQLException
 	{
 		dbHandler.close();

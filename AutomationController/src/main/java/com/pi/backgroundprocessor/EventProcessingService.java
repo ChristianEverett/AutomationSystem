@@ -1,5 +1,7 @@
 package com.pi.backgroundprocessor;
 
+import java.io.IOException;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -8,6 +10,7 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import com.pi.Application;
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
 
@@ -51,18 +54,25 @@ public class EventProcessingService
 	{
 		if (event.checkIfTriggered(processor))
 		{
-			applyTriggerStateToListnerDevices(event);
+			applyTriggerStateToListnerDevices(event.getTriggerStates());
 		}
+//		else 
+//		{
+//			applyTriggerStateToListnerDevices(event.getInvertedTriggerStates());
+//		}
 	}
 	
-	private void applyTriggerStateToListnerDevices(Event event)
+	private void applyTriggerStateToListnerDevices(List<DeviceState> states)
 	{
-		for (Entry<String, DeviceState> element : event.getRegisteredDevices())
+		if (states != null)
 		{
-			if (!element.getValue().equals(processor.getDeviceState(element.getValue().getName())))
+			for (DeviceState element : states)
 			{
-				processor.scheduleAction(element.getValue());
-			}
+				if (!element.equals(processor.getDeviceState(element.getName())))
+				{
+					processor.scheduleAction(element);
+				}
+			} 
 		}
 	}
 	
@@ -139,13 +149,22 @@ public class EventProcessingService
 		if(event == null)
 			throw new RuntimeException("There is no event mapped at: " + id);
 		
+		try
+		{
+			processor.getPersistenceManger().deleteEvent(event);
+		}
+		catch (IOException | SQLException e)
+		{
+			Application.LOGGER.severe(e.getMessage());
+		}
+		
 		for(String deviceName : event.getDependencyDevices())
 		{
 			List<Event> events = mapDevicesToTriggerEvents.get(deviceName);
 			
 			for(Iterator<Event> iter = events.iterator(); iter.hasNext();)
 			{
-				if(iter.next().equals(events))
+				if(iter.next().equals(event))
 				{
 					iter.remove();
 					break;

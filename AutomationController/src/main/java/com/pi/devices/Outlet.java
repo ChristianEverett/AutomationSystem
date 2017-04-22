@@ -58,7 +58,7 @@ public class Outlet extends Device
 	}
 
 	@Override
-	public void close()
+	protected void tearDown()
 	{
 		try
 		{
