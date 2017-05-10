@@ -35,34 +35,21 @@ public class PILed extends Device
 	}
 
 	@Override
-	public String getType()
-	{
-		return DeviceType.PI_LED;
-	}
-
-	@Override
-	protected void performAction(DeviceState state)
+	protected void performAction(DeviceState state) throws IOException
 	{
 		Boolean isOn = (Boolean) state.getParam(Params.IS_ON);
 		
-		try
+		if(isOn)
 		{
-			if(isOn)
-			{
-				writer.write(ON);
-				writer.flush();
-				ledOn = true;
-			}
-			else 
-			{
-				writer.write(OFF);
-				writer.flush();
-				ledOn = false;
-			}
+			writer.write(ON);
+			writer.flush();
+			ledOn = true;
 		}
-		catch (IOException e)
+		else 
 		{
-			Application.LOGGER.severe(e.getMessage());
+			writer.write(OFF);
+			writer.flush();
+			ledOn = false;
 		}
 	}
 
@@ -81,14 +68,6 @@ public class PILed extends Device
 		writer.write(OFF);
 		writer.close();
 		reader.close();
-	}
-
-	@Override
-	public List<String> getExpectedParams()
-	{
-		List<String> list = new ArrayList<>();
-		list.add(Params.IS_ON);
-		return list;
 	}
 	
 	@XmlRootElement(name = DEVICE)

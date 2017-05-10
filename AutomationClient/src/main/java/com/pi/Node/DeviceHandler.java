@@ -10,6 +10,7 @@ import java.net.HttpURLConnection;
 import java.util.HashMap;
 
 import com.pi.Main;
+import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.RemoteDevice;
 import com.pi.infrastructure.RemoteDevice.RemoteDeviceMessage;
@@ -67,17 +68,9 @@ class DeviceHandler implements HttpHandler
 			case RemoteDevice.CLOSE:
 			{
 				device.close();
-				Main.LOGGER.info("Closed: " + device.getName());
+				SystemLogger.getLogger().info("Closed: " + device.getName());
 				request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
 				NodeControllerImplementation.getInstance().closeDevice(device.getName());
-				break;
-			}
-			case RemoteDevice.GET_EXPECTED_PARAMS:
-			{
-				request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
-				output = new ObjectOutputStream(request.getResponseBody());
-				output.writeObject(device.getExpectedParams());
-				output.close();
 				break;
 			}
 			default:
@@ -86,7 +79,7 @@ class DeviceHandler implements HttpHandler
 		}
 		catch (Exception e)
 		{
-			Main.LOGGER.severe("Bad device request: " + e.getMessage());
+			SystemLogger.getLogger().severe("Bad device request: " + e.getMessage());
 			request.sendResponseHeaders(HttpURLConnection.HTTP_BAD_REQUEST, 0);
 		}
 		finally

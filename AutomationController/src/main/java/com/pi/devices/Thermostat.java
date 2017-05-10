@@ -15,6 +15,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
@@ -80,13 +81,13 @@ public class Thermostat extends Device
 			}
 			catch (Exception e)
 			{
-				Application.LOGGER.severe(e.getMessage());
+				SystemLogger.getLogger().severe(e.getMessage());
 			}
 		}, INTERVAL, INTERVAL, TimeUnit.SECONDS);
 	}
 
 	@Override
-	protected synchronized void performAction(DeviceState state)
+	protected void performAction(DeviceState state)
 	{
 		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE);
 		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParam(Params.TARGET_MODE)).toUpperCase());
@@ -103,7 +104,7 @@ public class Thermostat extends Device
 	}
 	
 	@Override
-	public synchronized DeviceState getState(Boolean forDatabase)
+	public DeviceState getState(Boolean forDatabase)
 	{
 		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.TARGET_TEMPATURE, targetTempInFehrenheit);
@@ -114,8 +115,7 @@ public class Thermostat extends Device
 	}
 
 	@Override
-	protected
-	synchronized void tearDown()
+	protected void tearDown()
 	{
 		updateTask.cancel();
 		turnOff();
@@ -239,21 +239,6 @@ public class Thermostat extends Device
 	{
 		return (targetMode.equals(ThermostatMode.COOL_MODE) && temperature <= targetTempInFehrenheit)
 				|| (targetMode.equals(ThermostatMode.HEAT_MODE) && temperature >= targetTempInFehrenheit);
-	}
-	
-	@Override
-	public List<String> getExpectedParams()
-	{
-		List<String> list = new ArrayList<>();
-		list.add(Params.TARGET_TEMPATURE);
-		list.add(Params.TARGET_MODE);
-		return list;
-	}
-	
-	@Override
-	public String getType()
-	{
-		return DeviceType.THERMOSTAT;
 	}
 
 	public class SensorReading

@@ -43,34 +43,20 @@ public class Outlet extends Device
 	}
 
 	@Override
-	protected void performAction(DeviceState state)
+	protected void performAction(DeviceState state) throws IOException, InterruptedException
 	{
-		int code = (boolean) state.getParam(Params.IS_ON) ? ON : OFF;
+		int code = (Boolean) state.getParam(Params.IS_ON) ? ON : OFF;
 		
-		try
-		{
-			sendIRSignal(code);
-		}
-		catch (IOException | InterruptedException e)
-		{
-			Application.LOGGER.severe(e.getMessage());
-		}
+		sendIRSignal(code);
 	}
 
 	@Override
-	protected void tearDown()
+	protected void tearDown() throws IOException, InterruptedException
 	{
-		try
-		{
-			sendIRSignal(OFF);
-		}
-		catch (IOException | InterruptedException e)
-		{
-			Application.LOGGER.severe(e.getMessage());
-		}
+		sendIRSignal(OFF);
 	}
 	
-	private synchronized void sendIRSignal(int code) throws IOException, InterruptedException
+	private void sendIRSignal(int code) throws IOException, InterruptedException
 	{
 		isOn.set((code == ON) ? true : false);		
 		
@@ -88,20 +74,6 @@ public class Outlet extends Device
 		state.setParam(Params.IS_ON, isOn.get());
 		
 		return state;
-	}
-	
-	@Override
-	public List<String> getExpectedParams()
-	{
-		List<String> list = new ArrayList<>();
-		list.add(Params.IS_ON);
-		return list;
-	}
-
-	@Override
-	public String getType()
-	{
-		return DeviceType.OUTLET;
 	}
 	
 	@XmlRootElement(name = DEVICE)

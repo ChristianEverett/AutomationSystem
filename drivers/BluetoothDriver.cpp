@@ -5,7 +5,7 @@
  *      Author: Christian Everett
  */
 
-#include "BluetoothDriver.h"
+#include <jni.h>
 #include <iostream>
 #include <string>
 #include <cstdlib>
@@ -13,8 +13,13 @@
 
 void setupBluetooth();
 const std::vector<std::string> bluetoothScan();
-const std::string ping(const std::string address);
+const std::string ping(const char* address);
 void close();
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 JNIEXPORT void JNICALL
 Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_setupBluetooth(JNIEnv *env, jobject obj)
@@ -42,11 +47,12 @@ Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_scanForBluetoothDevices
 JNIEXPORT jstring JNICALL
 Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_ping(JNIEnv *env, jobject obj, jstring mac)
 {
-	std::string macString(env->GetStringUTFChars(mac, NULL));
+	//std::string macString(env->GetStringUTFChars(mac, NULL));
+	const char* macString = env->GetStringUTFChars(mac, NULL);
 	
 	std::string result = ping(macString);
 	jstring javaString = env->NewStringUTF(result.c_str());
-	//env->ReleaseStringUTFChars(mac, macString.c_str());
+	env->ReleaseStringUTFChars(mac, macString);
 	
 	return javaString;
 }
@@ -56,3 +62,8 @@ Java_com_pi_devices_asynchronousdevices_BluetoothAdapter_closeBluetooth(JNIEnv *
 {
 	close();
 }
+
+#ifdef __cplusplus
+}
+
+#endif

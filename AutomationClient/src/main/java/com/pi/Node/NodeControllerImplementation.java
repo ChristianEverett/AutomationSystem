@@ -20,6 +20,7 @@ import org.w3c.dom.Element;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pi.Main;
+import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.NodeDiscovererService;
 import com.pi.backgroundprocessor.NodeDiscovererService.Probe;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
@@ -100,7 +101,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 						probe = NodeDiscovererService.extractProbeFromDatagram(receivePacket);
 					}
 					
-					Main.LOGGER.info("This Node has been registered as: " + nodeID);
+					SystemLogger.getLogger().info("This Node has been registered as: " + nodeID);
 					setAutomationControllerAddress(receivePacket.getAddress());
 					broadcastTask.cancel();
 				}
@@ -109,14 +110,14 @@ public class NodeControllerImplementation extends NodeController implements Http
 				}
 				catch (Exception e)
 				{
-					Main.LOGGER.severe(e.getMessage());
+					SystemLogger.getLogger().severe(e.getMessage());
 				}
 				
 			}, 5L, 5L, TimeUnit.SECONDS);
 		}
 		catch (Exception e)
 		{
-			Main.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 
@@ -139,7 +140,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 		}
 		catch (Exception e)
 		{
-			Main.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 			request.sendResponseHeaders(HttpURLConnection.HTTP_BAD_REQUEST, 0);
 		}
 	}
@@ -157,7 +158,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 		
 		if(deviceMap.isEmpty())
 		{
-			Main.LOGGER.severe("Shutting Down");
+			SystemLogger.getLogger().severe("Shutting Down");
 			System.exit(0);
 		}
 		return result;
@@ -184,7 +185,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 		}
 		catch (Exception e)
 		{
-			Main.LOGGER.severe("Could not request action. " + e.getMessage());
+			SystemLogger.getLogger().severe("Could not request action. " + e.getMessage());
 		}
 		
 		return false;
@@ -208,7 +209,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 		}
 		catch (Exception e)
 		{
-			Main.LOGGER.severe("Could not connect to Automation Controller. " + e.getMessage());
+			SystemLogger.getLogger().severe("Could not connect to Automation Controller. " + e.getMessage());
 		}
 		
 		return null;
@@ -230,7 +231,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 		}
 		catch (Exception e)
 		{
-			Main.LOGGER.severe("Could not connect to Automation Controller. " + e.getMessage());
+			SystemLogger.getLogger().severe("Could not connect to Automation Controller. " + e.getMessage());
 		}
 	}
 }

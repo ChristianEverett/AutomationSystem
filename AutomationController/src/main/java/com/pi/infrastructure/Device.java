@@ -7,7 +7,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.annotation.XmlAttribute;
 
-import com.pi.Application;
 import com.pi.backgroundprocessor.TaskExecutorService;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.model.DeviceState;
@@ -35,7 +34,6 @@ public abstract class Device
 	public static final int PERFORM_ACTION = 0;
 	public static final int GET_STATE = 1;
 	public static final int CLOSE = 2;
-	public static final int GET_EXPECTED_PARAMS = 3;
 
 	protected static final String DEVICE = "device";
 
@@ -58,16 +56,11 @@ public abstract class Device
 	}
 
 	/**
-	 * @return the type of device
-	 */
-	public abstract String getType();
-
-	/**
 	 * @param state
 	 * @throws Exception
 	 * @throws IOException
 	 */
-	protected abstract void performAction(DeviceState state);
+	protected abstract void performAction(DeviceState state) throws Exception;
 
 	/**
 	 * @param forDatabase
@@ -82,33 +75,46 @@ public abstract class Device
 	 * will do nothing
 	 * 
 	 * @throws IOException
+	 * @throws InterruptedException 
 	 */
-	protected abstract void tearDown() throws IOException;
-
-	/**
-	 * @return list of params this device expects
-	 */
-	public abstract List<String> getExpectedParams();
-
-	public final void execute(DeviceState state)
+	protected abstract void tearDown() throws Exception;
+	
+	public String getType()
 	{
-		if (validate(state))
+		return DeviceType.typeToId.get(this.getClass());
+	}
+	
+	public synchronized final void loadSavedData(DeviceState state) throws IOException
+	{
+		if (state != null)
 		{
-			performAction(state);
-
-			try
-			{
-				if (!(this instanceof RemoteDevice) && !(this instanceof AsynchronousDevice))
-					update(getState(false));
-			}
-			catch (IOException e)
-			{
-				Application.LOGGER.severe(e.getMessage());
-			}
+			load(state);
 		}
 	}
 	
-	public void close() throws IOException
+	protected synchronized void load(DeviceState state) throws IOException
+	{
+		execute(state);
+	}
+	
+	public synchronized final void execute(DeviceState state) throws IOException
+	{
+		try
+		{
+			if (state != null)
+			{
+				performAction(state);
+				if (!(this instanceof RemoteDevice) && !(this instanceof AsynchronousDevice))
+					update(getState(false));
+			} 
+		}
+		catch (Exception e)
+		{
+			throw new IOException("Could not performAction on " + state.getName());
+		}
+	}
+	
+	public void close() throws Exception
 	{
 		tearDown();
 	}
@@ -121,37 +127,7 @@ public abstract class Device
 		}
 	}
 
-	/**
-	 * @param state
-	 * @param expectedParams
-	 * @return true if the state contains all the expected param's of the
-	 *         correct type, otherwise return false
-	 */
-	public boolean validate(DeviceState state)
-	{
-		if (state == null)
-			return false;
-
-		List<String> expectedParams = getExpectedParams();
-
-		if (expectedParams != null)
-		{
-			for (String expectedParam : expectedParams)
-			{
-				Object param = state.getParam(expectedParam);
-
-				if (param == null)
-					return false;
-				Class<?> type = DeviceType.paramTypes.get(expectedParam);
-
-				if (type == null || !type.isInstance(param))
-					return false;
-			}
-		}
-		return true;
-	}
-
-	public DeviceState getState() throws IOException
+	public synchronized DeviceState getState() throws IOException
 	{
 		return getState(false);
 	}
@@ -165,7 +141,7 @@ public abstract class Device
 		return node.getDeviceState(name, false);
 	}
 
-	public static boolean queueAction(DeviceState state)
+	public static boolean queueAction(DeviceState state) throws IOException
 	{
 		return node.scheduleAction(state);
 	}

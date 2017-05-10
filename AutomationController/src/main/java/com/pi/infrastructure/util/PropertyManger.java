@@ -12,6 +12,7 @@ import java.io.OutputStream;
 import java.util.Properties;
 
 import com.pi.Application;
+import com.pi.SystemLogger;
 
 
 /**
@@ -42,7 +43,7 @@ public class PropertyManger
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 

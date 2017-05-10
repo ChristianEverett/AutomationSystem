@@ -47,25 +47,10 @@ import java.util.logging.*;
 // setup by Spring
 // @Import(OAuth2SecurityConfiguration.class)
 public class Application extends WebMvcAutoConfiguration
-{
-	public static final Logger LOGGER = Logger.getLogger("SystemLogger");
-
+{	
 	public static void main(String[] args)
 	{
-		try
-		{
-			if (args.length != 0)
-				LOGGER.setUseParentHandlers(false);
-			else
-				;//LOGGER.setLevel(Level.SEVERE);
-			LOGGER.addHandler(new FileHandler(loadProperty(PropertyKeys.LOGFILE)));
-		}
-		catch (Exception e)
-		{
-			System.out.println("Can't open log file");
-		}
-
-		LOGGER.info("Starting Processing Service");
+		SystemLogger.getLogger().info("Starting Processing Service");
 		try
 		{
 			Runtime.getRuntime().addShutdownHook(new Thread()
@@ -73,7 +58,7 @@ public class Application extends WebMvcAutoConfiguration
 				@Override
 				public void run()
 				{
-					Application.LOGGER.severe("Shutdown Hook Running");
+					SystemLogger.getLogger().severe("Shutdown Hook Running");
 					Processor.getInstance().shutdown();
 				}
 			});
@@ -89,16 +74,16 @@ public class Application extends WebMvcAutoConfiguration
 			processorThread.start();
 			processorThread.setPriority(Thread.MAX_PRIORITY);
 											
-			LOGGER.info("------------Service Running-------------");
+			SystemLogger.getLogger().info("------------Service Running-------------");
 
 			processorThread.join();
 			Email.create(loadProperty(PropertyKeys.ADMIN_EMAIL)).setSubject("Automation System Shutting down").setMessageBody(
 					"Shutting down at: " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())).send();
-			LOGGER.info("------------Service Stopped-------------");
+			SystemLogger.getLogger().info("------------Service Stopped-------------");
 		}
 		catch (Throwable e)
 		{
-			LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 			e.printStackTrace();
 		}
 		finally

@@ -31,19 +31,6 @@ public class Timer extends AsynchronousDevice
 	{
 		super(name, 60 - second, 60L, TimeUnit.SECONDS, true);
 	}
-
-	@Override
-	public void run()
-	{
-		try
-		{
-			update(getState(false));
-		}
-		catch (IOException e)
-		{
-			Application.LOGGER.severe(e.getMessage());
-		}	
-	}
 	
 	@Override
 	protected void update() throws Exception
@@ -67,18 +54,6 @@ public class Timer extends AsynchronousDevice
 	protected void tearDown() throws IOException
 	{
 		timer.cancel();
-	}
-
-	@Override
-	public String getType()
-	{
-		return DeviceType.TIMER;
-	}
-	
-	@Override
-	public List<String> getExpectedParams()
-	{
-		return null;
 	}
 	
 	@XmlRootElement(name = DEVICE)

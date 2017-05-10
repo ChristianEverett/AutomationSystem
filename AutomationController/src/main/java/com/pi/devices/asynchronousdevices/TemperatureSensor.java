@@ -73,12 +73,6 @@ public class TemperatureSensor extends AsynchronousDevice
 		tempatureReadingTask.cancel();
 	}
 	
-	@Override
-	public List<String> getExpectedParams()
-	{
-		return new ArrayList<String> ();
-	}
-
 	private int celsiusToFahrenheit(float c)
 	{
 		return (int) (Math.round(c * 1.8) + 32);
@@ -89,18 +83,7 @@ public class TemperatureSensor extends AsynchronousDevice
 		return (float) ((f - 32) / 1.8);
 	}
 	
-	@Override
-	public String getType()
-	{
-		return DeviceType.TEMP_SENSOR;
-	}
-	
 	private native SensorReading readSensor(int pin, int type);
-
-	static
-	{
-		System.loadLibrary("TempDriver");
-	}
 	
 	public class SensorReading
 	{

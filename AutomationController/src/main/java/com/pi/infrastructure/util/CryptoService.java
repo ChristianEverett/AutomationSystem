@@ -20,6 +20,7 @@ import javax.mail.internet.AddressException;
 import javax.xml.bind.DatatypeConverter;
 
 import com.pi.Application;
+import com.pi.SystemLogger;
 
 /**
  * @author Christian Everett
@@ -41,7 +42,7 @@ public class CryptoService
 		}
 		catch (UnsupportedEncodingException | NoSuchAlgorithmException | NoSuchPaddingException e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 

@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
@@ -75,7 +76,7 @@ public class DeviceLoggingService implements Runnable
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 	

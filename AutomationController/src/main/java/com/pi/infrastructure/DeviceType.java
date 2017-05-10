@@ -7,20 +7,28 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.pi.devices.Led;
 import com.pi.devices.Led.LedConfig;
+import com.pi.devices.Outlet;
 import com.pi.devices.Outlet.OutletConfig;
+import com.pi.devices.PILed;
 import com.pi.devices.PILed.PILedConfig;
+import com.pi.devices.Switch;
 import com.pi.devices.Switch.SwitchConfig;
+import com.pi.devices.Thermostat;
 import com.pi.devices.Thermostat.ThermostatConfig;
-import com.pi.devices.Thermostat.ThermostatMode;
 import com.pi.devices.asynchronousdevices.Timer;
+import com.pi.devices.asynchronousdevices.BluetoothAdapter;
 import com.pi.devices.asynchronousdevices.BluetoothAdapter.BluetoothAdapterConfig;
+import com.pi.devices.asynchronousdevices.DeviceDetector;
 import com.pi.devices.asynchronousdevices.DeviceDetector.DeviceDetectorConfig;
+import com.pi.devices.asynchronousdevices.MotionSensor;
 import com.pi.devices.asynchronousdevices.MotionSensor.MotionSensorConfig;
+import com.pi.devices.asynchronousdevices.TemperatureSensor;
 import com.pi.devices.asynchronousdevices.TemperatureSensor.TemperatureSensorConfig;
 import com.pi.devices.asynchronousdevices.Timer.TimerConfig;
+import com.pi.devices.asynchronousdevices.WeatherSensor;
 import com.pi.devices.asynchronousdevices.WeatherSensor.WeatherSensorConfig;
-import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
 
 /**
@@ -28,6 +36,8 @@ import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
  */
 public abstract class DeviceType
 {
+	private DeviceType(){}
+	
 	public static final String PI_LED = "pi_led";
 	public static final String LED = "led";
 	public static final String OUTLET = "outlet";
@@ -45,24 +55,13 @@ public abstract class DeviceType
 
 	public static final String UNKNOWN = "unknown";
 
+	public static final Map<String, Class<?>> paramTypes = new HashMap<>();
+	public static final Map<Class<?>, String> typeToId = new HashMap<>();
+	public static Map<String, Class<?>> idToConfig = new HashMap<>();
+	
 	public static Map<String, Class<?>> registerAllDeviceConfigs()
 	{
-		HashMap<String, Class<?>> map = new HashMap<>();
-		map.put(DeviceType.REMOTE_DEVICE, RemoteDeviceConfig.class);
-
-		map.put(DeviceType.PI_LED, PILedConfig.class);
-		map.put(DeviceType.LED, LedConfig.class);
-		map.put(DeviceType.MOTION_SENSOR, MotionSensorConfig.class);
-		map.put(DeviceType.OUTLET, OutletConfig.class);
-		map.put(DeviceType.SWITCH, SwitchConfig.class);
-		map.put(DeviceType.TEMP_SENSOR, TemperatureSensorConfig.class);
-		map.put(DeviceType.THERMOSTAT, ThermostatConfig.class);
-		map.put(DeviceType.WEATHER_SENSOR, WeatherSensorConfig.class);
-		map.put(DeviceType.DEVICE_SENSOR, DeviceDetectorConfig.class);
-		map.put(DeviceType.BLUETOOTH_ADAPTER, BluetoothAdapterConfig.class);
-		map.put(DeviceType.TIMER, TimerConfig.class);
-		
-		return map;
+		return idToConfig;
 	}
 
 	public static interface Params
@@ -70,6 +69,11 @@ public abstract class DeviceType
 		public final static String RED = "red";
 		public final static String GREEN = "green";
 		public final static String BLUE = "blue";
+		public final static String SEQUENCE_RECORD = "sequence_record";
+		public final static String NAME = "name";
+		public final static String SEQUENCES = "sequences";
+		public final static String LOOP = "loop";
+		public final static String INTERVAL = "interval";
 
 		public final static String IS_ON = "isOn";
 
@@ -87,27 +91,56 @@ public abstract class DeviceType
 		public final static String TIME = "time";
 	}
 
-	public static HashMap<String, Class<?>> paramTypes = new HashMap<String, Class<?>>()
+	static
 	{
-		{
-			put(Params.RED, Integer.class);
-			put(Params.GREEN, Integer.class);
-			put(Params.BLUE, Integer.class);
-			
-			put(Params.IS_ON, Boolean.class);
-			
-			put(Params.TEMPATURE, Integer.class);
-			put(Params.HUMIDITY, Integer.class);
-			put(Params.IS_DARK, Boolean.class);
-			
-			put(Params.TARGET_TEMPATURE, Integer.class);
-			put(Params.MODE, String.class);
-			put(Params.TARGET_MODE, String.class);
-			
-			put(Params.MACS, List.class);
-			put(Params.SCAN, Boolean.class);
-			
-			put(Params.TIME, String.class);
-		}
+		paramTypes.put(Params.RED, Integer.class);
+		paramTypes.put(Params.GREEN, Integer.class);
+		paramTypes.put(Params.BLUE, Integer.class);
+		paramTypes.put(Params.SEQUENCE_RECORD, Boolean.class);
+		paramTypes.put(Params.NAME, String.class);
+		paramTypes.put(Params.SEQUENCES, List.class);
+		paramTypes.put(Params.LOOP, Boolean.class);
+		paramTypes.put(Params.INTERVAL, Integer.class);
+		
+		paramTypes.put(Params.IS_ON, Boolean.class);
+		
+		paramTypes.put(Params.TEMPATURE, Integer.class);
+		paramTypes.put(Params.HUMIDITY, Integer.class);
+		paramTypes.put(Params.IS_DARK, Boolean.class);
+		
+		paramTypes.put(Params.TARGET_TEMPATURE, Integer.class);
+		paramTypes.put(Params.MODE, String.class);
+		paramTypes.put(Params.TARGET_MODE, String.class);
+		
+		paramTypes.put(Params.MACS, List.class);
+		paramTypes.put(Params.SCAN, Boolean.class);
+		
+		paramTypes.put(Params.TIME, String.class);
+		
+		idToConfig.put(DeviceType.REMOTE_DEVICE, RemoteDeviceConfig.class);
+		idToConfig.put(DeviceType.PI_LED, PILedConfig.class);
+		idToConfig.put(DeviceType.LED, LedConfig.class);
+		idToConfig.put(DeviceType.MOTION_SENSOR, MotionSensorConfig.class);
+		idToConfig.put(DeviceType.OUTLET, OutletConfig.class);
+		idToConfig.put(DeviceType.SWITCH, SwitchConfig.class);
+		idToConfig.put(DeviceType.TEMP_SENSOR, TemperatureSensorConfig.class);
+		idToConfig.put(DeviceType.THERMOSTAT, ThermostatConfig.class);
+		idToConfig.put(DeviceType.WEATHER_SENSOR, WeatherSensorConfig.class);
+		idToConfig.put(DeviceType.DEVICE_SENSOR, DeviceDetectorConfig.class);
+		idToConfig.put(DeviceType.BLUETOOTH_ADAPTER, BluetoothAdapterConfig.class);
+		idToConfig.put(DeviceType.TIMER, TimerConfig.class);
+		
+		typeToId.put(RemoteDevice.class, DeviceType.REMOTE_DEVICE);
+		typeToId.put(PILed.class, DeviceType.PI_LED);
+		typeToId.put(Led.class, DeviceType.LED);
+		typeToId.put(MotionSensor.class, DeviceType.MOTION_SENSOR);
+		typeToId.put(Outlet.class, DeviceType.OUTLET);
+		typeToId.put(Switch.class, DeviceType.SWITCH);
+		typeToId.put(TemperatureSensor.class, DeviceType.TEMP_SENSOR);
+		typeToId.put(Thermostat.class, DeviceType.THERMOSTAT);
+		typeToId.put(WeatherSensor.class, DeviceType.WEATHER_SENSOR);
+		typeToId.put(DeviceDetector.class, DeviceType.DEVICE_SENSOR);
+		typeToId.put(BluetoothAdapter.class, DeviceType.BLUETOOTH_ADAPTER);
+		typeToId.put(Timer.class, DeviceType.TIMER);
 	};
 }

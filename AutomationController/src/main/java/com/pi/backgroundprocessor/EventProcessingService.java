@@ -11,6 +11,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
 
@@ -45,21 +46,22 @@ public class EventProcessingService
 		{
 			for (Event event : events)
 			{
-				checkIfTriggered(event);
+				checkIfTriggered(event, state);
 			} 
 		}
 	}
 
-	private void checkIfTriggered(Event event)
+	private void checkIfTriggered(Event event, DeviceState state)
 	{
-		if (event.checkIfTriggered(processor))
+		if (event.checkIfTriggered((String deviceName) -> (getStateFromCache(deviceName)), state))
 		{
 			applyTriggerStateToListnerDevices(event.getTriggerStates());
 		}
-//		else 
-//		{
-//			applyTriggerStateToListnerDevices(event.getInvertedTriggerStates());
-//		}
+	}
+	
+	private DeviceState getStateFromCache(String deviceName)
+	{
+		return processor.getDeviceState(deviceName);
 	}
 	
 	private void applyTriggerStateToListnerDevices(List<DeviceState> states)
@@ -76,6 +78,62 @@ public class EventProcessingService
 		}
 	}
 	
+	public synchronized List<Event> getAllEvents()
+	{
+		return new ArrayList<>(events.values());
+	}
+	
+	public synchronized void createEvents(List<Event> events)
+	{
+		for(Event event : events)
+			createEvent(event);
+	}
+	
+	/**
+	 * Add new event to the event table
+	 * @param event
+	 * @return id
+	 */
+	public synchronized Integer createEvent(Event event)
+	{
+		Integer id = event.hashCode();
+
+		events.put(id, event);
+		
+		addToDeviceToTriggerEventMap(event);
+		
+		processor.getPersistenceManger().createEvent(event);
+	
+		return id;
+	}
+	
+	public synchronized Integer changeEvent(Integer id, Event event)
+	{
+		Event oldEvent = events.remove(id);
+		
+		if(event == null)
+			throw new RuntimeException("There is no event mapped at: " + id);
+		
+		remoteFromDeviceToTriggerEventMap(oldEvent);
+		oldEvent.replace(event);
+		events.put(event.hashCode(), event);
+		addToDeviceToTriggerEventMap(oldEvent);
+		
+		return oldEvent.hashCode();
+	}
+	
+	public synchronized void removeEvent(Integer id)
+	{
+		Event event = events.remove(id);
+		
+		if(event == null)
+			throw new RuntimeException("There is no event mapped at: " + id);
+
+		remoteFromDeviceToTriggerEventMap(event);
+		
+		processor.getPersistenceManger().deleteEvent(event);
+	}
+	
 	/**
 	 * Register a device to listen for event mapped at id
 	 * @param id
@@ -87,7 +145,7 @@ public class EventProcessingService
 			throw new RuntimeException("There is no event mapped at: " + id);
 		
 		events.get(id).registerListener(state);
-		checkIfTriggered(events.get(id));
+		checkIfTriggered(events.get(id), null);
 	}
 	
 	/**
@@ -103,17 +161,18 @@ public class EventProcessingService
 		events.get(id).unRegisterListener(deviceName);	
 	}
 	
-	/**
-	 * Add new event to the event table
-	 * @param event
-	 * @return id
-	 */
-	public synchronized Integer createEvent(Event event)
+	public synchronized List<String> getAllListenersForEvent(Integer id)
 	{
-		Integer id = event.hashCode();
-
-		events.put(id, event);
+		Event event = events.get(id);
 		
+		if(event == null)
+			throw new RuntimeException("There is no event mapped at: " + id);
+		
+		return new ArrayList<>(event.getDependencyDevices());
+	}
+	
+	private void addToDeviceToTriggerEventMap(Event event)
+	{
 		for(String deviceName : event.getDependencyDevices())
 		{
 			List<Event> records = mapDevicesToTriggerEvents.get(deviceName);
@@ -125,39 +184,10 @@ public class EventProcessingService
 			}
 			records.add(event);
 		}
-		
-		return id;
 	}
 	
-	public synchronized Integer changeEvent(Integer id, Event event)
+	private void remoteFromDeviceToTriggerEventMap(Event event)
 	{
-		Event oldEvent = events.remove(id);
-		
-		if(event == null)
-			throw new RuntimeException("There is no event mapped at: " + id);
-		
-		oldEvent.replace(event);
-		events.put(event.hashCode(), event);
-		
-		return oldEvent.hashCode();
-	}
-	
-	public synchronized void removeEvent(Integer id)
-	{
-		Event event = events.remove(id);
-		
-		if(event == null)
-			throw new RuntimeException("There is no event mapped at: " + id);
-		
-		try
-		{
-			processor.getPersistenceManger().deleteEvent(event);
-		}
-		catch (IOException | SQLException e)
-		{
-			Application.LOGGER.severe(e.getMessage());
-		}
-		
 		for(String deviceName : event.getDependencyDevices())
 		{
 			List<Event> events = mapDevicesToTriggerEvents.get(deviceName);
@@ -171,26 +201,5 @@ public class EventProcessingService
 				}
 			}
 		}
-	}
-	
-	public synchronized void createEvents(List<Event> events)
-	{
-		for(Event event : events)
-			createEvent(event);
-	}
-	
-	public synchronized List<Event> getAllEvents()
-	{
-		return new ArrayList<>(events.values());
-	}
-	
-	public synchronized List<String> getAllListenersForEvent(Integer id)
-	{
-		Event event = events.get(id);
-		
-		if(event == null)
-			throw new RuntimeException("There is no event mapped at: " + id);
-		
-		return new ArrayList<>(event.getDependencyDevices());
 	}
 }

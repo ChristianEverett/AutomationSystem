@@ -1,8 +1,7 @@
- select * from timed_action;
  select * from device_state;
  select * from event;
  select * from state_log
- delete from timed_action;
+
  delete from device_state;
  delete from event;
  delete from state_log;

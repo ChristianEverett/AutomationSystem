@@ -1,12 +1,12 @@
 #!/bin/sh
-SERVICE_NAME=MyService
-PATH_TO_JAR=/usr/local/MyProject/MyJar.jar
-PID_PATH_NAME=/tmp/MyService-pid
+SERVICE_NAME=AutomationSystem
+PATH_TO_JAR=/home/pi/AS
+PID_PATH_NAME=/home/pi/ASMyService-pid
 case $1 in
     start)
         echo "Starting $SERVICE_NAME ..."
         if [ ! -f $PID_PATH_NAME ]; then
-            nohup java -jar $PATH_TO_JAR /tmp 2>> /dev/null >> /dev/null &
+            sudo nohup java -jar $PATH_TO_JAR /tmp 2>> /dev/null >> /dev/null &
                         echo $! > $PID_PATH_NAME
             echo "$SERVICE_NAME started ..."
         else
@@ -17,7 +17,7 @@ case $1 in
         if [ -f $PID_PATH_NAME ]; then
             PID=$(cat $PID_PATH_NAME);
             echo "$SERVICE_NAME stoping ..."
-            kill $PID;
+            sudo kill $PID;
             echo "$SERVICE_NAME stopped ..."
             rm $PID_PATH_NAME
         else
@@ -28,11 +28,11 @@ case $1 in
         if [ -f $PID_PATH_NAME ]; then
             PID=$(cat $PID_PATH_NAME);
             echo "$SERVICE_NAME stopping ...";
-            kill $PID;
+            sudo kill $PID;
             echo "$SERVICE_NAME stopped ...";
             rm $PID_PATH_NAME
             echo "$SERVICE_NAME starting ..."
-            nohup java -jar $PATH_TO_JAR /tmp 2>> /dev/null >> /dev/null &
+            sudo nohup java -jar $PATH_TO_JAR /tmp 2>> /dev/null >> /dev/null &
                         echo $! > $PID_PATH_NAME
             echo "$SERVICE_NAME started ..."
         else

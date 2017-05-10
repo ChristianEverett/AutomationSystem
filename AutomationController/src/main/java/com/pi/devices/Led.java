@@ -5,24 +5,21 @@ package com.pi.devices;
 
 import java.awt.Color;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.io.Serializable;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicNameValuePair;
-
-import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
-import com.pi.infrastructure.util.HttpClient;
 import com.pi.model.DeviceState;
-import com.pi4j.wiringpi.Gpio;
-import com.pi4j.wiringpi.SoftPwm;
 
 
 /**
@@ -36,6 +33,11 @@ public class Led extends Device
 	private final int BLUE_PIN;
 	private Color currentColor = new Color(0, 0, 0);
 	
+	private AtomicBoolean recording = new AtomicBoolean(false);
+	private String recordingName = "";
+	
+	private Map<String, LedSequence> sequences = new HashMap<>();
+	
 	public Led(String name, int red, int green, int blue) throws IOException
 	{
 		super(name);
@@ -44,6 +46,8 @@ public class Led extends Device
 		this.RED_PIN = GPIO_PIN.getBCM_Pin(red);
 		this.GREEN_PIN = GPIO_PIN.getBCM_Pin(green);
 		this.BLUE_PIN = GPIO_PIN.getBCM_Pin(blue);
+		
+//		initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
 	}
 
 	@Override
@@ -51,20 +55,66 @@ public class Led extends Device
 	{
 		try
 		{
-			Integer red = (Integer) state.getParam(Params.RED);
-			Integer green = (Integer) state.getParam(Params.GREEN);
-			Integer blue = (Integer) state.getParam(Params.BLUE);
+			Boolean record = state.getParamTyped(Params.SEQUENCE_RECORD, Boolean.class);
+			String sequenceName = state.getParamTyped(Params.NAME, String.class);
 			
-			rt.exec("pigs p " + RED_PIN + " " + (255 - red));
-			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green));
-			rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue));
-			
-			currentColor = new Color(red, green, blue);
+			if (record != null)
+			{
+				recording.set(record);
+				
+				if (record)
+				{
+					Integer interval = state.getParamTyped(Params.INTERVAL, Integer.class);
+					sequences.put(sequenceName, new LedSequence(interval));
+					recordingName = sequenceName;
+				}
+			}
+			else if(sequenceName != null)
+			{
+				LedSequence sequence = sequences.get(sequenceName);
+				
+				if(sequence == null)
+					throw new RuntimeException("No Sequence found for: " + sequenceName);
+				
+				sequence.play(this);
+			}
+			else
+			{
+				Integer red = (Integer) state.getParam(Params.RED);
+				Integer green = (Integer) state.getParam(Params.GREEN);
+				Integer blue = (Integer) state.getParam(Params.BLUE);
+				
+				setLedColor(red, green, blue);
+				
+				if(recording.get())
+				{
+					LedSequence sequence = sequences.get(recordingName);
+					sequence.addToSequence(red, green, blue);
+				}
+			}
 		}
-		catch (IOException e)
+		catch (Throwable e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
+	}
+	
+	@SuppressWarnings("unchecked")
+	@Override
+	protected void load(DeviceState state) throws IOException
+	{
+		sequences = (Map<String, LedSequence>) state.getParam(Params.SEQUENCES);
+		this.execute(state);
+	}
+
+	private void setLedColor(Integer red, Integer green, Integer blue) throws IOException
+	{
+//		setRGBPWM(name.hashCode(), (255 - red), (255 - green), (255 - blue));
+		rt.exec("pigs p " + RED_PIN + " " + (255 - red));
+		rt.exec("pigs p " + GREEN_PIN + " " + (255 - green));
+		rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue));
+		
+		currentColor = new Color(red, green, blue);
 	}
 
 	@Override
@@ -78,7 +128,7 @@ public class Led extends Device
 		}
 		catch (IOException e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 
@@ -90,23 +140,55 @@ public class Led extends Device
 		state.setParam(Params.GREEN, currentColor.getGreen());
 		state.setParam(Params.BLUE, currentColor.getBlue());
 		
+		if(forDatabase)
+		{
+			state.setParam(Params.SEQUENCES, sequences);
+		}
+		
 		return state;
 	}
 	
-	@Override
-	public List<String> getExpectedParams()
-	{
-		List<String> list = new ArrayList<>();
-		list.add(Params.RED);
-		list.add(Params.GREEN);
-		list.add(Params.BLUE);
-		return list;
-	}
+	private native void initializeRGB(int id, int redPin, int greenPin, int bluePin);
+	private native void setRGBPWM(int id, int red, int green, int blue) ;
+	private native void closeRGB(int id);
 	
-	@Override
-	public String getType()
+	private static class LedSequence implements Serializable
 	{
-		return DeviceType.LED;
+		private List<Color> sequence = new LinkedList<>();
+		private Integer intervalMiliseconds = 12;
+		private Boolean loop = false;
+		
+		public LedSequence(Integer interval)
+		{
+			this(interval, false);
+		}
+		
+		public LedSequence(Integer interval, Boolean loop)
+		{
+			this.intervalMiliseconds = interval;
+			this.loop = loop;
+		}
+		
+		public synchronized void addToSequence(int red, int green, int blue)
+		{
+			sequence.add(new Color(red, green, blue));
+		}
+		
+		public synchronized void play(Led led)
+		{
+			try
+			{
+				for(Color color : sequence)
+				{
+					led.setLedColor(color.getRed(), color.getGreen(), color.getBlue());
+					Thread.sleep(intervalMiliseconds);
+				}
+			}
+			catch (Exception e)
+			{
+				SystemLogger.getLogger().severe(e.getMessage());
+			}
+		}
 	}
 	
 	@XmlRootElement(name = DEVICE)

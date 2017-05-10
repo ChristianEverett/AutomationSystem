@@ -57,20 +57,6 @@ public class Switch extends Device
 		return state;
 	}
 	
-	@Override
-	public List<String> getExpectedParams()
-	{
-		List<String> list = new ArrayList<>();
-		list.add(Params.IS_ON);
-		return list;
-	}
-
-	@Override
-	public String getType()
-	{
-		return DeviceType.SWITCH;
-	}
-	
 	@XmlRootElement(name = DEVICE)
 	public static class SwitchConfig extends DeviceConfig
 	{

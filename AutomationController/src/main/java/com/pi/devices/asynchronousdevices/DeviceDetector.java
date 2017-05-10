@@ -5,12 +5,10 @@ package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,11 +16,10 @@ import java.util.regex.Pattern;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
 
@@ -41,7 +38,7 @@ public class DeviceDetector extends AsynchronousDevice
 	
 	public DeviceDetector(String name) throws IOException
 	{
-		super(name, 10000L, 1L, TimeUnit.MILLISECONDS);
+		super(name, 10000L, 10L, TimeUnit.MILLISECONDS);
 		setupScanner();	
 	}
 
@@ -54,7 +51,7 @@ public class DeviceDetector extends AsynchronousDevice
 			macToTimestamp.put(address, null);
 		}
 		else
-			Application.LOGGER.severe("MAC Address is not in a valid format: " + address);
+			SystemLogger.getLogger().severe("MAC Address is not in a valid format: " + address);
 	}
 
 	@Override
@@ -62,12 +59,6 @@ public class DeviceDetector extends AsynchronousDevice
 	{
 		String MAC = scan();
 		macToTimestamp.put(MAC, new Date());	
-	}
-	
-	@Override
-	public String getType()
-	{
-		return DeviceType.DEVICE_SENSOR;
 	}
 
 	@Override
@@ -98,14 +89,6 @@ public class DeviceDetector extends AsynchronousDevice
 		
 		return state;
 	}
-	
-	@Override
-	public List<String> getExpectedParams()
-	{
-		List<String> list = new ArrayList<>();
-		list.add(Params.MACS);
-		return list;
-	}
 
 	@Override
 	protected void tearDown()
@@ -118,11 +101,6 @@ public class DeviceDetector extends AsynchronousDevice
 	private native void registerAddress(String address);
 	private native String scan();
 	private native void stopScanning();
-
-	static
-	{
-		System.loadLibrary("ARPDriver");
-	}
 	
 	@XmlRootElement(name = DEVICE)
 	public static class DeviceDetectorConfig extends DeviceConfig

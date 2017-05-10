@@ -1,19 +1,17 @@
 package com.pi.model;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
-import org.hibernate.type.SetType;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.pi.infrastructure.Device;
 import com.pi.infrastructure.NodeController;
 
 public class DeviceState extends DatabaseElement
 {
 	private String name;
 	private String type;
-	private HashMap<String, Object> params = new HashMap<>();
+	private Map<String, Object> params = new HashMap<>();
 	
 	public DeviceState()
 	{	
@@ -47,12 +45,12 @@ public class DeviceState extends DatabaseElement
 		type = NodeController.getInstance().getDeviceType(name);
 	}
 
-	public HashMap<String, Object> getParams()
+	public Map<String, Object> getParams()
 	{
 		return params;
 	}
 
-	public void setParams(HashMap<String, Object> params)
+	public void setParams(Map<String, Object> params)
 	{
 		this.params = params;
 	}
@@ -75,13 +73,21 @@ public class DeviceState extends DatabaseElement
 	
 	@JsonIgnore
 	public Object getParam(String key)
-	{
+	{		
 		return params.get(key);
+	}
+	
+	@JsonIgnore
+	public <T> T getParamTyped(String key, Class<T> type)
+	{
+		return type.cast(params.get(key));
 	}
 	
 	@Override
 	public boolean equals(Object object)
 	{
+		if(object == null)
+			return false;
 		if(!(object instanceof DeviceState))
 			return false;
 		DeviceState deviceState = (DeviceState) object;

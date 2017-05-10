@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
@@ -31,6 +31,15 @@ public class EventController
 	public @ResponseBody Collection<Event> getEvents(HttpServletRequest request, HttpServletResponse response)
 	{
 		return processor.getEventProcessingService().getAllEvents();
+	}
+	
+	@RequestMapping(value = PATH + "/group", method = RequestMethod.POST)
+	public void createEvents(HttpServletRequest request, HttpServletResponse response, @RequestBody Collection<Event> events)
+	{
+		for (Event event : events)
+		{
+			processor.getEventProcessingService().createEvent(event);
+		}
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.POST)
@@ -98,7 +107,7 @@ public class EventController
 		catch (Exception e)
 		{
 			response.setStatus(503);
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 }

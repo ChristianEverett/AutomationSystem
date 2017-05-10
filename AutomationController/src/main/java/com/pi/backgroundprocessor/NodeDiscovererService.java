@@ -10,8 +10,7 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
-import com.pi.Application;
-import com.pi.infrastructure.Device;
+import com.pi.SystemLogger;
 
 public class NodeDiscovererService extends Thread
 {
@@ -50,7 +49,7 @@ public class NodeDiscovererService extends Thread
 		}
 		catch (SocketException e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 
@@ -71,9 +70,9 @@ public class NodeDiscovererService extends Thread
 		catch (Exception e)
 		{
 			if (e instanceof InterruptedException)
-				Application.LOGGER.info("Stopping Node Discovery");
+				SystemLogger.getLogger().info("Stopping Node Discovery");
 			else
-				Application.LOGGER.severe(e.getMessage());
+				SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 

@@ -55,13 +55,13 @@ const std::vector<std::string> bluetoothScan()
 	return addresses;
 }
 
-const std::string ping(const std::string address)
+const std::string ping(const char* address)
 {
 	char name[248] = { 0 };
 
 	bdaddr_t *bluetoothAddress = new bdaddr_t;
 
-	if(str2ba( address.c_str(), bluetoothAddress ) < 0)
+	if(str2ba( address, bluetoothAddress ) < 0)
 		return std::string();
 
 	int result = hci_read_remote_name(sock, bluetoothAddress, sizeof(name), name, len);

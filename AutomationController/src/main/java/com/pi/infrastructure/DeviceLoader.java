@@ -25,6 +25,7 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
 import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
 
@@ -100,7 +101,7 @@ public class DeviceLoader
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe("Error creating Device: " + xmlName + ". Exception: " + e.getMessage());
+			SystemLogger.getLogger().severe("Error creating Device: " + xmlName + ". Exception: " + e.getMessage());
 		}
 
 	}

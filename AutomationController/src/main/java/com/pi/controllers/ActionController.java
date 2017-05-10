@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
-import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.infrastructure.Device;
 import com.pi.model.DeviceState;
@@ -52,7 +52,7 @@ public class ActionController
 		catch (Exception e)
 		{
 			response.setStatus(503);
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 		
 		return null;
@@ -75,7 +75,7 @@ public class ActionController
 		catch (Exception e)
 		{
 			response.setStatus(503);
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 	
@@ -91,7 +91,7 @@ public class ActionController
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 			response.setStatus(503);
 		}
 		
@@ -118,7 +118,7 @@ public class ActionController
 		catch (Exception e)
 		{
 			response.setStatus(503);
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 		
 		return null;

@@ -14,6 +14,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import org.w3c.dom.Element;
 
 import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.infrastructure.util.HttpClient;
 import com.pi.infrastructure.util.HttpClient.ObjectResponse;
 import com.pi.infrastructure.util.HttpClient.Response;
@@ -32,7 +33,6 @@ public class RemoteDevice extends Device
 	private HttpClient client = null;
 
 	private String type;
-	private List<String> expectedTypes = null;
 
 	@SuppressWarnings("unchecked")
 	public RemoteDevice(String name, String type, String url, DeviceConfig config) throws Exception
@@ -45,13 +45,6 @@ public class RemoteDevice extends Device
 
 		if (response.getStatusCode() != HttpURLConnection.HTTP_OK)
 			throw new IOException("Error creating device. Status Code: " + response.getStatusCode() + " on device: " + name);
-		
-		ObjectResponse objectResponse = client.sendPostObject(null, "/" + name, new RemoteDeviceMessage(GET_EXPECTED_PARAMS, null));
-		
-		if (objectResponse.getStatusCode() != HttpURLConnection.HTTP_OK)
-			throw new IOException("Error getting expected params. Status Code: " + response.getStatusCode() + " on device: " + name);
-		
-		expectedTypes = (List<String>) objectResponse.getResponseObject();
 	}
 
 	@Override
@@ -65,7 +58,7 @@ public class RemoteDevice extends Device
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe("Remote Device performAction failure - " + e.getMessage());
+			SystemLogger.getLogger().severe("Remote Device performAction failure - " + e.getMessage());
 		}
 	}
 
@@ -82,7 +75,7 @@ public class RemoteDevice extends Device
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe("Remote Device performAction failure - " + e.getMessage());
+			SystemLogger.getLogger().severe("Remote Device performAction failure - " + e.getMessage());
 		}
 
 		return null;
@@ -99,7 +92,7 @@ public class RemoteDevice extends Device
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe("Remote Device performAction failure - " + e.getMessage());
+			SystemLogger.getLogger().severe("Remote Device performAction failure - " + e.getMessage());
 		}
 	}
 
@@ -107,12 +100,6 @@ public class RemoteDevice extends Device
 	public String getType()
 	{
 		return type;
-	}
-
-	@Override
-	public List<String> getExpectedParams()
-	{
-		return expectedTypes;
 	}
 	
 	public static class RemoteDeviceMessage implements Serializable

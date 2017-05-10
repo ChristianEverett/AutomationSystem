@@ -60,11 +60,11 @@ public class WeatherSensor extends AsynchronousDevice
 		weatherHttpConnection = Jsoup.connect("http://www.google.com/search?q=weahther+" + this.location).userAgent(
 				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
 		
-//		lightHttpConnection = Jsoup.connect("http://www.isitdarkoutside.com/").userAgent(
-//				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
-		
-		sunRiseHttpConnection = Jsoup.connect("http://www.google.com/search?q=sun+rise+sun+set").userAgent(
+		lightHttpConnection = Jsoup.connect("http://www.isitdarkoutside.com/").userAgent(
 				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+		
+//		sunRiseHttpConnection = Jsoup.connect("http://www.google.com/search?q=sun+rise+sun+set").userAgent(
+//				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
 	}
 
 	@Override
@@ -75,32 +75,32 @@ public class WeatherSensor extends AsynchronousDevice
 
 		locationTempature = Integer.parseInt(element.html());
 
-//		document = lightHttpConnection.get();
-//		element = document.getElementById("answer");
-//		
-//		if ("YES".equalsIgnoreCase(element.html()))
-//			isDark = true;
-//		else
-//			isDark = false;
+		document = lightHttpConnection.get();
+		element = document.getElementById("answer");
 		
-		document = sunRiseHttpConnection.get();
-		Elements elements = document.getElementsByClass("vk_ans");
-		
-		String sunRiseString = elements.first().html();
-		String sunSetString = elements.last().html();
-		
-		LocalTime sunRise = LocalTime.parse(sunRiseString, parseFormat);
-		LocalTime sunSet = LocalTime.parse(sunSetString, parseFormat);
-		
-		LocalTime now = LocalTime.now();
-		
-		boolean isBeforeSunRise = now.isBefore(sunRise);
-		boolean isAfterSunSet = now.isAfter(sunSet);
-		
-		if(isBeforeSunRise || isAfterSunSet)
+		if ("YES".equalsIgnoreCase(element.html()))
 			isDark = true;
 		else
 			isDark = false;
+		
+//		document = sunRiseHttpConnection.get();
+//		Elements elements = document.getElementsByClass("vk_ans");
+//		
+//		String sunRiseString = elements.first().html();
+//		String sunSetString = elements.last().html();
+//		
+//		LocalTime sunRise = LocalTime.parse(sunRiseString, parseFormat);
+//		LocalTime sunSet = LocalTime.parse(sunSetString, parseFormat);
+//		
+//		LocalTime now = LocalTime.now();
+//		
+//		boolean isBeforeSunRise = now.isBefore(sunRise);
+//		boolean isAfterSunSet = now.isAfter(sunSet);
+//		
+//		if(isBeforeSunRise || isAfterSunSet)
+//			isDark = true;
+//		else
+//			isDark = false;
 		
 		update(getState());		
 	}
@@ -124,18 +124,6 @@ public class WeatherSensor extends AsynchronousDevice
 	protected void tearDown()
 	{
 		weatherReadingTask.cancel();
-	}
-
-	@Override
-	public List<String> getExpectedParams()
-	{
-		return new ArrayList<String>();
-	}
-	
-	@Override
-	public String getType()
-	{
-		return DeviceType.WEATHER_SENSOR;
 	}
 	
 	@XmlRootElement(name = DEVICE)

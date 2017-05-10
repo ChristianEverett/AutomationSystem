@@ -6,6 +6,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +32,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 
 	public BluetoothAdapter(String name) throws IOException
 	{
-		super(name, 10000L, 600L, TimeUnit.MILLISECONDS);
+		super(name, 10000L, 1000L, TimeUnit.MILLISECONDS);
 		setupBluetooth();
 	}
 
@@ -57,12 +58,6 @@ public class BluetoothAdapter extends AsynchronousDevice
 			Thread.sleep(2000);
 		else
 			update(getState());
-	}
-	
-	@Override
-	public String getType()
-	{
-		return DeviceType.BLUETOOTH_ADAPTER;
 	}
 
 	@Override
@@ -98,7 +93,10 @@ public class BluetoothAdapter extends AsynchronousDevice
 		
 		if (!forDatabase)
 		{
-			state.setParam(Params.MACS, new ArrayList<>(macToLastPing.entrySet()));
+			for (Entry<String, Boolean> entry : macToLastPing.entrySet())
+			{
+				state.setParam(entry.getKey(), entry.getValue());
+			}
 		}
 		else 
 		{
@@ -114,25 +112,11 @@ public class BluetoothAdapter extends AsynchronousDevice
 	{
 		closeBluetooth();
 	}
-
-	@Override
-	public List<String> getExpectedParams()
-	{
-		List<String> list = new ArrayList<>();
-		list.add(Params.MACS);
-		list.add(Params.SCAN);
-		return list;
-	}
 	
 	private native void setupBluetooth();
 	private native String[] scanForBluetoothDevices();
 	private native String ping(String address);
 	private native void closeBluetooth();
-
-	static
-	{
-		System.loadLibrary("BluetoothDriver");
-	}
 	
 	@XmlRootElement(name = DEVICE)
 	public static class BluetoothAdapterConfig extends DeviceConfig

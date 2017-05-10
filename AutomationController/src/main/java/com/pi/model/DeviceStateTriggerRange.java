@@ -3,33 +3,43 @@ package com.pi.model;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.infrastructure.DeviceType;
 
 public class DeviceStateTriggerRange extends DeviceState
 {
 	private static final String COMPARE_TO = "compareTo";
-	private HashMap<String, Object> endRange = new HashMap<>();
+	private Map<String, Object> endRange = new HashMap<>();
+	private Boolean triggerOnChange = false;
 
-	public HashMap<String, Object> getEndRange()
+	public Map<String, Object> getEndRange()
 	{
 		return endRange;
 	}
 
-	public void setEndRange(HashMap<String, Object> endRange)
+	public void setEndRange(Map<String, Object> endRange)
 	{
 		this.endRange = endRange;
 	}
 	
+	public void setTriggerOnChange(Boolean triggerOnChange)
+	{
+		this.triggerOnChange = triggerOnChange;
+	}
+	
 	@JsonIgnore
-	public boolean isInRange(DeviceState state)
+	public boolean isTriggered(DeviceState state, DeviceState changedState)
 	{		
 		if(!getName().equals(state.getName()) || !getType().equals(state.getType()))
 			return false;
 	
+		if(triggerOnChange && changedState.getName().equals(getName()))
+			return true;
+		
 		for (String key : getParams().keySet())
 		{
 			Object value = state.getParam(key);
@@ -66,7 +76,7 @@ public class DeviceStateTriggerRange extends DeviceState
 		}
 		catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 		
 		return false;

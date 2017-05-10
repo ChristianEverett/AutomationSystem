@@ -9,6 +9,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.infrastructure.NodeController;
 
 import java.util.Objects;
+import java.util.function.Function;
 
 public class Event extends DatabaseElement
 {
@@ -17,7 +18,6 @@ public class Event extends DatabaseElement
 	private List<DeviceStateTriggerRange> triggerEvents = new LinkedList<>();
 
 	private List<DeviceState> triggerStates = new LinkedList<>();
-//	private List<DeviceState> invertedTriggerStates = new LinkedList<>();
 	
 	private Boolean requireAll = true;
 
@@ -26,24 +26,24 @@ public class Event extends DatabaseElement
 	}
 
 	@JsonIgnore
-	public boolean checkIfTriggered(NodeController node)
+	public boolean checkIfTriggered(Function<String, DeviceState> stateCache, DeviceState changedState)
 	{
 		if (requireAll)
 		{
-			return allStatesMet(node);
+			return allStatesMet(stateCache, changedState);
 		}
 		else
 		{
-			return anyStateMet(node);
+			return anyStateMet(stateCache, changedState);
 		}
 	}
 
 	@JsonIgnore
-	private boolean allStatesMet(NodeController node)
+	private boolean allStatesMet(Function<String, DeviceState> stateCache, DeviceState changedState)
 	{
 		for (DeviceStateTriggerRange triggerState : triggerEvents)
 		{
-			if (!triggerState.isInRange(node.getDeviceState(triggerState.getName())))
+			if (!triggerState.isTriggered(stateCache.apply(triggerState.getName()), changedState))
 				return false;
 		}
 
@@ -51,11 +51,11 @@ public class Event extends DatabaseElement
 	}
 
 	@JsonIgnore
-	private boolean anyStateMet(NodeController node)
+	private boolean anyStateMet(Function<String, DeviceState> stateCache, DeviceState changedState)
 	{
 		for (DeviceStateTriggerRange triggerState : triggerEvents)
 		{
-			if (triggerState.isInRange(node.getDeviceState(triggerState.getName())))
+			if (triggerState.isTriggered(stateCache.apply(triggerState.getName()), changedState))
 				return true;
 		}
 
@@ -65,7 +65,7 @@ public class Event extends DatabaseElement
 	@JsonIgnore
 	public List<String> getDependencyDevices()
 	{
-		List<String> deviceNames = new ArrayList<String>(triggerEvents.size());
+		List<String> deviceNames = new ArrayList<>(triggerEvents.size());
 
 		for (DeviceStateTriggerRange state : triggerEvents)
 		{
@@ -113,16 +113,6 @@ public class Event extends DatabaseElement
 	{
 		triggerStates.addAll(devices);
 	}
-	
-//	public List<DeviceState> getInvertedTriggerStates()
-//	{
-//		return invertedTriggerStates;
-//	}
-//
-//	public void setInvertedTriggerStates(List<DeviceState> devices)
-//	{
-//		invertedTriggerStates.addAll(devices);
-//	}
 	
 	public List<DeviceStateTriggerRange> getTriggerEvents()
 	{

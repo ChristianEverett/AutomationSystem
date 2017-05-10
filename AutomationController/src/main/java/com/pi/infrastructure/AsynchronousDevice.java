@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.Processor;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.model.DeviceState;
@@ -46,14 +47,14 @@ public abstract class AsynchronousDevice extends Device implements Runnable
 		}
 		catch (Throwable e)
 		{
-			Application.LOGGER.severe(e.getClass() + " - " + e.getMessage());
+			SystemLogger.getLogger().severe(this.getClass() + " - " + e.getClass().getName() + " - " + e.getMessage());
 		}
 	}
 
 	protected abstract void update() throws Exception;
 	
 	@Override
-	public final void close() throws IOException
+	public final void close() throws Exception
 	{
 		asynchTask.cancel();
 		super.close();

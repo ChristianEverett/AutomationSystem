@@ -135,6 +135,18 @@ public class MySQLHandler
 		return connection.prepareStatement(statement);
 	}
 
+	public void closeStatment(PreparedStatement statement)
+	{
+		try
+		{
+			if (statement != null)
+				statement.close();
+		}
+		catch (Exception e)
+		{
+		}
+	}
+	
 	@Override
 	protected void finalize() throws Throwable
 	{

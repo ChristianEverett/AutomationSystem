@@ -5,7 +5,7 @@
  *      Author: Christian Everett
  */
 
-#include "ARPScannerDriver.h"
+#include <jni.h>
 #include <iostream>
 #include <string>
 #include <cstdlib>
@@ -15,6 +15,11 @@ std::string scan();
 void registerMACAddress(std::string address);
 void shutdownScanner();
 const char *name;
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
 JNIEXPORT void JNICALL
 Java_com_pi_devices_asynchronousdevices_DeviceDetector_setupScanner(JNIEnv *env, jobject obj)
@@ -42,3 +47,8 @@ Java_com_pi_devices_asynchronousdevices_DeviceDetector_stopScanning(JNIEnv *env,
 {
 	shutdownScanner();
 }
+
+#ifdef __cplusplus
+}
+
+#endif

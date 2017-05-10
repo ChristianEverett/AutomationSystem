@@ -27,6 +27,7 @@
 #include <iostream>
 #include <stdexcept>
 #include <atomic>
+#include <mutex>
 
 #define DEFAULT_INTERFACE	"eth0"
 #define MAX_ETHERNET_FRAME_SIZE	1530
@@ -42,7 +43,9 @@ static std::atomic<bool> stop(false);
 static int sockfd;
 static ssize_t numbytes;
 static uint8_t buf[MAX_ETHERNET_FRAME_SIZE];
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static std::mutex mutex1;
+
 /* Header structures */
 static struct ether_header *ethernetHeader = (struct ether_header *) buf;
 //static struct iphdr *ipHeader = (struct iphdr *) (buf + sizeof(struct ether_header));
@@ -113,14 +116,10 @@ void registerMACAddress(std::string stringAddress)
 		addressNumber.address[ETH_ALEN - x - 1] = address[x];
 	}
 
-	if (pthread_mutex_lock(&mutex) != 0)
-		perror("mutex lock");
+	std::lock_guard<std::mutex> lock(mutex1);
 
 	std::pair<unsigned long long, std::string> newPair(addressNumber.number, stringAddress);
 	macAddresses.insert(newPair);
-
-	if (pthread_mutex_unlock(&mutex) != 0)
-		perror("mutex unlock");
 }
 
 const int unRegisterMACAddress(std::string stringAddress)
@@ -176,13 +175,9 @@ const std::string lookForMACAddresses(const struct ether_header *ethernetHeader)
 		addressNumber.address[ETH_ALEN - x - 1] = ethernetHeader->ether_shost[x];
 	}
 
-	if (pthread_mutex_lock(&mutex) != 0)
-		perror("mutex lock");
+	std::lock_guard<std::mutex> lock(mutex1);
 
 	std::string stringAddress = macAddresses.at(addressNumber.number);
-
-	if (pthread_mutex_unlock(&mutex) != 0)
-		perror("mutex unlock");
 
 	return stringAddress;
 }

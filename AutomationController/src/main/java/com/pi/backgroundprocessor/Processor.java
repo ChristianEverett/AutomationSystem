@@ -8,21 +8,14 @@ import java.net.InetAddress;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javax.xml.parsers.ParserConfigurationException;
-
-import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
-
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.Device.DeviceConfig;
@@ -53,7 +46,6 @@ public class Processor extends NodeController implements Runnable
 	// Background processor services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
 	private PersistenceManager persistenceManager = null;
-	private TimeActionProcessor timeActionProcessor = null;
 	private EventProcessingService eventProcessingService = null;
 	private DeviceLoggingService deviceLoggingService = null;
 	private DeviceLoader deviceLoader = null;
@@ -75,20 +67,18 @@ public class Processor extends NodeController implements Runnable
 
 	private Processor() throws Exception
 	{
-		Application.LOGGER.info("Starting Node Discovery Service");
+		SystemLogger.getLogger().info("Starting Node Discovery Service");
 		NodeDiscovererService.startDiscovering(this);
 		Device.registerNodeManger(this);
 
 		persistenceManager = PersistenceManager.loadPersistanceManager();
-		TimeActionProcessor.createTimeActionProcessor(this);
-		timeActionProcessor = TimeActionProcessor.getTimeActionProcessor();
 		deviceLoader = DeviceLoader.createNewDeviceLoader();
 		eventProcessingService = EventProcessingService.startEventProcessingService(this);
 
-		Application.LOGGER.info("Starting Device Logging Service");
+		SystemLogger.getLogger().info("Starting Device Logging Service");
 		deviceLoggingService = DeviceLoggingService.start(this);
 		
-		Application.LOGGER.info("Scheduling Database Task");
+		SystemLogger.getLogger().info("Scheduling Database Task");
 		Long interval = Long.parseLong(PropertyManger.loadProperty(PropertyKeys.DATABASE_POLL_FREQUENCY, "30"));
 		databaseTask = taskService.scheduleTask(() ->
 		{
@@ -98,7 +88,7 @@ public class Processor extends NodeController implements Runnable
 			}
 			catch (Throwable e)
 			{
-				Application.LOGGER.severe(e.getMessage());
+				SystemLogger.getLogger().severe(e.getMessage());
 			}
 		}, 1L, interval, TimeUnit.MINUTES);
 	}
@@ -120,7 +110,7 @@ public class Processor extends NodeController implements Runnable
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.info(e.getMessage());
+			SystemLogger.getLogger().info(e.getMessage());
 		}
 		
 		processorRunning.set(false);
@@ -129,11 +119,6 @@ public class Processor extends NodeController implements Runnable
 	public TaskExecutorService getTaskExecutorService()
 	{
 		return taskService;
-	}
-
-	public TimeActionProcessor getTimeActionProcessor()
-	{
-		return timeActionProcessor;
 	}
 
 	public PersistenceManager getPersistenceManger()
@@ -150,7 +135,7 @@ public class Processor extends NodeController implements Runnable
 	{
 		nodeMap.put(node, address);
 		createRemoteDevices(node);
-		Application.LOGGER.info("Registered Node: " + node);
+		SystemLogger.getLogger().info("Registered Node: " + node);
 	}
 
 	public InetAddress lookupNodeAddress(String node)
@@ -161,8 +146,11 @@ public class Processor extends NodeController implements Runnable
 	@Override
 	public void update(DeviceState state)
 	{
+		DeviceState oldState = cachedStates.get(state.getName());
 		cachedStates.put(state.getName(), state);
-		eventProcessingService.update(state);
+		
+		if(!state.equals(oldState))
+			eventProcessingService.update(state);
 		deviceLoggingService.log(state);
 	}
 
@@ -186,7 +174,7 @@ public class Processor extends NodeController implements Runnable
 	}
 
 	@Override
-	public synchronized String createNewDevice(DeviceConfig config, boolean isRemoteDevice)
+	public synchronized String createNewDevice(DeviceConfig config, boolean isRemoteDevice) throws IOException
 	{
 		// TODO enable logging
 		if(!isRemoteDevice)
@@ -194,7 +182,7 @@ public class Processor extends NodeController implements Runnable
 			String name = super.createNewDevice(config, false);
 			Device device = lookupDevice(name);
 			if(device != null)
-				device.execute(savedStates.remove(name));
+				device.loadSavedData(savedStates.remove(name));
 			return name;
 		}
 		else
@@ -225,13 +213,13 @@ public class Processor extends NodeController implements Runnable
 				Device device = config.buildDevice();
 
 				if(device != null)
-					device.execute(savedStates.remove(device.getName()));
+					device.loadSavedData(savedStates.remove(device.getName()));
 				
 				deviceMap.put(device.getName(), device);
 			}
 			catch (Exception e)
 			{
-				Application.LOGGER.severe("Error Loading Device: " + config.getName() + ". Exception: " + e.getMessage());
+				SystemLogger.getLogger().severe("Error Loading Device: " + config.getName() + ". Exception: " + e.getMessage());
 			}
 		}
 	}
@@ -242,24 +230,21 @@ public class Processor extends NodeController implements Runnable
 		{
 			loadDeviceStatesIntoCache();
 
-			Application.LOGGER.info("Loading Devices");
+			SystemLogger.getLogger().info("Loading Devices");
 			deviceLoader.loadDevices(this);
 			
-			Application.LOGGER.info("Loading Events");
+			SystemLogger.getLogger().info("Loading Events");
 			eventProcessingService.createEvents(persistenceManager.loadEvents());
-
-			Application.LOGGER.info("Scheduling Timers");
-			timeActionProcessor.load(persistenceManager.loadTimedActions());
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 
 	private void loadDeviceStatesIntoCache() throws SQLException, IOException
 	{
-		Application.LOGGER.info("Loading Device States");
+		SystemLogger.getLogger().info("Loading Device States");
 		persistenceManager.loadDeviceStates().forEach((state) ->
 		{
 			savedStates.put(state.getName(), state);
@@ -269,8 +254,6 @@ public class Processor extends NodeController implements Runnable
 	private void save() throws SQLException, IOException
 	{
 		persistenceManager.commitStates(getStates(true));
-		persistenceManager.commitTimers(timeActionProcessor.retrieveAllTimedActions());
-		persistenceManager.commitEvents(eventProcessingService.getAllEvents());
 	}
 
 	private void saveAndCloseAllDevices() throws SQLException, IOException
@@ -292,22 +275,22 @@ public class Processor extends NodeController implements Runnable
 					// Queue a No-Op to wakeup background processor
 					processingQueue.add(Device.createNewDeviceState(DeviceType.UNKNOWN));
 				}
-				Application.LOGGER.info("Stopping all background tasks");
+				SystemLogger.getLogger().info("Stopping all background tasks");
 				taskService.cancelAllTasks();
 				NodeDiscovererService.stopDiscovering();
 				deviceLoggingService.stop();
 				// Shutdown all devices and save their state
-				Application.LOGGER.info("Saving Device States and shutting down");
+				SystemLogger.getLogger().info("Saving Device States and shutting down");
 				saveAndCloseAllDevices();
 				persistenceManager.close();
 			}
 			catch (Throwable e)
 			{
-				Application.LOGGER.severe(e.getMessage());
+				SystemLogger.getLogger().severe(e.getMessage());
 			}
 			finally
 			{
-				Application.LOGGER.info("System has been shutdown.");
+				SystemLogger.getLogger().info("System has been shutdown.");
 			} 
 		}
 	}
@@ -342,10 +325,10 @@ public class Processor extends NodeController implements Runnable
 						if (device != null)
 						{
 							device.execute(savedState);
-							Application.LOGGER.info("Reloaded " + deviceToConfig);
+							SystemLogger.getLogger().info("Reloaded " + deviceToConfig);
 						}
 						else
-							Application.LOGGER.info("Could not load: " + deviceToConfig);
+							SystemLogger.getLogger().info("Could not load: " + deviceToConfig);
 					}
 
 					break;
@@ -353,7 +336,7 @@ public class Processor extends NodeController implements Runnable
 					saveAndCloseAllDevices();
 					loadDeviceStatesIntoCache();
 					deviceLoader.loadDevices(this);
-					Application.LOGGER.info("Reloaded Devices");
+					SystemLogger.getLogger().info("Reloaded Devices");
 					break;
 				case PROCESSOR_ACTIONS.LOAD_DEVICE:
 					deviceLoader.loadDevice(this, deviceToConfig);
@@ -378,7 +361,7 @@ public class Processor extends NodeController implements Runnable
 					}
 					else
 					{
-						Application.LOGGER.severe("Can't find device for : " + deviceToApplyState);
+						SystemLogger.getLogger().severe("Can't find device for : " + deviceToApplyState);
 					}
 					break;
 				}
@@ -388,7 +371,7 @@ public class Processor extends NodeController implements Runnable
 		{
 			if (e instanceof InterruptedException)
 				throw e;
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
 

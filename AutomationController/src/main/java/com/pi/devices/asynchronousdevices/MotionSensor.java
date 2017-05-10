@@ -69,18 +69,6 @@ public class MotionSensor extends AsynchronousDevice
 	{
 		gpioController.unprovisionPin(gpioPin);
 	}
-
-	@Override
-	public List<String> getExpectedParams()
-	{
-		return new ArrayList<String> ();
-	}
-	
-	@Override
-	public String getType()
-	{
-		return DeviceType.MOTION_SENSOR;
-	}
 	
 	@XmlRootElement(name = DEVICE)
 	public static class MotionSensorConfig extends DeviceConfig

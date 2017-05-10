@@ -1,5 +1,6 @@
 package com.pi.infrastructure;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.Set;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.pi.Application;
+import com.pi.SystemLogger;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.model.DeviceState;
 
@@ -27,7 +29,7 @@ public abstract class NodeController
 	
 	public abstract void update(DeviceState state);	
 	
-	public boolean scheduleAction(DeviceState state)
+	public boolean scheduleAction(DeviceState state) throws IOException
 	{
 		Device device = deviceMap.get(state.getName());
 		
@@ -70,14 +72,14 @@ public abstract class NodeController
 		{
 			if (device != null)
 			{
-				Application.LOGGER.info("Closing: " + name);
+				SystemLogger.getLogger().info("Closing: " + name);
 				device.close();
 				return true;
 			}
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe("Failed to close " + name + " Got:" + e.getMessage());
+			SystemLogger.getLogger().severe("Failed to close " + name + " Got:" + e.getMessage());
 		}
 
 		return false;
@@ -87,7 +89,7 @@ public abstract class NodeController
 	{
 		deviceMap.entrySet().forEach((Entry<String, Device> entry) ->
 		{
-			Application.LOGGER.info("closing: " + entry.getKey());
+			SystemLogger.getLogger().info("closing: " + entry.getKey());
 			closeDevice(entry.getKey());
 		});
 		deviceMap.clear();
@@ -107,7 +109,7 @@ public abstract class NodeController
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 			return null;
 		}
 	}
@@ -130,7 +132,7 @@ public abstract class NodeController
 		return stateList;
 	}
 	
-	public synchronized String createNewDevice(DeviceConfig config, boolean isRemoteDevice)
+	public synchronized String createNewDevice(DeviceConfig config, boolean isRemoteDevice) throws IOException
 	{
 		try
 		{
@@ -139,14 +141,19 @@ public abstract class NodeController
 
 			Device device = config.buildDevice();
 			deviceMap.put(config.getName(), device);
-			Application.LOGGER.info("Loaded: " + config.getName());
+			SystemLogger.getLogger().info("Loaded: " + config.getName());
 			return config.getName();
 		}
 		catch (Exception e)
 		{
-			Application.LOGGER.severe("Error creating Device: " + config.getName() + ". Exception: " + e.getMessage());
+			SystemLogger.getLogger().severe("Error initialize Device: " + config.getName() + ". Exception: " + e.getMessage());
 		}
 		
 		return null;
+	}
+	
+	static
+	{
+		System.loadLibrary("AutomationDriver");
 	}
 }
