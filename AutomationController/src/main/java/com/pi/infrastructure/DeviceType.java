@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.lang3.Validate;
+
 import com.pi.devices.Led;
 import com.pi.devices.Led.LedConfig;
 import com.pi.devices.Outlet;
@@ -30,6 +32,7 @@ import com.pi.devices.asynchronousdevices.Timer.TimerConfig;
 import com.pi.devices.asynchronousdevices.WeatherSensor;
 import com.pi.devices.asynchronousdevices.WeatherSensor.WeatherSensorConfig;
 import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
+import com.pi.model.DeviceState;
 
 /**
  * @author Christian Everett Class for devices types
@@ -86,6 +89,7 @@ public abstract class DeviceType
 		public final static String TARGET_MODE = "target_mode";
 
 		public final static String MACS = "macs";
+		public final static String MAC = "mac";
 		public final static String SCAN = "scan";
 		
 		public final static String TIME = "time";
@@ -100,21 +104,16 @@ public abstract class DeviceType
 		paramTypes.put(Params.NAME, String.class);
 		paramTypes.put(Params.SEQUENCES, List.class);
 		paramTypes.put(Params.LOOP, Boolean.class);
-		paramTypes.put(Params.INTERVAL, Integer.class);
-		
-		paramTypes.put(Params.IS_ON, Boolean.class);
-		
+		paramTypes.put(Params.INTERVAL, Integer.class);	
+		paramTypes.put(Params.IS_ON, Boolean.class);	
 		paramTypes.put(Params.TEMPATURE, Integer.class);
 		paramTypes.put(Params.HUMIDITY, Integer.class);
-		paramTypes.put(Params.IS_DARK, Boolean.class);
-		
+		paramTypes.put(Params.IS_DARK, Boolean.class);	
 		paramTypes.put(Params.TARGET_TEMPATURE, Integer.class);
 		paramTypes.put(Params.MODE, String.class);
-		paramTypes.put(Params.TARGET_MODE, String.class);
-		
+		paramTypes.put(Params.TARGET_MODE, String.class);		
 		paramTypes.put(Params.MACS, List.class);
 		paramTypes.put(Params.SCAN, Boolean.class);
-		
 		paramTypes.put(Params.TIME, String.class);
 		
 		idToConfig.put(DeviceType.REMOTE_DEVICE, RemoteDeviceConfig.class);
@@ -143,4 +142,13 @@ public abstract class DeviceType
 		typeToId.put(BluetoothAdapter.class, DeviceType.BLUETOOTH_ADAPTER);
 		typeToId.put(Timer.class, DeviceType.TIMER);
 	};
+	
+	public static final void validate(DeviceState state, String... params)
+	{
+		for(String param : params)
+		{
+			if(state.getParamTyped(param, paramTypes.get(param)) == null)
+				throw new RuntimeException("Param missing: " + param);
+		}
+	}
 }

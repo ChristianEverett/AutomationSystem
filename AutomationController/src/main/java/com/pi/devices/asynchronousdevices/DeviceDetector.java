@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
@@ -31,10 +32,9 @@ public class DeviceDetector extends AsynchronousDevice
 {
 	private static final String MAC_ADDRESS_REGEX = "([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$";
 	private Pattern regex = Pattern.compile(MAC_ADDRESS_REGEX);
-	private Task scanningTask = null;
-
+	private HashSet<String> registeredMACs = new HashSet<>();
 	private String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
-	private HashMap<String, Date> macToTimestamp = new HashMap<>();
+	private String lastMAC = "";
 	
 	public DeviceDetector(String name) throws IOException
 	{
@@ -48,7 +48,7 @@ public class DeviceDetector extends AsynchronousDevice
 		if(match.matches())
 		{
 			registerAddress(address);
-			macToTimestamp.put(address, null);
+			registeredMACs.add(address);
 		}
 		else
 			SystemLogger.getLogger().severe("MAC Address is not in a valid format: " + address);
@@ -58,7 +58,7 @@ public class DeviceDetector extends AsynchronousDevice
 	protected void update() throws Exception
 	{
 		String MAC = scan();
-		macToTimestamp.put(MAC, new Date());	
+		lastMAC = MAC;
 	}
 
 	@Override
@@ -80,11 +80,11 @@ public class DeviceDetector extends AsynchronousDevice
 		
 		if (!forDatabase)
 		{
-			state.setParam(Params.MACS, new ArrayList<>(macToTimestamp.entrySet()));
+			state.setParam(Params.MAC, lastMAC);
 		}
 		else
 		{
-			state.setParam(Params.MACS, new ArrayList<>(macToTimestamp.keySet()));
+			state.setParam(Params.MACS, new ArrayList<>(registeredMACs));
 		}
 		
 		return state;
@@ -93,7 +93,6 @@ public class DeviceDetector extends AsynchronousDevice
 	@Override
 	protected void tearDown()
 	{
-		scanningTask.cancel();
 		stopScanning();
 	}
 

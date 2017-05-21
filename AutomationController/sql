@@ -1,6 +1,6 @@
  select * from device_state;
  select * from event;
- select * from state_log
+ select * from state_log;
 
  delete from device_state;
  delete from event;
@@ -18,9 +18,12 @@
  
  CREATE TABLE test(
  a int,
- ts DATETIME);
+ b int,
+ primary key (a));
  
- insert into test(a) values(2);
+ insert into test(a, b) values(1, 600) ON DUPLICATE KEY UPDATE b=601;
  select * from test where ts > "2017-03-12 14:41";
  drop table test;
- drop table state_log_table;
+ drop table state_log;
+ drop table device_state;
+ drop table event;

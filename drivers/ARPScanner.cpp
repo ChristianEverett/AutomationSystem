@@ -28,6 +28,7 @@
 #include <stdexcept>
 #include <atomic>
 #include <mutex>
+#include <stdlib.h>
 
 #define DEFAULT_INTERFACE	"eth0"
 #define MAX_ETHERNET_FRAME_SIZE	1530
@@ -109,11 +110,11 @@ void registerMACAddress(std::string stringAddress)
 	u_int8_t address[ETH_ALEN];
 	string_to_mac(stringAddress, address);
 
-	AddressNumber addressNumber;
+	AddressNumber addressNumber = {};
 
 	for (int x = 0; x < ETH_ALEN; x++)
 	{
-		addressNumber.address[ETH_ALEN - x - 1] = address[x];
+		addressNumber.address[x] = address[x];
 	}
 
 	std::lock_guard<std::mutex> lock(mutex1);
@@ -131,7 +132,7 @@ const int unRegisterMACAddress(std::string stringAddress)
 
 	for (int x = 0; x < ETH_ALEN; x++)
 	{
-		addressNumber.address[ETH_ALEN - x - 1] = address[x];
+		addressNumber.address[x] = address[x];
 	}
 
 	int numberElementsRemoved = macAddresses.erase(addressNumber.number);
@@ -172,7 +173,7 @@ const std::string lookForMACAddresses(const struct ether_header *ethernetHeader)
 
 	for (int x = 0; x < ETH_ALEN; x++)
 	{
-		addressNumber.address[ETH_ALEN - x - 1] = ethernetHeader->ether_shost[x];
+		addressNumber.address[x] = ethernetHeader->ether_shost[x];
 	}
 
 	std::lock_guard<std::mutex> lock(mutex1);
@@ -184,9 +185,13 @@ const std::string lookForMACAddresses(const struct ether_header *ethernetHeader)
 
 void string_to_mac(std::string const& s, u_int8_t* a)
 {
-	unsigned int last = -1;
-	unsigned int rc = sscanf(s.c_str(), "%x:%x:%x:%x:%x:%x%n", a + 0, a + 1, a + 2, a + 3, a + 4, a + 5, &last);
+	unsigned int values[ETH_ALEN];
+	unsigned int rc = sscanf(s.c_str(), "%x:%x:%x:%x:%x:%x",
+			 &values[0], &values[1], &values[2], &values[3], &values[4], &values[5]);
 
-	if (rc != 6 || s.size() != last)
+	if (rc != 6)
 		throw std::runtime_error("invalid mac address format " + s);
+
+	 for(int i = 0; i < ETH_ALEN; ++i )
+		 a[i] = (uint8_t) values[i];
 }

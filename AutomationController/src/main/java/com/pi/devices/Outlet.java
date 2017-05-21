@@ -40,6 +40,8 @@ public class Outlet extends Device
 		this.OFF = offCode;
 		this.headerPin = headerPin;
 		IR_PIN = GPIO_PIN.getWiringPI_Pin(headerPin).getAddress();
+		
+		initilizeIR(PULSELENGTH, IR_PIN);
 	}
 
 	@Override
@@ -62,8 +64,7 @@ public class Outlet extends Device
 		
 		for(int x = 0; x < signalRedundancy; x++)
 		{
-			Process process = rt.exec("sudo ./codesend " + code + " -l " + PULSELENGTH + " -p " + IR_PIN);
-			process.waitFor();
+			send(code);
 		}
 	}
 
@@ -75,6 +76,9 @@ public class Outlet extends Device
 		
 		return state;
 	}
+	
+	private native void initilizeIR(int pulseLength, int PIN);
+	private native void send(int code);
 	
 	@XmlRootElement(name = DEVICE)
 	public static class OutletConfig extends DeviceConfig

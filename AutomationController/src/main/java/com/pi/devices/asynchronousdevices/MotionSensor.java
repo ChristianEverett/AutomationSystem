@@ -27,7 +27,7 @@ import com.pi4j.io.gpio.event.GpioPinListenerDigital;
  */
 public class MotionSensor extends AsynchronousDevice
 {
-	private final GpioPinDigitalInput gpioPin;
+	private GpioPinDigitalInput gpioPin = null;
 	
 	public MotionSensor(String name, int headerPin) throws IOException
 	{

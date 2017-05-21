@@ -3,31 +3,20 @@
  */
 package com.pi.Node;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.util.concurrent.TimeUnit;
 
-import org.w3c.dom.Element;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.pi.Main;
 import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.NodeDiscovererService;
-import com.pi.backgroundprocessor.NodeDiscovererService.Probe;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.controllers.ActionController;
 import com.pi.controllers.EventController;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.DeviceLoader;
 import com.pi.infrastructure.NodeController;
 import com.pi.infrastructure.RemoteDevice;
 import com.pi.infrastructure.Device.DeviceConfig;
@@ -49,10 +38,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 	private static final int QUEUE = 5;
 	
 	private static final String BROADCAST_ADDRESS = "255.255.255.255";
-	private DatagramSocket clientSocket = null;
-	private Probe probe = null;
 	private String nodeID = null;
-	private Task broadcastTask = null;
 	
 	private static String AUTOMATION_CONTROLLER_ADDRESS = null;
 	private static String AUTOMATION_CONTROLLER_PORT = "8080";
@@ -70,9 +56,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 		try
 		{
 			this.nodeID = nodeID;
-			probe = new Probe(nodeID, Probe.BROAD_CAST);
-			clientSocket = new DatagramSocket();
-			clientSocket.setSoTimeout(5000);
+			
 			Device.registerNodeManger(this);
 			
 			server = HttpServer.create(new InetSocketAddress(8080), QUEUE);
@@ -80,44 +64,13 @@ public class NodeControllerImplementation extends NodeController implements Http
 			server.setExecutor(null); // creates a default executor
 			server.start();
 			
-			broadcastTask = Device.createTask(() -> 
-			{		
-				try
-				{
-					InetAddress IPAddress = InetAddress.getByName(BROADCAST_ADDRESS);
-					ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-					ObjectOutputStream objectOutput = new ObjectOutputStream(outputStream);
-					objectOutput.writeObject(probe);
-
-					DatagramPacket sendPacket = new DatagramPacket(outputStream.toByteArray(), outputStream.toByteArray().length, IPAddress, NodeDiscovererService.DISCOVERY_PORT);
-					clientSocket.send(sendPacket);
-					
-					byte[] packet = new byte[1024];
-					DatagramPacket receivePacket = new DatagramPacket(packet, packet.length);
-					Probe probe = null;
-					while (probe == null || probe.getType() != Probe.BROAD_CAST_ACK)
-					{
-						clientSocket.receive(receivePacket);
-						probe = NodeDiscovererService.extractProbeFromDatagram(receivePacket);
-					}
-					
-					SystemLogger.getLogger().info("This Node has been registered as: " + nodeID);
-					setAutomationControllerAddress(receivePacket.getAddress());
-					broadcastTask.cancel();
-				}
-				catch(SocketTimeoutException e)
-				{		
-				}
-				catch (Exception e)
-				{
-					SystemLogger.getLogger().severe(e.getMessage());
-				}
-				
-			}, 5L, 5L, TimeUnit.SECONDS);
+			setAutomationControllerAddress(NodeDiscovererService.broadCastFromNode(nodeID));
+			SystemLogger.getLogger().info("This Node has been registered as: " + nodeID);	
 		}
 		catch (Exception e)
 		{
 			SystemLogger.getLogger().severe(e.getMessage());
+			System.exit(1);
 		}
 	}
 

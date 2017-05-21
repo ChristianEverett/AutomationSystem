@@ -26,7 +26,7 @@ import com.pi4j.io.gpio.PinState;
 public class Switch extends Device
 {
 	private int headerPin = -1;
-	private final GpioPinDigitalOutput gpioPin;
+	private GpioPinDigitalOutput gpioPin = null;
 	
 	public Switch(String name, int headerPin) throws IOException
 	{

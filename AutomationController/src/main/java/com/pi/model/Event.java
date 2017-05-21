@@ -17,7 +17,7 @@ public class Event extends DatabaseElement
 	// triggerEvents must be met
 	private List<DeviceStateTriggerRange> triggerEvents = new LinkedList<>();
 
-	private List<DeviceState> triggerStates = new LinkedList<>();
+	private List<DeviceState> applyStates = new LinkedList<>();
 	
 	private Boolean requireAll = true;
 
@@ -26,24 +26,24 @@ public class Event extends DatabaseElement
 	}
 
 	@JsonIgnore
-	public boolean checkIfTriggered(Function<String, DeviceState> stateCache, DeviceState changedState)
+	public boolean checkIfTriggered(Function<String, DeviceState> stateCache, DeviceState newState)
 	{
 		if (requireAll)
 		{
-			return allStatesMet(stateCache, changedState);
+			return allStatesMet(stateCache, newState);
 		}
 		else
 		{
-			return anyStateMet(stateCache, changedState);
+			return anyStateMet(stateCache, newState);
 		}
 	}
 
 	@JsonIgnore
-	private boolean allStatesMet(Function<String, DeviceState> stateCache, DeviceState changedState)
+	private boolean allStatesMet(Function<String, DeviceState> stateCache, DeviceState newState)
 	{
 		for (DeviceStateTriggerRange triggerState : triggerEvents)
 		{
-			if (!triggerState.isTriggered(stateCache.apply(triggerState.getName()), changedState))
+			if (!triggerState.isTriggered(stateCache.apply(triggerState.getName()), newState))
 				return false;
 		}
 
@@ -51,11 +51,11 @@ public class Event extends DatabaseElement
 	}
 
 	@JsonIgnore
-	private boolean anyStateMet(Function<String, DeviceState> stateCache, DeviceState changedState)
+	private boolean anyStateMet(Function<String, DeviceState> stateCache, DeviceState newState)
 	{
 		for (DeviceStateTriggerRange triggerState : triggerEvents)
 		{
-			if (triggerState.isTriggered(stateCache.apply(triggerState.getName()), changedState))
+			if (triggerState.isTriggered(stateCache.apply(triggerState.getName()), newState))
 				return true;
 		}
 
@@ -75,23 +75,16 @@ public class Event extends DatabaseElement
 		return deviceNames;
 	}
 
-	@Override
-	@JsonGetter
-	public int hashCode()
-	{
-		return Objects.hash(triggerEvents.hashCode(), requireAll);
-	}
-
 	@JsonIgnore
 	public void registerListener(DeviceState state)
 	{
-		triggerStates.add(state);
+		applyStates.add(state);
 	}
 
 	@JsonIgnore
 	public void unRegisterListener(String deviceName)
 	{
-		for (Iterator<DeviceState> iter = triggerStates.iterator(); iter.hasNext();)
+		for (Iterator<DeviceState> iter = applyStates.iterator(); iter.hasNext();)
 			if (iter.next().getName().equals(deviceName))
 				iter.remove();
 	}
@@ -103,15 +96,29 @@ public class Event extends DatabaseElement
 		setRequireAll(event.getRequireAll());
 	}
 
-	// Json Fields ------------------------------------
-	public List<DeviceState> getTriggerStates()
+	@Override
+	@JsonIgnore
+	public String getName()
 	{
-		return triggerStates;
+		return super.getName();
+	}
+	
+	// Json Fields ------------------------------------
+	@Override
+	@JsonGetter
+	public int hashCode()
+	{
+		return Objects.hash(triggerEvents.hashCode(), requireAll);
+	}
+	
+	public List<DeviceState> getApplyStates()
+	{
+		return applyStates;
 	}
 
-	public void setTriggerStates(List<DeviceState> devices)
+	public void setApplyStates(List<DeviceState> devices)
 	{
-		triggerStates.addAll(devices);
+		applyStates.addAll(devices);
 	}
 	
 	public List<DeviceStateTriggerRange> getTriggerEvents()

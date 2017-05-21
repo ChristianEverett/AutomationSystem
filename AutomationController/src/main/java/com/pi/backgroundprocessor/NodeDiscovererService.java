@@ -9,17 +9,22 @@ import java.io.Serializable;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.MulticastSocket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
+
 import com.pi.SystemLogger;
 
 public class NodeDiscovererService extends Thread
 {
 	public static final String AUTOMATION_CONTROLLER = "automation_controller";
-	public static final int DISCOVERY_PORT = 9876;
+	private static final String INET_ADDRESS = "224.0.0.3";
+	private static final int DISCOVERY_PORT = 9876;
 	public static Processor processor;
 
 	private static NodeDiscovererService singlton = null;
-	private DatagramSocket serverSocket = null;
+	private MulticastSocket serverSocket = null;
 
 	public static void startDiscovering(Processor processor)
 	{
@@ -45,9 +50,11 @@ public class NodeDiscovererService extends Thread
 	{
 		try
 		{
-			serverSocket = new DatagramSocket(DISCOVERY_PORT);
+			InetAddress address = InetAddress.getByName(INET_ADDRESS);
+			serverSocket = new MulticastSocket(DISCOVERY_PORT);
+			serverSocket.joinGroup(address);
 		}
-		catch (SocketException e)
+		catch (IOException e)
 		{
 			SystemLogger.getLogger().severe(e.getMessage());
 		}
@@ -85,6 +92,15 @@ public class NodeDiscovererService extends Thread
 		return receivePacket;
 	}
 
+	public static Probe extractProbeFromDatagram(DatagramPacket receivePacket) throws IOException, ClassNotFoundException
+	{
+		InetAddress IPAddress = receivePacket.getAddress();
+		byte[] data = receivePacket.getData();
+		ByteArrayInputStream in = new ByteArrayInputStream(data);
+		ObjectInputStream objectInput = new ObjectInputStream(in);
+		return (Probe) objectInput.readObject();
+	}
+	
 	private void replyToNode(InetAddress address, int port) throws IOException
 	{
 		Probe probe = new Probe(AUTOMATION_CONTROLLER, Probe.BROAD_CAST_ACK);
@@ -95,17 +111,53 @@ public class NodeDiscovererService extends Thread
 		DatagramPacket sendPacket = new DatagramPacket(outputStream.toByteArray(), outputStream.toByteArray().length, address, port);
 		serverSocket.send(sendPacket);
 	}
-
-	public static Probe extractProbeFromDatagram(DatagramPacket receivePacket) throws IOException, ClassNotFoundException
-	{
-		InetAddress IPAddress = receivePacket.getAddress();
-		byte[] data = receivePacket.getData();
-		ByteArrayInputStream in = new ByteArrayInputStream(data);
-		ObjectInputStream objectInput = new ObjectInputStream(in);
-		return (Probe) objectInput.readObject();
-	}
 	
-	public static class Probe implements Serializable
+	public static InetAddress broadCastFromNode(String nodeID) throws Exception
+	{
+		Probe probe = new Probe(nodeID, Probe.BROAD_CAST);
+		
+		try(DatagramSocket clientSocket = new DatagramSocket())
+		{	
+			InetAddress IPAddress = InetAddress.getByName(INET_ADDRESS);
+			clientSocket.setSoTimeout(5000);
+			
+			ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+			ObjectOutputStream objectOutput = new ObjectOutputStream(outputStream);
+			objectOutput.writeObject(probe);
+
+			DatagramPacket sendPacket = new DatagramPacket(outputStream.toByteArray(), outputStream.toByteArray().length, 
+					IPAddress, NodeDiscovererService.DISCOVERY_PORT);
+			
+			byte[] packet = new byte[1024];
+			DatagramPacket receivePacket = new DatagramPacket(packet, packet.length);
+			
+			while (receivePacket.getAddress() == null)
+			{
+				try
+				{
+					clientSocket.send(sendPacket);
+
+					while (probe == null || probe.getType() != Probe.BROAD_CAST_ACK)
+					{
+						clientSocket.receive(receivePacket);
+						probe = NodeDiscovererService.extractProbeFromDatagram(receivePacket);
+					}
+				}
+				catch (SocketTimeoutException e)
+				{
+					SystemLogger.getLogger().info("Sending Another Packet");
+				} 
+			}
+			
+			return receivePacket.getAddress();
+		}
+		catch (Exception e)
+		{
+			throw e;
+		}	
+	}
+
+	private static class Probe implements Serializable
 	{
 		public static final int BROAD_CAST = 1;
 		public static final int BROAD_CAST_ACK = 2;

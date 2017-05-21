@@ -27,7 +27,7 @@ public class TaskExecutorService
 	
 	public Task scheduleTask(Runnable task, Long delay, TimeUnit unit)
 	{
-		return new Task(-1, executorService.schedule(task, delay, unit), this);
+		return new Task(executorService.schedule(task, delay, unit), this);
 	}
 	
 	public Task scheduleTask(Runnable task, Long delay, Long interval, TimeUnit unit)
@@ -38,7 +38,7 @@ public class TaskExecutorService
 		
 		taskMap.put(id, scheduledTask);
 		
-		return new Task(id, scheduledTask, this);
+		return new ReocurringTask(id, scheduledTask, this);
 	}
 	
 	public Task scheduleFixedRateTask(Runnable task, Long delay, Long interval, TimeUnit unit)
@@ -49,17 +49,17 @@ public class TaskExecutorService
 		
 		taskMap.put(id, scheduledTask);
 		
-		return new Task(id, scheduledTask, this);
+		return new ReocurringTask(id, scheduledTask, this);
 	}
 	
-	public boolean cancel(Integer id)
+	public boolean cancel(Integer id, boolean interrupt)
 	{
 		Future<?> task = taskMap.remove(id);
 		
 		if(task == null)
 			return false;
 		
-		return task.cancel(false);
+		return task.cancel(interrupt);
 	}
 	
 	public void cancelAllTasks()
@@ -74,13 +74,11 @@ public class TaskExecutorService
 	
 	public static class Task
 	{
-		private Integer id;
-		private Future <?> task = null;
-		private TaskExecutorService service = null;
+		protected Future <?> task = null;
+		protected TaskExecutorService service = null;
 		
-		public Task(Integer id, Future <?> task, TaskExecutorService service)
+		public Task(Future <?> task, TaskExecutorService service)
 		{
-			this.id = id;
 			this.task = task;
 			this.service = service;
 		}
@@ -92,12 +90,40 @@ public class TaskExecutorService
 		
 		public boolean cancel()
 		{
-			return service.cancel(id);
+			return task.cancel(false);
+		}
+		
+		public boolean interruptAndCancel()
+		{
+			return task.cancel(true);
 		}
 		
 		public boolean isDone()
 		{
 			return task.isDone();
+		}
+	}
+	
+	public static class ReocurringTask extends Task
+	{
+		protected Integer id;
+		
+		public ReocurringTask(Integer id, Future<?> task, TaskExecutorService service)
+		{
+			super(task, service);		
+			this.id = id;
+		}
+
+		@Override
+		public boolean cancel()
+		{
+			return service.cancel(id, false);
+		}
+		
+		@Override
+		public boolean interruptAndCancel()
+		{
+			return service.cancel(id, true);
 		}
 	}
 }

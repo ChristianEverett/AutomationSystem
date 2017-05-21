@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.pi.Application;
 import com.pi.SystemLogger;
 import com.pi.backgroundprocessor.TaskExecutorService.Task;
+import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.DeviceLoader;
@@ -34,14 +35,14 @@ import com.pi.model.DeviceState;
 
 public class Processor extends NodeController implements Runnable
 {
-	private AtomicBoolean processorRunning = new AtomicBoolean(false);
 	private AtomicBoolean shutdownProcessor = new AtomicBoolean(false);
+	private static Thread processingThread = null;
 
 	// Background processor data structures
-	private LinkedBlockingQueue<DeviceState> processingQueue = new LinkedBlockingQueue<>(50_000);
+	private LinkedBlockingQueue<DeviceState> processingQueue = new LinkedBlockingQueue<>(10_000);
 	private HashMap<String, InetAddress> nodeMap = new HashMap<>();
 	private ConcurrentHashMap<String, DeviceState> cachedStates = new ConcurrentHashMap<>();
-	private Map<String, DeviceState> savedStates = new HashMap<>();
+	private Map<String, DeviceState> databaseSavedStates = new HashMap<>();
 
 	// Background processor services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
@@ -53,11 +54,13 @@ public class Processor extends NodeController implements Runnable
 	// Background processor tasks
 	private Task databaseTask;
 
-	public static synchronized void createBackgroundProcessor() throws Exception
+	public static synchronized Thread createBackgroundProcessor() throws Exception
 	{
 		if (singleton != null)
 			throw new Exception("Background Processor already created");
 		singleton = new Processor();
+		processingThread = new Thread((Runnable) singleton);
+		return processingThread;
 	}
 
 	public static Processor getInstance()
@@ -73,7 +76,6 @@ public class Processor extends NodeController implements Runnable
 
 		persistenceManager = PersistenceManager.loadPersistanceManager();
 		deviceLoader = DeviceLoader.createNewDeviceLoader();
-		eventProcessingService = EventProcessingService.startEventProcessingService(this);
 
 		SystemLogger.getLogger().info("Starting Device Logging Service");
 		deviceLoggingService = DeviceLoggingService.start(this);
@@ -98,8 +100,6 @@ public class Processor extends NodeController implements Runnable
 	{
 		try
 		{
-			processorRunning.set(true);
-
 			while (!shutdownProcessor.get())
 			{
 				DeviceState result = processingQueue.take();
@@ -112,8 +112,6 @@ public class Processor extends NodeController implements Runnable
 		{
 			SystemLogger.getLogger().info(e.getMessage());
 		}
-		
-		processorRunning.set(false);
 	}
 
 	public TaskExecutorService getTaskExecutorService()
@@ -146,11 +144,11 @@ public class Processor extends NodeController implements Runnable
 	@Override
 	public void update(DeviceState state)
 	{
-		DeviceState oldState = cachedStates.get(state.getName());
 		cachedStates.put(state.getName(), state);
 		
-		if(!state.equals(oldState))
+		if (eventProcessingService != null)
 			eventProcessingService.update(state);
+		
 		deviceLoggingService.log(state);
 	}
 
@@ -182,7 +180,7 @@ public class Processor extends NodeController implements Runnable
 			String name = super.createNewDevice(config, false);
 			Device device = lookupDevice(name);
 			if(device != null)
-				device.loadSavedData(savedStates.remove(name));
+				device.loadSavedData(databaseSavedStates.remove(name));
 			return name;
 		}
 		else
@@ -213,7 +211,7 @@ public class Processor extends NodeController implements Runnable
 				Device device = config.buildDevice();
 
 				if(device != null)
-					device.loadSavedData(savedStates.remove(device.getName()));
+					device.loadSavedData(databaseSavedStates.remove(device.getName()));
 				
 				deviceMap.put(device.getName(), device);
 			}
@@ -234,7 +232,7 @@ public class Processor extends NodeController implements Runnable
 			deviceLoader.loadDevices(this);
 			
 			SystemLogger.getLogger().info("Loading Events");
-			eventProcessingService.createEvents(persistenceManager.loadEvents());
+			eventProcessingService = EventProcessingService.startEventProcessingService(this);
 		}
 		catch (Exception e)
 		{
@@ -245,15 +243,15 @@ public class Processor extends NodeController implements Runnable
 	private void loadDeviceStatesIntoCache() throws SQLException, IOException
 	{
 		SystemLogger.getLogger().info("Loading Device States");
-		persistenceManager.loadDeviceStates().forEach((state) ->
+		persistenceManager.readAllDeviceStates().forEach((state) ->
 		{
-			savedStates.put(state.getName(), state);
+			databaseSavedStates.put(state.getName(), state);
 		});
 	}
 	
 	private void save() throws SQLException, IOException
 	{
-		persistenceManager.commitStates(getStates(true));
+		persistenceManager.saveStates(getStates(true));
 	}
 
 	private void saveAndCloseAllDevices() throws SQLException, IOException
@@ -262,6 +260,14 @@ public class Processor extends NodeController implements Runnable
 		closeAllDevices();
 	}
 
+	public boolean deviceNeedsUpdate(Device device, DeviceState state)
+	{
+		if(device == null)
+			throw new RuntimeException("device not found for: " + state.getName());
+		
+		return (device instanceof AsynchronousDevice || !state.contains(cachedStates.get(state.getName())));
+	}
+	
 	public synchronized void shutdown()
 	{
 		if (!shutdownProcessor.get())
@@ -270,7 +276,7 @@ public class Processor extends NodeController implements Runnable
 			{
 				shutdownProcessor.set(true);
 				
-				if (processorRunning.get())
+				if (processingThread.isAlive())
 				{
 					// Queue a No-Op to wakeup background processor
 					processingQueue.add(Device.createNewDeviceState(DeviceType.UNKNOWN));
@@ -308,6 +314,8 @@ public class Processor extends NodeController implements Runnable
 				// ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
 				// process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
 				// process.start();
+				//Process process = rt.exec("sudo ./codesend " + code + " -l " + PULSELENGTH + " -p " + IR_PIN);
+				//process.waitFor();
 
 				switch (deviceToApplyState)
 				{
@@ -355,13 +363,9 @@ public class Processor extends NodeController implements Runnable
 					break;
 
 				default:
-					if (device != null)
+					if (deviceNeedsUpdate(device, state))
 					{
 						device.execute(state);
-					}
-					else
-					{
-						SystemLogger.getLogger().severe("Can't find device for : " + deviceToApplyState);
 					}
 					break;
 				}

@@ -32,13 +32,18 @@ public class DeviceStateTriggerRange extends DeviceState
 	}
 	
 	@JsonIgnore
-	public boolean isTriggered(DeviceState state, DeviceState changedState)
+	public boolean isTriggered(DeviceState state, DeviceState newState)
 	{		
-		if(!getName().equals(state.getName()) || !getType().equals(state.getType()))
+		if(state == null || !getName().equals(state.getName()) || !getType().equals(state.getType()))
 			return false;
 	
-		if(triggerOnChange && changedState.getName().equals(getName()))
-			return true;
+		if(triggerOnChange)
+		{
+			return newState != null && newState.getName().equals(getName());
+		}
+		
+		if(endRange.isEmpty())
+			return state.contains(this);
 		
 		for (String key : getParams().keySet())
 		{
@@ -46,15 +51,9 @@ public class DeviceStateTriggerRange extends DeviceState
 			Object start = getParam(key);
 			Object end = endRange.get(key);
 
-			if (!endRange.isEmpty())
-			{
-				if (!checkBound(start, value, key) || !checkBound(value, end, key))
-					return false;
-			}
-			else if(!start.equals(value))
-			{
+
+			if (!checkBound(start, value, key) || !checkBound(value, end, key))
 				return false;
-			}
 		} 
 		
 		

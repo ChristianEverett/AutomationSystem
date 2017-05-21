@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import org.mockito.internal.matchers.Contains;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.infrastructure.NodeController;
 
@@ -17,6 +19,13 @@ public class DeviceState extends DatabaseElement
 	{	
 	}
 	
+	public static DeviceState create(String name)
+	{
+		DeviceState state = new DeviceState();
+		state.setName(name);
+		return state;
+	}
+	
 	public static DeviceState create(String name, String type)
 	{
 		DeviceState state = new DeviceState();
@@ -24,16 +33,8 @@ public class DeviceState extends DatabaseElement
 		state.type = type;
 		return state;
 	}
-	
-	public static DeviceState load(String name, String type, Integer id)
-	{
-		DeviceState state = new DeviceState();
-		state.setName(name);
-		state.setDatabaseID(id);
-		state.type = type;
-		return state;
-	}
 
+	@Override
 	public String getName()
 	{
 		return name;
@@ -83,6 +84,13 @@ public class DeviceState extends DatabaseElement
 		return type.cast(params.get(key));
 	}
 	
+	@JsonIgnore
+	public <T> T getParamTyped(String key, Class<T> type, T defaultValue)
+	{
+		T value = getParamTyped(key, type);
+		return value == null ? defaultValue : value;
+	}
+	
 	@Override
 	public boolean equals(Object object)
 	{
@@ -95,6 +103,21 @@ public class DeviceState extends DatabaseElement
 		return Objects.equals(name, deviceState.getName()) && params.equals(deviceState.getParams());
 	}
 
+	@JsonIgnore
+	public boolean contains(DeviceState state)
+	{	
+		if(state == null)
+			return false;
+		
+		for(String paramName : state.getParams().keySet())
+		{
+			if(!state.getParam(paramName).equals(params.get(paramName)))
+				return false;
+		}
+		
+		return true;
+	}
+	
 	@Override
 	public int hashCode()
 	{
@@ -102,14 +125,8 @@ public class DeviceState extends DatabaseElement
 	}
 
 	@Override
-	public Object getDatabaseIdentification()
+	public int getDatabaseIdentification()
 	{
-		return name;
-	}
-
-	@Override
-	public String getDatabaseIdentificationForQuery()
-	{
-		return name;
+		return name.hashCode();
 	}
 }

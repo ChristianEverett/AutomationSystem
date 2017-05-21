@@ -32,21 +32,20 @@ import com.pi4j.io.gpio.PinState;
 public class Thermostat extends Device
 {
 	private List<String> temperatureSensors = null;
-	private List<Integer> cachedTempatures = null;
 	private Task updateTask = null;
 	private Task fanTurnOffDelayTask = null;
 	
-	private final GpioPinDigitalOutput FAN;
-	private final GpioPinDigitalOutput COMPRESSOR;
-	private final GpioPinDigitalOutput HEAT;
+	private GpioPinDigitalOutput FAN = null;
+	private GpioPinDigitalOutput COMPRESSOR = null;
+	private GpioPinDigitalOutput HEAT = null;
 	
 	private final long INTERVAL = 5;
 	private long modeChangeDelay = 0;
-	private long fanTurnOffDelay = 40;
+	private long fanTurnOffDelay = 45;
 	private AtomicBoolean fanLock = new AtomicBoolean(false);
 	private AtomicBoolean modeChangeLock = new AtomicBoolean(false);
 	
-	private final int MAX_TEMP = 75;
+	private final int MAX_TEMP = 80;
 	private final int MIN_TEMP = 60;
 	
 	private final PinState ON = PinState.LOW;
@@ -62,7 +61,6 @@ public class Thermostat extends Device
 	{
 		super(name);
 		temperatureSensors = sensors;
-		cachedTempatures = new ArrayList<>(sensors.size());
 		
 		//Make task non-null
 		fanTurnOffDelayTask = createTask(() -> {}, 0L, TimeUnit.MILLISECONDS);
@@ -92,11 +90,12 @@ public class Thermostat extends Device
 		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE);
 		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParam(Params.TARGET_MODE)).toUpperCase());
 		
-		if (targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
+		if (targetTemp == null || targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
 		{
 			synchronized (this)
 			{
-				targetTempInFehrenheit = targetTemp;
+				if(targetTemp != null)
+					targetTempInFehrenheit = targetTemp;
 				targetMode = mode;
 			}
 			process();

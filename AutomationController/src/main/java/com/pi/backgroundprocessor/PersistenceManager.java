@@ -33,6 +33,10 @@ import com.pi.model.Event;
  */
 public class PersistenceManager
 {
+	public static final String CREATE_STATE_TABLE = "createStateTable";
+	public static final String CREATE_EVENT_TABLE = "createEventTable";
+	public static final String CREATE_STATE_LOG_TABLE = "createStateLog";
+	
 	public static final String READ_STATE_TABLE = "readStateTable";
 	public static final String INSERT_STATE_TABLE = "insertSaveState";
 	public static final String UPDATE_STATE_TABLE = "updateSaveState";
@@ -77,130 +81,18 @@ public class PersistenceManager
 		if (!dbHandler.tableExists(TABLES.DEVICE_STATE_TABLE))
 		{
 			SystemLogger.getLogger().info("Creating: " + TABLES.DEVICE_STATE_TABLE);
-			dbHandler.createTable(TABLES.DEVICE_STATE_TABLE, DEVICE_STATE_TABLE_COLUMNS.ID, "INT AUTO_INCREMENT", DEVICE_STATE_TABLE_COLUMNS.NAME, "varchar(128)",
-					DEVICE_STATE_TABLE_COLUMNS.DATA, "BLOB", "primary key", "(id)");
+			dbHandler.createTable(CREATE_STATE_TABLE);
 		}
 		if (!dbHandler.tableExists(TABLES.EVENT_TABLE))
 		{
 			SystemLogger.getLogger().info("Creating: " + TABLES.EVENT_TABLE);
-			dbHandler.createTable(TABLES.EVENT_TABLE, EVENT_TABLE_COLUMNS.ID, "INT AUTO_INCREMENT", EVENT_TABLE_COLUMNS.NAME, "varchar(128)", EVENT_TABLE_COLUMNS.DATA, "BLOB", "primary key",
-					"(id)");
+			dbHandler.createTable(CREATE_EVENT_TABLE);
 		}
 		if (!dbHandler.tableExists(TABLES.STATE_LOG_TABLE))
 		{
 			SystemLogger.getLogger().info("Creating: " + TABLES.STATE_LOG_TABLE);
-			dbHandler.createTable(TABLES.STATE_LOG_TABLE, STATE_LOG_TABLE_COLUMNS.ID, "INT AUTO_INCREMENT", STATE_LOG_TABLE_COLUMNS.NAME, "varchar(128)", STATE_LOG_TABLE_COLUMNS.DATA,
-					"BLOB", STATE_LOG_TABLE_COLUMNS.TIME_STAMP, "DATETIME", "primary key", "(id)");
+			dbHandler.createTable(CREATE_STATE_LOG_TABLE);
 		}
-	}
-
-	@SuppressWarnings("unchecked")
-	public List<DeviceState> loadDeviceStates() throws SQLException, IOException
-	{
-		return (List<DeviceState>) load(READ_STATE_TABLE);
-	}
-
-	@SuppressWarnings("unchecked")
-	public List<Event> loadEvents() throws SQLException, IOException
-	{
-		return (List<Event>) load(READ_EVENT_TABLE);
-	}
-
-	private List<? extends DatabaseElement> load(String key) throws SQLException, IOException
-	{
-		List<DatabaseElement> elements = new ArrayList<>();
-
-		synchronized (this)
-		{
-			PreparedStatement statement = dbHandler.createSQLStatment(key);
-			ResultSet result = statement.executeQuery();
-
-			while (result.next())
-			{
-				int id = result.getInt(1);
-				byte[] bytes = result.getBytes(3);
-				try (ObjectInputStream input = new ObjectInputStream(new ByteArrayInputStream(bytes)))
-				{
-					DatabaseElement element = (DatabaseElement) input.readObject();
-					element.setDatabaseID(id);
-					elements.add(element);
-				}
-				catch (Exception e)
-				{
-					SystemLogger.getLogger().severe(e.getMessage());
-				}
-			}
-
-			result.close();
-			statement.close();
-		}
-		return elements;
-	}
-
-	public void commitStates(List<DeviceState> states) throws SQLException, IOException
-	{
-		commit(states, READ_STATE_TABLE, INSERT_STATE_TABLE, UPDATE_STATE_TABLE);
-	}
-
-	public void commitEvents(List<Event> events) throws SQLException, IOException
-	{
-		commit(events, READ_EVENT_TABLE, INSERT_EVENT, UPDATE_EVENT);
-	}
-	
-	private void commit(List<? extends DatabaseElement> list, String readQuery, String insertQuery, String updateQuery) throws SQLException, IOException
-	{
-		synchronized (this)
-		{
-			HashSet<Object> set = getDatabaseMap(readQuery);
-			String databaseString = "";
-
-			try
-			{
-				for (DatabaseElement object : list)
-				{
-					databaseString = object.getDatabaseIdentificationForQuery();
-					
-					if (set.contains(object.getDatabaseIdentification()))
-					{
-						PreparedStatement statement = dbHandler.createSQLStatment(updateQuery);
-						statement.setObject(1, object);
-						statement.setString(2, databaseString);
-						statement.executeUpdate();
-						statement.close();
-					}
-					else
-					{
-						PreparedStatement statement = dbHandler.createSQLStatment(insertQuery);
-						statement.setString(1, databaseString);
-						statement.setObject(2, object);
-						statement.executeUpdate();
-						int id = dbHandler.getKey(statement);
-						object.setDatabaseID(id);
-						statement.close();
-					}
-				}
-				
-				dbHandler.commit();
-			}
-			catch (Exception e)
-			{
-				SystemLogger.getLogger().severe(e.getMessage() + " object: " + databaseString);
-				dbHandler.rollback();
-			}
-		}
-	}
-
-	private HashSet<Object> getDatabaseMap(String key) throws SQLException, IOException
-	{
-		List<? extends DatabaseElement> list = load(key);
-		HashSet<Object> set = new HashSet<>(list.size());
-
-		for (DatabaseElement element : list)
-		{
-			set.add(element.getDatabaseIdentification());
-		}
-
-		return set;
 	}
 
 	public void commitToDeviceLog(List<DeviceStateRecord> states) throws SQLException
@@ -211,7 +103,7 @@ public class PersistenceManager
 
 			for (DeviceStateRecord record : states)
 			{
-				statement.setString(1, record.getDatabaseIdentificationForQuery());
+				statement.setInt(1, record.getDatabaseIdentification());
 				statement.setObject(2, record);
 				statement.setTimestamp(3, new java.sql.Timestamp(record.getDate().getTime()));
 				statement.addBatch();
@@ -259,36 +151,81 @@ public class PersistenceManager
 		return list;
 	}
 
-	public void createEvent(Event element) 
+	private HashSet<Integer> getDatabaseMap(String key)
 	{
-		create(INSERT_EVENT, element);
+		List<? extends DatabaseElement> list = read(key);
+		HashSet<Integer> set = new HashSet<>(list.size());
+
+		for (DatabaseElement element : list)
+		{
+			set.add(element.getDatabaseIdentification());
+		}
+
+		return set;
 	}
 	
-	public void readAllEvent(String name)
+	@SuppressWarnings("unchecked")
+	public List<DeviceState> readAllDeviceStates()
 	{
-		read(READ_EVENT_TABLE);
+		return (List<DeviceState>)read(READ_STATE_TABLE);
+	}
+	
+	public synchronized void saveStates(List<DeviceState> states)
+	{	
+		for(DeviceState state : states)
+		{
+			create(INSERT_STATE_TABLE, state, false);
+		}
+		
+		try
+		{
+			dbHandler.commit();
+		}
+		catch (SQLException e)
+		{
+			SystemLogger.getLogger().severe(e.getMessage());
+			try
+			{
+				dbHandler.rollback();
+			}
+			catch (SQLException e1)
+			{
+			}
+		}
+	}
+	
+	public void createEvent(Event element) 
+	{
+		create(INSERT_EVENT, element, true);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public List<Event> readAllEvent()
+	{
+		return (List<Event>)read(READ_EVENT_TABLE);
 	}
 
-	public void updateEvent(Event element, Event oldElement) 
+	public void updateEvent(Event element, int oldElementId) 
 	{
-		update(UPDATE_EVENT, element, oldElement);
+		update(UPDATE_EVENT, element, oldElementId, true);
 	}
 	
 	public void deleteEvent(Event event) 
 	{
-		delete(DELETE_EVENT, event);
+		delete(DELETE_EVENT, event, true);
 	}
 
-	public void create(String createQuery, DatabaseElement element)
+	private synchronized void create(String createQuery, DatabaseElement element, boolean autoCommit)
 	{
 		PreparedStatement statement = null;
 		
 		try
 		{
 			statement = dbHandler.createSQLStatment(createQuery);
-			statement.setString(1, element.getDatabaseIdentificationForQuery());
-			statement.setObject(2, element);
-			dbHandler.commit();
+			statement.setInt(1, element.getDatabaseIdentification());
+			statement.setString(2, element.getName());
+			statement.setObject(3, element);
+			statement.setObject(4, element);
 		}
 		catch (IOException | SQLException e)
 		{
@@ -296,11 +233,18 @@ public class PersistenceManager
 		}
 		finally
 		{
-			dbHandler.closeStatment(statement);
+			try
+			{
+				dbHandler.applyAndCloseStatement(statement, autoCommit);
+			}
+			catch (SQLException e)
+			{
+				SystemLogger.getLogger().severe(e.getMessage());
+			}
 		}
 	}
 	
-	public List<DatabaseElement> read(String readQuery)
+	private List<? extends DatabaseElement> read(String readQuery)
 	{
 		List<DatabaseElement> elements = new LinkedList<>();
 		PreparedStatement statement = null;
@@ -332,13 +276,13 @@ public class PersistenceManager
 		}
 		finally
 		{
-			dbHandler.closeStatment(statement);
+			dbHandler.closeStatement(statement);
 		}
 		
 		return elements;
 	}
 	
-	public void update(String updateQuery, DatabaseElement element, DatabaseElement oldElement)
+	private synchronized void update(String updateQuery, DatabaseElement element, int oldElementId, boolean autoCommit)
 	{
 		PreparedStatement statement = null;
 		
@@ -346,8 +290,7 @@ public class PersistenceManager
 		{
 			statement = dbHandler.createSQLStatment(updateQuery);
 			statement.setObject(1, element);
-			statement.setString(2, element.getDatabaseIdentificationForQuery());
-			dbHandler.commit();
+			statement.setInt(3, oldElementId);
 		}
 		catch (IOException | SQLException e)
 		{
@@ -355,19 +298,25 @@ public class PersistenceManager
 		}
 		finally
 		{
-			dbHandler.closeStatment(statement);
+			try
+			{
+				dbHandler.applyAndCloseStatement(statement, autoCommit);
+			}
+			catch (SQLException e)
+			{
+				SystemLogger.getLogger().severe(e.getMessage());
+			}
 		}
 	}
 	
-	public void delete(String deleteQuery, DatabaseElement element)
+	private synchronized void delete(String deleteQuery, DatabaseElement element, boolean autoCommit)
 	{
 		PreparedStatement statement = null;
 		
 		try
 		{
 			statement = dbHandler.createSQLStatment(deleteQuery);
-			statement.setString(1, element.getDatabaseIdentificationForQuery());
-			dbHandler.commit();
+			statement.setInt(1, element.getDatabaseIdentification());
 		}
 		catch (IOException | SQLException e)
 		{
@@ -375,7 +324,14 @@ public class PersistenceManager
 		}
 		finally
 		{
-			dbHandler.closeStatment(statement);
+			try
+			{
+				dbHandler.applyAndCloseStatement(statement, autoCommit);
+			}
+			catch (SQLException e)
+			{
+				SystemLogger.getLogger().severe(e.getMessage());
+			}
 		}
 	}
 
@@ -391,27 +347,5 @@ public class PersistenceManager
 		public static final String DEVICE_STATE_TABLE = "device_state";
 		public static final String EVENT_TABLE = "event";
 		public static final String STATE_LOG_TABLE = "state_log";
-	}
-
-	private interface DEVICE_STATE_TABLE_COLUMNS
-	{
-		public static final String ID = "id";
-		public static final String NAME = "name";
-		public static final String DATA = "data";
-	}
-
-	private interface EVENT_TABLE_COLUMNS
-	{
-		public static final String ID = "id";
-		public static final String NAME = "name";
-		public static final String DATA = "data";
-	}
-
-	private interface STATE_LOG_TABLE_COLUMNS
-	{
-		public static final String ID = "id";
-		public static final String NAME = "name";
-		public static final String DATA = "data";
-		public static final String TIME_STAMP = "time_stamp";
 	}
 }

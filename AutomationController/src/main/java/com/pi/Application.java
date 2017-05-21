@@ -64,8 +64,7 @@ public class Application extends WebMvcAutoConfiguration
 			});
 			
 			// Run the background processor
-			Processor.createBackgroundProcessor();
-			Thread processorThread = new Thread(Processor.getInstance());
+			Thread processorThread = Processor.createBackgroundProcessor();
 			
 			// Run the Spring Dispatcher
 			SpringApplication.run(Application.class, args);

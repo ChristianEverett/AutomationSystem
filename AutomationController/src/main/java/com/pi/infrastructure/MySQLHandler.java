@@ -125,6 +125,11 @@ public class MySQLHandler
 		return key;
 	}
 
+	public void createTable(String key) throws IOException, SQLException
+	{
+		applyAndCloseStatement(createSQLStatment(key), true);	
+	}
+	
 	public PreparedStatement createSQLStatment(String key) throws IOException, SQLException
 	{
 		String statement = properties.getProperty(key);
@@ -135,14 +140,23 @@ public class MySQLHandler
 		return connection.prepareStatement(statement);
 	}
 
-	public void closeStatment(PreparedStatement statement)
+	public void applyAndCloseStatement(PreparedStatement statement, boolean autoCommit) throws SQLException
 	{
+		statement.executeUpdate();
+		closeStatement(statement);
+		
+		if(autoCommit)
+			commit();
+	}
+	
+	public void closeStatement(PreparedStatement statement)
+	{	
 		try
 		{
 			if (statement != null)
 				statement.close();
 		}
-		catch (Exception e)
+		catch (SQLException e)
 		{
 		}
 	}

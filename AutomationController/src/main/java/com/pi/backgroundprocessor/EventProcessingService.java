@@ -1,17 +1,12 @@
 package com.pi.backgroundprocessor;
 
-import java.io.IOException;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Set;
 
-import com.pi.Application;
-import com.pi.SystemLogger;
 import com.pi.model.DeviceState;
 import com.pi.model.Event;
 
@@ -23,11 +18,14 @@ public class EventProcessingService
 	//Table to map IDs to events and to devices listening to the event
 	private HashMap<Integer, Event> events = new HashMap<>();
 	//Table to map devices to the events they trigger
-	private HashMap<String, List<Event>> mapDevicesToTriggerEvents = new HashMap<>();
+	private HashMap<String, Set<Event>> mapDevicesToTriggerEvents = new HashMap<>();
 	
 	private EventProcessingService(Processor processor)
 	{
 		this.processor = processor;
+		
+		List<Event> events = processor.getPersistenceManger().readAllEvent();
+		createEvents(events);
 	}
 	
 	public static EventProcessingService startEventProcessingService(Processor processor) throws Exception
@@ -40,7 +38,7 @@ public class EventProcessingService
 	
 	synchronized void update(DeviceState state)
 	{
-		List<Event> events = mapDevicesToTriggerEvents.get(state.getName());
+		Set<Event> events = mapDevicesToTriggerEvents.get(state.getName());
 		
 		if (events != null)
 		{
@@ -55,7 +53,7 @@ public class EventProcessingService
 	{
 		if (event.checkIfTriggered((String deviceName) -> (getStateFromCache(deviceName)), state))
 		{
-			applyTriggerStateToListnerDevices(event.getTriggerStates());
+			applyTriggerStateToListnerDevices(event.getApplyStates());
 		}
 	}
 	
@@ -103,6 +101,8 @@ public class EventProcessingService
 		addToDeviceToTriggerEventMap(event);
 		
 		processor.getPersistenceManger().createEvent(event);
+		
+		checkIfTriggered(event, null);
 	
 		return id;
 	}
@@ -114,10 +114,14 @@ public class EventProcessingService
 		if(event == null)
 			throw new RuntimeException("There is no event mapped at: " + id);
 		
+		int oldID = oldEvent.getDatabaseIdentification();
 		remoteFromDeviceToTriggerEventMap(oldEvent);
 		oldEvent.replace(event);
+		
 		events.put(event.hashCode(), event);
 		addToDeviceToTriggerEventMap(oldEvent);
+		
+		processor.getPersistenceManger().updateEvent(oldEvent, oldID);
 		
 		return oldEvent.hashCode();
 	}
@@ -175,11 +179,11 @@ public class EventProcessingService
 	{
 		for(String deviceName : event.getDependencyDevices())
 		{
-			List<Event> records = mapDevicesToTriggerEvents.get(deviceName);
+			Set<Event> records = mapDevicesToTriggerEvents.get(deviceName);
 			
 			if(records == null)
 			{
-				records = new LinkedList<>();
+				records = new HashSet<>();
 				mapDevicesToTriggerEvents.put(deviceName, records);
 			}
 			records.add(event);
@@ -190,7 +194,7 @@ public class EventProcessingService
 	{
 		for(String deviceName : event.getDependencyDevices())
 		{
-			List<Event> events = mapDevicesToTriggerEvents.get(deviceName);
+			Set<Event> events = mapDevicesToTriggerEvents.get(deviceName);
 			
 			for(Iterator<Event> iter = events.iterator(); iter.hasNext();)
 			{
