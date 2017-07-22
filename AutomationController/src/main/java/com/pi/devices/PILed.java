@@ -37,7 +37,7 @@ public class PILed extends Device
 	@Override
 	protected void performAction(DeviceState state) throws IOException
 	{
-		Boolean isOn = (Boolean) state.getParam(Params.IS_ON);
+		Boolean isOn = (Boolean) state.getParamNonNull(Params.ON);
 		
 		if(isOn)
 		{
@@ -57,7 +57,7 @@ public class PILed extends Device
 	public DeviceState getState(Boolean forDatabase) throws IOException
 	{
 		DeviceState state = Device.createNewDeviceState(name);
-		state.setParam(Params.IS_ON, ledOn);
+		state.setParam(Params.ON, ledOn);
 		
 		return state;
 	}

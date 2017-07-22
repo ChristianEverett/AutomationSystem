@@ -123,19 +123,19 @@ $(document).ready(function ()
             if(outletSwitchArray[x].ON.attr("id") == this.id || outletSwitchArray[x].OFF.attr("id") == this.id)
             {
                 var params = {};
-                params["isOn"] = (outletSwitchArray[x].ON.attr("id") == this.id);
+                params["on"] = (outletSwitchArray[x].ON.attr("id") == this.id);
                 POST_ACTION("outlet" + (x + 1), params, update);
             }
     }
 
-    function checkOutlet(name, isOn)
+    function checkOutlet(name, on)
     {
         deviceNumber = parseInt(name.substring(6, name.length)) - 1;
 
         if(deviceNumber > 4)
             return;
 
-        if(isOn == "true" || isOn === true)
+        if(on == "true" || on === true)
         {
             outletSwitchArray[deviceNumber].ON.css("background-color", "rgba(204, 204, 204, 1)");
             outletSwitchArray[deviceNumber].OFF.css("background-color", "rgba(114, 114, 114, 1)");
@@ -171,7 +171,7 @@ $(document).ready(function ()
             }
             else
             {
-                checkOutlet(json.name, json.params.isOn);
+                checkOutlet(json.name, json.params.on);
             }
         }
 
@@ -238,7 +238,7 @@ $(document).ready(function ()
                 else
                 {
                     if(result[index].name.indexOf("outlet") !== -1)
-                        checkOutlet(result[index].name, result[index].params["isOn"]);
+                        checkOutlet(result[index].name, result[index].params["on"]);
                 }
             }
         }

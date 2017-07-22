@@ -1,4 +1,4 @@
-package com.pi.backgroundprocessor;
+package com.pi.services;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -15,41 +15,22 @@ import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 
 import com.pi.SystemLogger;
+import com.pi.infrastructure.Service;
 
-public class NodeDiscovererService extends Thread
+public class NodeDiscovererService extends Service
 {
 	public static final String AUTOMATION_CONTROLLER = "automation_controller";
 	private static final String INET_ADDRESS = "224.0.0.3";
 	private static final int DISCOVERY_PORT = 9876;
-	public static Processor processor;
+	public Processor processor;
 
-	private static NodeDiscovererService singlton = null;
 	private MulticastSocket serverSocket = null;
 
-	public static void startDiscovering(Processor processor)
-	{
-		if (singlton == null)
-		{
-			singlton = new NodeDiscovererService();
-			NodeDiscovererService.processor = processor;
-			singlton.start();
-		}
-	}
-
-	public static void stopDiscovering()
-	{
-		if (singlton != null)
-		{
-			singlton.interrupt();
-			singlton.serverSocket.close();
-			singlton = null;
-		}
-	}
-
-	private NodeDiscovererService()
+	public NodeDiscovererService(Processor processor)
 	{
 		try
 		{
+			this.processor = processor;
 			InetAddress address = InetAddress.getByName(INET_ADDRESS);
 			serverSocket = new MulticastSocket(DISCOVERY_PORT);
 			serverSocket.joinGroup(address);
@@ -61,25 +42,22 @@ public class NodeDiscovererService extends Thread
 	}
 
 	@Override
-	public void run()
+	public void executeService() throws Exception
 	{
 		try
 		{
-			while (!this.isInterrupted())
-			{
-				DatagramPacket receivePacket = listenForProbe();
-				Probe probe = extractProbeFromDatagram(receivePacket);
-						
-				processor.registerNode(probe.getNodeName(), receivePacket.getAddress());
-				replyToNode(receivePacket.getAddress(), receivePacket.getPort());
-			}
+			DatagramPacket receivePacket = listenForProbe();
+			Probe probe = extractProbeFromDatagram(receivePacket);
+					
+			processor.registerNode(probe.getNodeName(), receivePacket.getAddress());
+			replyToNode(receivePacket.getAddress(), receivePacket.getPort());
 		}
 		catch (Exception e)
 		{
 			if (e instanceof InterruptedException)
 				SystemLogger.getLogger().info("Stopping Node Discovery");
 			else
-				SystemLogger.getLogger().severe(e.getMessage());
+				throw e;
 		}
 	}
 
@@ -110,6 +88,12 @@ public class NodeDiscovererService extends Thread
 		
 		DatagramPacket sendPacket = new DatagramPacket(outputStream.toByteArray(), outputStream.toByteArray().length, address, port);
 		serverSocket.send(sendPacket);
+	}
+	
+	@Override
+	protected void close()
+	{
+		serverSocket.close();	
 	}
 	
 	public static InetAddress broadCastFromNode(String nodeID) throws Exception

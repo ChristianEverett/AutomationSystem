@@ -16,12 +16,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.Application;
 import com.pi.SystemLogger;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService.Task;
 import com.pi4j.io.gpio.GpioPinDigitalOutput;
 import com.pi4j.io.gpio.PinState;
 
@@ -87,8 +87,8 @@ public class Thermostat extends Device
 	@Override
 	protected void performAction(DeviceState state)
 	{
-		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE);
-		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParam(Params.TARGET_MODE)).toUpperCase());
+		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE, false);
+		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParamNonNull(Params.TARGET_MODE)).toUpperCase());
 		
 		if (targetTemp == null || targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
 		{
@@ -140,6 +140,13 @@ public class Thermostat extends Device
 					turnOff();
 					break;
 				case FAN_MODE:
+					
+					if((COMPRESSOR.isState(ON) || HEAT.isState(ON)) && !fanLock.get())
+					{
+						fanLock.set(true);
+						createTask(()->fanLock.set(false), fanTurnOffDelay, TimeUnit.SECONDS);
+					}
+					
 					FAN.setState(ON);
 					COMPRESSOR.setState(OFF);
 					HEAT.setState(OFF);
@@ -225,8 +232,8 @@ public class Thermostat extends Device
 			if(state != null)
 			{
 				sensorFound = true;
-				Integer temperature = (Integer)state.getParam(Params.TEMPATURE);
-				if(temperature != null && compareTemperatures(temperature))
+				Integer temperature = (Integer)state.getParamNonNull(Params.TEMPATURE);
+				if(compareTemperatures(temperature))
 					return true;
 			}
 		}

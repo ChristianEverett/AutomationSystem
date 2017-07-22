@@ -26,12 +26,12 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import com.pi.Application;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService.Task;
 
 /**
  * @author Christian Everett
@@ -54,17 +54,20 @@ public class WeatherSensor extends AsynchronousDevice
 	
 	public WeatherSensor(String name, String location) throws IOException
 	{
-		super(name, 10L, updateFrequency, TimeUnit.SECONDS);
+		super(name);
 		this.location = URLEncoder.encode(location, "UTF-8");
 		
 		weatherHttpConnection = Jsoup.connect("http://www.google.com/search?q=weahther+" + this.location).userAgent(
-				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36")
+				.validateTLSCertificates(false);
 		
 		lightHttpConnection = Jsoup.connect("http://www.isitdarkoutside.com/").userAgent(
-				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36")
+				.validateTLSCertificates(false);
 		
 //		sunRiseHttpConnection = Jsoup.connect("http://www.google.com/search?q=sun+rise+sun+set").userAgent(
 //				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+		createAsynchronousTask(10L, updateFrequency, TimeUnit.SECONDS);
 	}
 
 	@Override

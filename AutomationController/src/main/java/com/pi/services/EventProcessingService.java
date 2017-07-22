@@ -1,4 +1,4 @@
-package com.pi.backgroundprocessor;
+package com.pi.services;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -7,53 +7,52 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
-import com.pi.model.DeviceState;
-import com.pi.model.Event;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
+import com.pi.model.ActionProfile;
+import com.pi.model.ActionProfileRepository;
+import com.pi.model.DeviceState;
+import com.pi.model.EventHandler;
+
+@Service
 public class EventProcessingService
 {
-	private static EventProcessingService singlton = null;
-	private Processor processor = null;
+	@Autowired
+	private Processor processor;
+	
+	@Autowired
+	private ActionProfileRepository actionProfileRepository;
 	
 	//Table to map IDs to events and to devices listening to the event
-	private HashMap<Integer, Event> events = new HashMap<>();
+	private HashMap<Integer, EventHandler> events = new HashMap<>();
 	//Table to map devices to the events they trigger
-	private HashMap<String, Set<Event>> mapDevicesToTriggerEvents = new HashMap<>();
+	private HashMap<String, Set<EventHandler>> mapDevicesToTriggerEvents = new HashMap<>();
 	
-	private EventProcessingService(Processor processor)
-	{
-		this.processor = processor;
-		
-		List<Event> events = processor.getPersistenceManger().readAllEvent();
-		createEvents(events);
-	}
-	
-	public static EventProcessingService startEventProcessingService(Processor processor) throws Exception
-	{
-		if(singlton != null)
-			throw new Exception("EventProcessingService already created");
-		singlton = new EventProcessingService(processor);
-		return singlton;
+	private EventProcessingService()
+	{	
+
 	}
 	
 	synchronized void update(DeviceState state)
 	{
-		Set<Event> events = mapDevicesToTriggerEvents.get(state.getName());
+		Set<EventHandler> events = mapDevicesToTriggerEvents.get(state.getName());
 		
 		if (events != null)
 		{
-			for (Event event : events)
+			for (EventHandler event : events)
 			{
 				checkIfTriggered(event, state);
 			} 
 		}
 	}
 
-	private void checkIfTriggered(Event event, DeviceState state)
+	private void checkIfTriggered(EventHandler event, DeviceState state)
 	{
 		if (event.checkIfTriggered((String deviceName) -> (getStateFromCache(deviceName)), state))
 		{
-			applyTriggerStateToListnerDevices(event.getApplyStates());
+			ActionProfile profile = actionProfileRepository.get(event.getActionProfileName());
+			applyTriggerStateToListnerDevices(profile.getDeviceStates());
 		}
 	}
 	
@@ -62,7 +61,7 @@ public class EventProcessingService
 		return processor.getDeviceState(deviceName);
 	}
 	
-	private void applyTriggerStateToListnerDevices(List<DeviceState> states)
+	private void applyTriggerStateToListnerDevices(Set<DeviceState> states)
 	{
 		if (states != null)
 		{
@@ -76,14 +75,14 @@ public class EventProcessingService
 		}
 	}
 	
-	public synchronized List<Event> getAllEvents()
+	public synchronized List<EventHandler> getAllEvents()
 	{
 		return new ArrayList<>(events.values());
 	}
 	
-	public synchronized void createEvents(List<Event> events)
+	public synchronized void createEvents(List<EventHandler> events)
 	{
-		for(Event event : events)
+		for(EventHandler event : events)
 			createEvent(event);
 	}
 	
@@ -92,7 +91,7 @@ public class EventProcessingService
 	 * @param event
 	 * @return id
 	 */
-	public synchronized Integer createEvent(Event event)
+	public synchronized Integer createEvent(EventHandler event)
 	{
 		Integer id = event.hashCode();
 
@@ -107,9 +106,9 @@ public class EventProcessingService
 		return id;
 	}
 	
-	public synchronized Integer changeEvent(Integer id, Event event)
+	public synchronized Integer changeEvent(Integer id, EventHandler event)
 	{
-		Event oldEvent = events.remove(id);
+		EventHandler oldEvent = events.remove(id);
 		
 		if(event == null)
 			throw new RuntimeException("There is no event mapped at: " + id);
@@ -128,7 +127,7 @@ public class EventProcessingService
 	
 	public synchronized void removeEvent(Integer id)
 	{
-		Event event = events.remove(id);
+		EventHandler event = events.remove(id);
 		
 		if(event == null)
 			throw new RuntimeException("There is no event mapped at: " + id);
@@ -138,36 +137,9 @@ public class EventProcessingService
 		processor.getPersistenceManger().deleteEvent(event);
 	}
 	
-	/**
-	 * Register a device to listen for event mapped at id
-	 * @param id
-	 * @param deviceName
-	 */
-	public synchronized void addListener(Integer id, DeviceState state)
-	{
-		if(events.get(id) == null)
-			throw new RuntimeException("There is no event mapped at: " + id);
-		
-		events.get(id).registerListener(state);
-		checkIfTriggered(events.get(id), null);
-	}
-	
-	/**
-	 * Unregister a device from listening for an event
-	 * @param id
-	 * @param deviceName
-	 */
-	public synchronized void removeListener(Integer id, String deviceName)
-	{
-		if(events.get(id) == null)
-			throw new RuntimeException("There is no device event mapped at: " + id);
-		
-		events.get(id).unRegisterListener(deviceName);	
-	}
-	
 	public synchronized List<String> getAllListenersForEvent(Integer id)
 	{
-		Event event = events.get(id);
+		EventHandler event = events.get(id);
 		
 		if(event == null)
 			throw new RuntimeException("There is no event mapped at: " + id);
@@ -175,11 +147,11 @@ public class EventProcessingService
 		return new ArrayList<>(event.getDependencyDevices());
 	}
 	
-	private void addToDeviceToTriggerEventMap(Event event)
+	private void addToDeviceToTriggerEventMap(EventHandler event)
 	{
 		for(String deviceName : event.getDependencyDevices())
 		{
-			Set<Event> records = mapDevicesToTriggerEvents.get(deviceName);
+			Set<EventHandler> records = mapDevicesToTriggerEvents.get(deviceName);
 			
 			if(records == null)
 			{
@@ -190,18 +162,17 @@ public class EventProcessingService
 		}
 	}
 	
-	private void remoteFromDeviceToTriggerEventMap(Event event)
+	private void remoteFromDeviceToTriggerEventMap(EventHandler event)
 	{
 		for(String deviceName : event.getDependencyDevices())
 		{
-			Set<Event> events = mapDevicesToTriggerEvents.get(deviceName);
+			Set<EventHandler> events = mapDevicesToTriggerEvents.get(deviceName);
 			
-			for(Iterator<Event> iter = events.iterator(); iter.hasNext();)
+			for(Iterator<EventHandler> iter = events.iterator(); iter.hasNext();)
 			{
 				if(iter.next().equals(event))
 				{
 					iter.remove();
-					break;
 				}
 			}
 		}

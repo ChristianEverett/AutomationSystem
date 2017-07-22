@@ -1,38 +1,45 @@
 /**
  * 
  */
-package com.pi.backgroundprocessor;
+package com.pi.services;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.pi.Application;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 import com.pi.SystemLogger;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.Device.DeviceConfig;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.DeviceLoader;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.NodeController;
 import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
+import com.pi.infrastructure.util.DeviceLockedException;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService.Task;
 
 /**
  * @author Christian Everett
  *
  */
 
+@Service
 public class Processor extends NodeController implements Runnable
 {
 	private AtomicBoolean shutdownProcessor = new AtomicBoolean(false);
@@ -40,45 +47,50 @@ public class Processor extends NodeController implements Runnable
 
 	// Background processor data structures
 	private LinkedBlockingQueue<DeviceState> processingQueue = new LinkedBlockingQueue<>(10_000);
-	private HashMap<String, InetAddress> nodeMap = new HashMap<>();
+	private ConcurrentHashMap<String, InetAddress> nodeMap = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, DeviceState> cachedStates = new ConcurrentHashMap<>();
 	private Map<String, DeviceState> databaseSavedStates = new HashMap<>();
+	private Set<String> lockedDevices = new HashSet<>();
 
 	// Background processor services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
 	private PersistenceManager persistenceManager = null;
-	private EventProcessingService eventProcessingService = null;
+	@Autowired
+	private EventProcessingService eventProcessingService;
 	private DeviceLoggingService deviceLoggingService = null;
 	private DeviceLoader deviceLoader = null;
+	private NodeDiscovererService nodeDiscovererService = null;
 
 	// Background processor tasks
 	private Task databaseTask;
 
-	public static synchronized Thread createBackgroundProcessor() throws Exception
-	{
-		if (singleton != null)
-			throw new Exception("Background Processor already created");
-		singleton = new Processor();
-		processingThread = new Thread((Runnable) singleton);
-		return processingThread;
-	}
+//	public static synchronized Thread createBackgroundProcessor() throws Exception
+//	{
+//		if (singleton != null)
+//			throw new Exception("Background Processor already created");
+//		singleton = new Processor();
+//		processingThread = new Thread((Runnable) singleton);
+//		return processingThread;
+//	}
 
-	public static Processor getInstance()
-	{
-		return (Processor) NodeController.getInstance();
-	}
+//	public static Processor getInstance()
+//	{
+//		return (Processor) NodeController.getInstance();
+//	}
 
 	private Processor() throws Exception
 	{
 		SystemLogger.getLogger().info("Starting Node Discovery Service");
-		NodeDiscovererService.startDiscovering(this);
+		nodeDiscovererService = new NodeDiscovererService(this);
+		nodeDiscovererService.start(5);
 		Device.registerNodeManger(this);
-
+		
 		persistenceManager = PersistenceManager.loadPersistanceManager();
 		deviceLoader = DeviceLoader.createNewDeviceLoader();
 
 		SystemLogger.getLogger().info("Starting Device Logging Service");
-		deviceLoggingService = DeviceLoggingService.start(this);
+		deviceLoggingService = new DeviceLoggingService(this);
+		deviceLoggingService.start();
 		
 		SystemLogger.getLogger().info("Scheduling Database Task");
 		Long interval = Long.parseLong(PropertyManger.loadProperty(PropertyKeys.DATABASE_POLL_FREQUENCY, "30"));
@@ -93,6 +105,8 @@ public class Processor extends NodeController implements Runnable
 				SystemLogger.getLogger().severe(e.getMessage());
 			}
 		}, 1L, interval, TimeUnit.MINUTES);
+		
+		singleton = this;
 	}
 
 	@Override
@@ -153,9 +167,17 @@ public class Processor extends NodeController implements Runnable
 	}
 
 	@Override
-	public boolean scheduleAction(DeviceState state)
+	public void scheduleAction(DeviceState state)
 	{
-		return processingQueue.add(state);
+		checkIfLockShouldBeSet(state);
+		
+		if (state.hasData())
+		{
+			if (!isLocked(state.getName()))
+				processingQueue.add(state);
+			else
+				throw new DeviceLockedException("This device is locked");
+		}
 	}
 
 	@Override
@@ -232,7 +254,7 @@ public class Processor extends NodeController implements Runnable
 			deviceLoader.loadDevices(this);
 			
 			SystemLogger.getLogger().info("Loading Events");
-			eventProcessingService = EventProcessingService.startEventProcessingService(this);
+			eventProcessingService.createEvents(persistenceManager.readAllEvent());
 		}
 		catch (Exception e)
 		{
@@ -283,7 +305,7 @@ public class Processor extends NodeController implements Runnable
 				}
 				SystemLogger.getLogger().info("Stopping all background tasks");
 				taskService.cancelAllTasks();
-				NodeDiscovererService.stopDiscovering();
+				nodeDiscovererService.stop();
 				deviceLoggingService.stop();
 				// Shutdown all devices and save their state
 				SystemLogger.getLogger().info("Saving Device States and shutting down");
@@ -309,13 +331,13 @@ public class Processor extends NodeController implements Runnable
 			{
 				String deviceToApplyState = state.getName();
 				Device device = lookupDevice(deviceToApplyState);
-				String deviceToConfig = (String) state.getParam(PROCESSOR_ACTIONS.DEVICE);
+				String deviceToConfig = (String) state.getParam(PROCESSOR_ACTIONS.DEVICE, false);
 
 				// ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
 				// process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
 				// process.start();
-				//Process process = rt.exec("sudo ./codesend " + code + " -l " + PULSELENGTH + " -p " + IR_PIN);
-				//process.waitFor();
+				// Process process = rt.exec("sudo ./codesend " + code + " -l " + PULSELENGTH + " -p " + IR_PIN);
+				// process.waitFor();
 
 				switch (deviceToApplyState)
 				{
@@ -361,8 +383,8 @@ public class Processor extends NodeController implements Runnable
 				case PROCESSOR_ACTIONS.SHUTDOWN:
 					shutdown();
 					break;
-
-				default:
+					
+				default:					
 					if (deviceNeedsUpdate(device, state))
 					{
 						device.execute(state);
@@ -379,6 +401,24 @@ public class Processor extends NodeController implements Runnable
 		}
 	}
 
+	public void checkIfLockShouldBeSet(DeviceState state)
+	{
+		Boolean shouldLock = state.getParamTyped(Params.LOCK, Boolean.class, null);
+		
+		if(shouldLock != null)
+		{
+			if (shouldLock)
+				lockedDevices.add(state.getName());
+			else 									
+				lockedDevices.remove(state.getName());
+		}
+	}
+
+	public boolean isLocked(String deviceName)
+	{
+		return lockedDevices.contains(deviceName);
+	}
+	
 	private interface PROCESSOR_ACTIONS
 	{
 		public static final String RELOAD_DEVICE_ALL = "reload_device_all";

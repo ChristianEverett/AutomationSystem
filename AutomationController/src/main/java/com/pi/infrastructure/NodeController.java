@@ -29,15 +29,14 @@ public abstract class NodeController
 	
 	public abstract void update(DeviceState state);	
 	
-	public boolean scheduleAction(DeviceState state) throws IOException
+	public void scheduleAction(DeviceState state) throws IOException
 	{
 		Device device = deviceMap.get(state.getName());
 		
 		if(device == null)
-			return false;
+			throw new RuntimeException("Device does not exist");
 		
 		device.execute(state);
-		return true;
 	}
 	
 	/**

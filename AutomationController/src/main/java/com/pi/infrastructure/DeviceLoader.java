@@ -34,7 +34,7 @@ import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
  *
  */
 public class DeviceLoader
-{
+{//TODO rework
 	public static final String DEVICE_NAME = "device-name";
 	public static final String DEVICE_TYPE = "device-type";
 	public static final String DEVICE = "device";

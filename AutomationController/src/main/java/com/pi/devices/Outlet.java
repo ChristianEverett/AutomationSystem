@@ -47,7 +47,7 @@ public class Outlet extends Device
 	@Override
 	protected void performAction(DeviceState state) throws IOException, InterruptedException
 	{
-		int code = (Boolean) state.getParam(Params.IS_ON) ? ON : OFF;
+		int code = (Boolean) state.getParamNonNull(Params.ON) ? ON : OFF;
 		
 		sendIRSignal(code);
 	}
@@ -72,7 +72,7 @@ public class Outlet extends Device
 	public DeviceState getState(Boolean forDatabase)
 	{
 		DeviceState state = Device.createNewDeviceState(name);
-		state.setParam(Params.IS_ON, isOn.get());
+		state.setParam(Params.ON, isOn.get());
 		
 		return state;
 	}

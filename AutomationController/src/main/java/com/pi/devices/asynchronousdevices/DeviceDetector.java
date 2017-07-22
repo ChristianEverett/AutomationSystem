@@ -18,11 +18,11 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.SystemLogger;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService.Task;
 
 /**
  * @author Christian Everett
@@ -38,8 +38,9 @@ public class DeviceDetector extends AsynchronousDevice
 	
 	public DeviceDetector(String name) throws IOException
 	{
-		super(name, 10000L, 10L, TimeUnit.MILLISECONDS);
-		setupScanner();	
+		super(name);
+		setupScanner();
+		createAsynchronousTask(10000L, 10L, TimeUnit.MILLISECONDS);
 	}
 
 	private void registerMACAddress(String address)
@@ -65,7 +66,7 @@ public class DeviceDetector extends AsynchronousDevice
 	protected void performAction(DeviceState state)
 	{
 		@SuppressWarnings("unchecked")
-		List<String> addresses = (List<String>) state.getParam(Params.MACS);
+		List<String> addresses = (List<String>) state.getParamNonNull(Params.MACS);
 		
 		for (String element : addresses)
 		{

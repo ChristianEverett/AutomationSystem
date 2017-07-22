@@ -16,15 +16,15 @@ import java.util.regex.Pattern;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.Application;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService.Task;
 
 public class BluetoothAdapter extends AsynchronousDevice
-{
+{//TODO refactor class
 	private static final String MAC_ADDRESS_REGEX = "([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$";
 	private Pattern regex = Pattern.compile(MAC_ADDRESS_REGEX);
 	private Map<String, Boolean> macToLastPing = new ConcurrentHashMap<>();
@@ -32,8 +32,9 @@ public class BluetoothAdapter extends AsynchronousDevice
 
 	public BluetoothAdapter(String name) throws IOException
 	{
-		super(name, 10000L, 1000L, TimeUnit.MILLISECONDS);
+		super(name);
 		setupBluetooth();
+		createAsynchronousTask(5L, 1L, TimeUnit.SECONDS);
 	}
 
 	@Override
@@ -64,8 +65,8 @@ public class BluetoothAdapter extends AsynchronousDevice
 	protected void performAction(DeviceState state)
 	{
 		@SuppressWarnings("unchecked")
-		List<String> addresses = (List<String>) state.getParam(Params.MACS);
-		Boolean runScan = (Boolean) state.getParam(Params.SCAN);
+		List<String> addresses = (List<String>) state.getParamNonNull(Params.MACS);
+		Boolean runScan = state.getParamTyped(Params.SCAN, Boolean.class, false);
 		
 		for (String address : addresses)
 		{
@@ -91,17 +92,17 @@ public class BluetoothAdapter extends AsynchronousDevice
 	{
 		DeviceState state = Device.createNewDeviceState(name);
 		
-		if (!forDatabase)
+		if (forDatabase)
+		{
+			state.setParam(Params.MACS, new ArrayList<>(macToLastPing.keySet()));
+			state.setParam(Params.SCAN, false);
+		}
+		else 
 		{
 			for (Entry<String, Boolean> entry : macToLastPing.entrySet())
 			{
 				state.setParam(entry.getKey(), entry.getValue());
 			}
-		}
-		else 
-		{
-			state.setParam(Params.MACS, new ArrayList<>(macToLastPing.keySet()));
-			state.setParam(Params.SCAN, false);
 		}
 		
 		return state;

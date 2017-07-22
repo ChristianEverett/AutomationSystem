@@ -1,27 +1,25 @@
 package com.pi.model;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.pi.infrastructure.NodeController;
-
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 
-public class Event extends DatabaseElement
+public class EventHandler extends DatabaseElement
 {
 	// In order for the event to be considered triggered, all device states in
 	// triggerEvents must be met
 	private List<DeviceStateTriggerRange> triggerEvents = new LinkedList<>();
 
-	private List<DeviceState> applyStates = new LinkedList<>();
+	private String actionProfileName;
 	
 	private Boolean requireAll = true;
 
-	public Event()
+	public EventHandler()
 	{
 	}
 
@@ -74,23 +72,9 @@ public class Event extends DatabaseElement
 
 		return deviceNames;
 	}
-
-	@JsonIgnore
-	public void registerListener(DeviceState state)
-	{
-		applyStates.add(state);
-	}
-
-	@JsonIgnore
-	public void unRegisterListener(String deviceName)
-	{
-		for (Iterator<DeviceState> iter = applyStates.iterator(); iter.hasNext();)
-			if (iter.next().getName().equals(deviceName))
-				iter.remove();
-	}
 	
 	@JsonIgnore
-	public void replace(Event event)
+	public void replace(EventHandler event)
 	{
 		setTriggerEvents(event.getTriggerEvents());
 		setRequireAll(event.getRequireAll());
@@ -111,14 +95,14 @@ public class Event extends DatabaseElement
 		return Objects.hash(triggerEvents.hashCode(), requireAll);
 	}
 	
-	public List<DeviceState> getApplyStates()
+	public String getActionProfileName()
 	{
-		return applyStates;
+		return actionProfileName;
 	}
 
-	public void setApplyStates(List<DeviceState> devices)
-	{
-		applyStates.addAll(devices);
+	public void setActionProfileName(String name)
+	{	
+		this.actionProfileName = name;
 	}
 	
 	public List<DeviceStateTriggerRange> getTriggerEvents()

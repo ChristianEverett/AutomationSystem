@@ -67,124 +67,24 @@ function POST_ACTION(device, data, callback)
             type: "POST",
             contentType: "application/json",
             url: "/action/" + device,
-            headers: 
-            {
-            	//'Connection': 'keep-alive',
-            	'Cache-Control': 'no-cache, no-store, must-revalidate',
-            	'Pragma': 'no-cache',
-            	'Expires': '0'
+            headers: {
+                //'Connection': 'keep-alive',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
             },
             data: CREATE_STATE(device, data),
             success: callback,
-            error: function (xhr,status,error)
-            {
-                alert("The Server is currently offline. It should be back in a couple minutes, if not email the support team at: Christian.everett1@gmail.com")
-            }
-        });
-}
-// NOT IN USE ----------------------------------------------------------
-function GET_TIMERS(callback)
-{
-    jQuery.ajax(
-        {
-            async: true,
-            type: "GET",
-            contentType: "application/json",
-            dataType: "json",
-            url: "/timer",
-            headers: 
-            {
-            	//'Connection': 'keep-alive',
-            	'Cache-Control': 'no-cache, no-store, must-revalidate',
-            	'Pragma': 'no-cache',
-            	'Expires': '0'
-            },
-            success: callback,
             error: function (xhr, status, error)
             {
-
-            }
-        });
-}
-
-function POST_TIMER(time, device, data, callback)
-{
-    jQuery.ajax(
-        {
-            async: true,
-            type: "POST",
-            contentType: "application/json",
-            dataType: "json",
-            url: "/timer/add",
-            data:JSON.stringify(
+                if (xhr.status == 403)
                 {
-                    "time": time,
-                    "action":
-                    {
-                        "device": device,
-                        "data": data
-                    }
-                }),
-            success: callback,
-            error: function (xhr,status,error)
-            {
-
-            }
-        });
-}
-
-function CHANGE_TIMER(id, time, device, data, callback)
-{
-    jQuery.ajax(
-        {
-            async: true,
-            type: "POST",
-            contentType: "application/json",
-            dataType: "json",
-            url: "/timer/" + id,
-            data:JSON.stringify(
+                    alert("This Device is Locked");
+                }
+                else
                 {
-                    "time": time,
-                    "action":
-                    {
-                        "device": device,
-                        "data": data
-                    }
-                }),
-            success: callback,
-            error: function (xhr,status,error)
-            {
-
-            }
-        });
-}
-
-function DELETE_TIMER(id, callback)
-{
-    jQuery.ajax(
-        {
-            async: true,
-            type: "DELETE",
-            url: "/timer/" + id,
-            success: callback,
-            error: function (xhr,status,error)
-            {
-
-            }
-        });
-}
-
-function DELETE_ALL(callback)
-{
-    jQuery.ajax(
-        {
-            async: true,
-            type: "DELETE",
-            url: "/timer",
-            success: callback,
-            error: function (xhr,status,error)
-            {
-
+                    alert("The Server is currently offline. It should be back in a couple minutes, if not email the support team at: Christian.everett1@gmail.com")
+                }
             }
         });
 }

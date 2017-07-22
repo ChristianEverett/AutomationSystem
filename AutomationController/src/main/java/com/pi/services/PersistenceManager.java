@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.pi.backgroundprocessor;
+package com.pi.services;
 
 import static com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import static com.pi.infrastructure.util.PropertyManger.loadProperty;
@@ -25,7 +25,7 @@ import com.pi.infrastructure.util.PropertyManger;
 import com.pi.model.DatabaseElement;
 import com.pi.model.DeviceState;
 import com.pi.model.DeviceStateRecord;
-import com.pi.model.Event;
+import com.pi.model.EventHandler;
 
 /**
  * @author Christian Everett
@@ -194,23 +194,23 @@ public class PersistenceManager
 		}
 	}
 	
-	public void createEvent(Event element) 
+	public void createEvent(EventHandler element) 
 	{
 		create(INSERT_EVENT, element, true);
 	}
 	
 	@SuppressWarnings("unchecked")
-	public List<Event> readAllEvent()
+	public List<EventHandler> readAllEvent()
 	{
-		return (List<Event>)read(READ_EVENT_TABLE);
+		return (List<EventHandler>)read(READ_EVENT_TABLE);
 	}
 
-	public void updateEvent(Event element, int oldElementId) 
+	public void updateEvent(EventHandler element, int oldElementId) 
 	{
 		update(UPDATE_EVENT, element, oldElementId, true);
 	}
 	
-	public void deleteEvent(Event event) 
+	public void deleteEvent(EventHandler event) 
 	{
 		delete(DELETE_EVENT, event, true);
 	}

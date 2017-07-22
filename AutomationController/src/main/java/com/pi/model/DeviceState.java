@@ -4,9 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-import org.mockito.internal.matchers.Contains;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.NodeController;
 
 public class DeviceState extends DatabaseElement
@@ -16,22 +16,14 @@ public class DeviceState extends DatabaseElement
 	private Map<String, Object> params = new HashMap<>();
 	
 	public DeviceState()
+	{
+		
+	}
+	
+	public DeviceState(String name, String type)
 	{	
-	}
-	
-	public static DeviceState create(String name)
-	{
-		DeviceState state = new DeviceState();
-		state.setName(name);
-		return state;
-	}
-	
-	public static DeviceState create(String name, String type)
-	{
-		DeviceState state = new DeviceState();
-		state.name = name;
-		state.type = type;
-		return state;
+		this.name = name;
+		this.type = type;
 	}
 
 	@Override
@@ -73,22 +65,50 @@ public class DeviceState extends DatabaseElement
 	}
 	
 	@JsonIgnore
-	public Object getParam(String key)
+	public Object getParam(String key, boolean required) 
 	{		
-		return params.get(key);
+		try
+		{
+			return getParamNonNull(key);
+		}
+		catch (RuntimeException e)
+		{
+			if(required)
+				throw e;			
+		}
+		
+		return null;
 	}
 	
 	@JsonIgnore
-	public <T> T getParamTyped(String key, Class<T> type)
+	public Object getParamNonNull(String key)
+	{		
+		Object object = params.get(key);
+		
+		if(object == null)
+			throw new RuntimeException("Could not find param -> " + key);
+		
+		return object;
+	}
+	
+	@JsonIgnore
+	public <T> T getParamTypedNonNull(String key, Class<T> type)
 	{
-		return type.cast(params.get(key));
+		return type.cast(getParamNonNull(key));
 	}
 	
 	@JsonIgnore
 	public <T> T getParamTyped(String key, Class<T> type, T defaultValue)
 	{
-		T value = getParamTyped(key, type);
-		return value == null ? defaultValue : value;
+		try
+		{
+			return getParamTypedNonNull(key, type);
+		}
+		catch (RuntimeException e)
+		{
+		}
+		
+		return defaultValue;
 	}
 	
 	@Override
@@ -111,11 +131,19 @@ public class DeviceState extends DatabaseElement
 		
 		for(String paramName : state.getParams().keySet())
 		{
-			if(!state.getParam(paramName).equals(params.get(paramName)))
+			if(!state.params.get(paramName).equals(params.get(paramName)))
 				return false;
 		}
 		
 		return true;
+	}
+	
+	public boolean hasData()
+	{
+		if(params.isEmpty())
+			return false;
+		
+		return (params.containsKey(Params.LOCK) && params.size() > 1) || (!params.containsKey(Params.LOCK));
 	}
 	
 	@Override

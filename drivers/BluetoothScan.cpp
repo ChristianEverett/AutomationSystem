@@ -19,16 +19,22 @@
 static int dev_id, sock;
 static const int len = 10;
 static std::atomic<bool> stop(false);
+static bool setup = false;
 
 void setupBluetooth()
 {
-	stop = false;
-	dev_id = hci_get_route(NULL);
-	//int dev_id = hci_devid( "01:23:45:67:89:AB");
-	sock = hci_open_dev(dev_id);
-	if (dev_id < 0 || sock < 0)
+	if(!setup)
 	{
-		perror("opening socket");
+		stop = false;
+		dev_id = hci_get_route(NULL);
+		//int dev_id = hci_devid( "01:23:45:67:89:AB");
+		sock = hci_open_dev(dev_id);
+		if (dev_id < 0 || sock < 0)
+		{
+			perror("opening socket");
+		}
+		
+		setup = true;
 	}
 }
 
@@ -66,11 +72,12 @@ const std::string ping(const char* address)
 
 	int result = hci_read_remote_name(sock, bluetoothAddress, sizeof(name), name, len);
 
-	if(result < 0 || stop.load())
+	delete bluetoothAddress;
+
+	if(result < 0)
 		return std::string();
 
 	std::string deviceName(name);
-	delete bluetoothAddress;
 
 	return deviceName;
 }
@@ -79,4 +86,5 @@ void close()
 {
 	stop = true;
 	close(sock);
+	setup = false;
 }

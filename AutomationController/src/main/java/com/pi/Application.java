@@ -6,13 +6,14 @@ package com.pi;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.web.WebMvcAutoConfiguration;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
-import com.pi.backgroundprocessor.Processor;
 import com.pi.infrastructure.util.Email;
+import com.pi.services.Processor;
 
 import static com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import static com.pi.infrastructure.util.PropertyManger.loadProperty;
@@ -41,7 +42,7 @@ import java.util.logging.*;
 // find any Controllers or other components that are part of our application.
 // Any class in this package that is annotated with @Controller is going to be
 // automatically discovered and connected to the DispatcherServlet.
-@ComponentScan
+@ComponentScan("com.pi")
 // We use the @Import annotation to include our OAuth2SecurityConfiguration
 // as part of this configuration so that we can have security and oauth
 // setup by Spring
@@ -53,23 +54,25 @@ public class Application extends WebMvcAutoConfiguration
 		SystemLogger.getLogger().info("Starting Processing Service");
 		try
 		{
+			// Run the background processor
+			//Thread processorThread = Processor.createBackgroundProcessor();
+			
+			// Run the Spring Dispatcher
+			ConfigurableApplicationContext context = SpringApplication.run(Application.class, args);
+			Processor processor = context.getBean(Processor.class);
+			
 			Runtime.getRuntime().addShutdownHook(new Thread()
 			{
 				@Override
 				public void run()
 				{
 					SystemLogger.getLogger().severe("Shutdown Hook Running");
-					Processor.getInstance().shutdown();
+					processor.shutdown();
 				}
 			});
 			
-			// Run the background processor
-			Thread processorThread = Processor.createBackgroundProcessor();
-			
-			// Run the Spring Dispatcher
-			SpringApplication.run(Application.class, args);
-			
-			Processor.getInstance().load();
+			processor.load();
+			Thread processorThread = new Thread(processor);
 			processorThread.start();
 			processorThread.setPriority(Thread.MAX_PRIORITY);
 											

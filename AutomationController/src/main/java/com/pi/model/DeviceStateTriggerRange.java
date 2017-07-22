@@ -47,8 +47,8 @@ public class DeviceStateTriggerRange extends DeviceState
 		
 		for (String key : getParams().keySet())
 		{
-			Object value = state.getParam(key);
-			Object start = getParam(key);
+			Object value = state.getParam(key, false);
+			Object start = getParam(key, false);
 			Object end = endRange.get(key);
 
 

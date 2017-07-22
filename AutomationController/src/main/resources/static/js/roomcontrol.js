@@ -22,12 +22,14 @@ $(document).ready(function ()
     var rgbSliderDiv = $("#comp-irkzi7ulinlineContent");
 
     var led1Slider = $("#comp-irkzi7ulinlineContent").spectrum({
+        preferredFormat: "hex",
         move: onColorSliderChange,
         flat: true,
         showInput: true
     });
 
     var led2Slider = $("#comp-irlctnfxinlineContent").spectrum({
+        preferredFormat: "hex",
         move: onColorSliderChange,
         flat: true,
         showInput: true
@@ -67,12 +69,12 @@ $(document).ready(function ()
         
         if($(this).attr("id") == unlockButton.attr("id"))
         {
-            params["isOn"] = false;
+            params["on"] = false;
             POST_ACTION(lockDevice, params, actionCallback);
         }
         else
         {
-            params["isOn"] = true;
+            params["on"] = true;
             POST_ACTION(lockDevice, params, actionCallback);
         }
     }
@@ -102,16 +104,16 @@ $(document).ready(function ()
             if(outletSwitchArray[x].ON.attr("id") == this.id || outletSwitchArray[x].OFF.attr("id") == this.id)
             {
                 var params = {};
-                params["isOn"] = (outletSwitchArray[x].ON.attr("id") == this.id);
+                params["on"] = (outletSwitchArray[x].ON.attr("id") == this.id);
                 POST_ACTION("outlet" + (x + 1), params, actionCallback);
             }
     }
 
-    function checkOutlet(name, isOn)
+    function checkOutlet(name, on)
     {
         deviceNumber = parseInt(name.substring(6, name.length)) - 1;
 
-        if(isOn == "true" || isOn === true)
+        if(on == "true" || on === true)
         {
             outletSwitchArray[deviceNumber].ON.css("background-color", "rgba(204, 204, 204, 1)");
             outletSwitchArray[deviceNumber].OFF.css("background-color", "rgba(114, 114, 114, 1)");
@@ -178,11 +180,11 @@ $(document).ready(function ()
 
                         break;
                     case lockDevice:
-                        setLockImg(result[x].params["isOn"]);
+                        setLockImg(result[x].params["on"]);
                         break;
                     default:
                         if(result[x].name.indexOf("outlet") !== -1)
-                            checkOutlet(result[x].name, result[x].params["isOn"]);
+                            checkOutlet(result[x].name, result[x].params["on"]);
                 }
             }
         }
@@ -200,7 +202,7 @@ $(document).ready(function ()
 
             if (json.name == lockDevice)
             {
-                if(json.params.isOn)
+                if(json.params.on)
                 {
                     setLockImg(true);
                 }
@@ -211,7 +213,7 @@ $(document).ready(function ()
             }
             else if(json.name.indexOf("outlet") !== -1)
             {
-                checkOutlet(json.name, json.params.isOn);
+                checkOutlet(json.name, json.params.on);
             }
         }
         else

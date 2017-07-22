@@ -12,8 +12,6 @@ import java.util.concurrent.TimeUnit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pi.SystemLogger;
-import com.pi.backgroundprocessor.NodeDiscovererService;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.controllers.ActionController;
 import com.pi.controllers.EventController;
 import com.pi.infrastructure.Device;
@@ -24,6 +22,8 @@ import com.pi.infrastructure.util.HttpClient;
 import com.pi.infrastructure.util.HttpClient.ObjectResponse;
 import com.pi.infrastructure.util.HttpClient.Response;
 import com.pi.model.DeviceState;
+import com.pi.services.NodeDiscovererService;
+import com.pi.services.TaskExecutorService.Task;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -118,30 +118,30 @@ public class NodeControllerImplementation extends NodeController implements Http
 	}
 	
 	@Override
-	public boolean scheduleAction(DeviceState state)
+	public void scheduleAction(DeviceState state)
 	{
 		try
 		{
-			if(super.scheduleAction(state))
-				return true;
-			
-			ObjectMapper mapper = new ObjectMapper();
-			String json = mapper.writeValueAsString(state);
-			
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
-			Response response = client.sendPostJson(null, ActionController.PATH + "/" + state.getName(), json);
-			
-			if(!response.isHTTP_OK())
-				throw new IOException("Could not request action from Controller got response: " + response.getStatusCode());
-			
-			return true;
+			try
+			{
+				super.scheduleAction(state);
+			}
+			catch (RuntimeException e)
+			{
+				ObjectMapper mapper = new ObjectMapper();
+				String json = mapper.writeValueAsString(state);
+				
+				HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
+				Response response = client.sendPostJson(null, ActionController.PATH + "/" + state.getName(), json);
+				
+				if(!response.isHTTP_OK())
+					throw new IOException("Could not request action from Controller got response: " + response.getStatusCode());
+			}
 		}
 		catch (Exception e)
 		{
 			SystemLogger.getLogger().severe("Could not request action. " + e.getMessage());
 		}
-		
-		return false;
 	}
 
 	@Override

@@ -7,9 +7,9 @@ import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.annotation.XmlAttribute;
 
-import com.pi.backgroundprocessor.TaskExecutorService;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService;
+import com.pi.services.TaskExecutorService.Task;
 import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
 
@@ -141,9 +141,9 @@ public abstract class Device
 		return node.getDeviceState(name, false);
 	}
 
-	public static boolean queueAction(DeviceState state) throws IOException
+	public static void queueAction(DeviceState state) throws IOException
 	{
-		return node.scheduleAction(state);
+		node.scheduleAction(state);
 	}
 
 	public static Task createTask(Runnable task, Long delay, TimeUnit unit)
@@ -165,7 +165,7 @@ public abstract class Device
 	{
 		Device device = node.lookupDevice(name);
 
-		return DeviceState.create(name, device != null ? device.getType() : DeviceType.UNKNOWN);
+		return new DeviceState(name, device != null ? device.getType() : DeviceType.UNKNOWN);
 	}
 	
 	public static abstract class DeviceConfig implements Serializable

@@ -10,13 +10,13 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.Application;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService.Task;
 
 /**
  * @author Christian Everett
@@ -35,9 +35,10 @@ public class TemperatureSensor extends AsynchronousDevice
 	
 	public TemperatureSensor(String name, int headerPin, int sensorType) throws IOException
 	{
-		super(name, 1L, sensorUpdateFrequency, TimeUnit.SECONDS);
+		super(name);
 		this.headerPin = headerPin;
 		this.sensorType = sensorType;
+		createAsynchronousTask(1L, sensorUpdateFrequency, TimeUnit.SECONDS);
 	}
 
 	@Override

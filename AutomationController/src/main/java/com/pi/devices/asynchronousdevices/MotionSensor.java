@@ -59,7 +59,7 @@ public class MotionSensor extends AsynchronousDevice
 	{
 		DeviceState state = Device.createNewDeviceState(name);
 		
-		state.setParam(Params.IS_ON, gpioPin.isHigh());
+		state.setParam(Params.ON, gpioPin.isHigh());
 		
 		return state;
 	}

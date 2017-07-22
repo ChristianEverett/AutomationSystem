@@ -1,42 +1,29 @@
-package com.pi.backgroundprocessor;
+package com.pi.services;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.pi.Application;
-import com.pi.SystemLogger;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
+import com.pi.infrastructure.Service;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import com.pi.model.DeviceState;
 import com.pi.model.DeviceStateRecord;
 
-public class DeviceLoggingService implements Runnable
+public class DeviceLoggingService extends Service
 {
 	private ConcurrentLinkedQueue<DeviceStateRecord> loggingQueue = new ConcurrentLinkedQueue<>();
 	private Set<String> loggingEnabledDevices = ConcurrentHashMap.newKeySet();
-	private static DeviceLoggingService singlton = null;
-	private Task loggingTask = null;
 	private Processor processor = null;
 	private AtomicBoolean loggingEnabled = new AtomicBoolean(false);
 	
-	private DeviceLoggingService(Processor processor)
+	public DeviceLoggingService(Processor processor)
 	{
 		this.processor = processor;
 		long interval = Long.parseLong(PropertyManger.loadProperty(PropertyKeys.DEVICE_STATE_LOG_FREQUENCY, "10"));
-		loggingTask = processor.getTaskExecutorService().scheduleTask(this, 10L, interval, TimeUnit.SECONDS);
-	}
-	
-	static DeviceLoggingService start(Processor processor)
-	{
-		if(singlton == null)
-			singlton = new DeviceLoggingService(processor);
-		return singlton;
 	}
 	
 	public void enableLogging(String deviceName)
@@ -58,32 +45,24 @@ public class DeviceLoggingService implements Runnable
 	}
 
 	@Override
-	public void run()
+	public void executeService() throws Exception
 	{
-		try
+		loggingEnabled.set(true);
+		List<DeviceStateRecord> states = new LinkedList<>();
+		
+		while(!loggingQueue.isEmpty())
 		{
-			loggingEnabled.set(true);
-			List<DeviceStateRecord> states = new LinkedList<>();
-			
-			while(!loggingQueue.isEmpty())
-			{
-				DeviceStateRecord state = loggingQueue.poll();
-				states.add(state);
-			}
-			
-			if(!states.isEmpty())
-				processor.getPersistenceManger().commitToDeviceLog(states);
+			DeviceStateRecord state = loggingQueue.poll();
+			states.add(state);
 		}
-		catch (Exception e)
-		{
-			SystemLogger.getLogger().severe(e.getMessage());
-		}
+		
+		if(!states.isEmpty())
+			processor.getPersistenceManger().commitToDeviceLog(states);
 	}
 	
-	void stop()
+	@Override
+	protected void close()
 	{
-		loggingEnabled.set(false);
-		loggingTask.cancel();
-		singlton = null;
+		loggingEnabled.set(false);		
 	}
 }

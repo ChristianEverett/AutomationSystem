@@ -1,14 +1,10 @@
 package com.pi.infrastructure;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import com.pi.Application;
 import com.pi.SystemLogger;
-import com.pi.backgroundprocessor.Processor;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
-import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService.Task;
 
 public abstract class AsynchronousDevice extends Device implements Runnable
 {
@@ -19,15 +15,13 @@ public abstract class AsynchronousDevice extends Device implements Runnable
 		super(name);
 	}
 	
-	public AsynchronousDevice(String name, long intialDelay, long interval, TimeUnit timeUnit) throws IOException
+	protected void createAsynchronousTask(long intialDelay, long interval, TimeUnit timeUnit)
 	{
-		this(name, intialDelay, interval, timeUnit, false);	
+		createAsynchronousTask(intialDelay, interval, timeUnit, false);
 	}
 	
-	public AsynchronousDevice(String name, long intialDelay, long interval, TimeUnit timeUnit, boolean fixedRate) throws IOException
+	protected void createAsynchronousTask(long intialDelay, long interval, TimeUnit timeUnit, boolean fixedRate)
 	{
-		super(name);
-		
 		if(fixedRate)
 		{
 			asynchTask = createFixedRateTask(this, intialDelay, interval, timeUnit);

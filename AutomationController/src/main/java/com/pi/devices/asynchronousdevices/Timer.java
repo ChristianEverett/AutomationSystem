@@ -10,12 +10,12 @@ import java.util.concurrent.TimeUnit;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.Application;
-import com.pi.backgroundprocessor.TaskExecutorService.Task;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
+import com.pi.services.TaskExecutorService.Task;
 
 public class Timer extends AsynchronousDevice
 {
@@ -29,7 +29,8 @@ public class Timer extends AsynchronousDevice
 	
 	private Timer(String name, long second) throws IOException
 	{
-		super(name, 60 - second, 60L, TimeUnit.SECONDS, true);
+		super(name);
+		createAsynchronousTask(60 - second, 60L, TimeUnit.SECONDS, true);
 	}
 	
 	@Override

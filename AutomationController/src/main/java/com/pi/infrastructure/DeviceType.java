@@ -7,8 +7,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.commons.lang3.Validate;
-
 import com.pi.devices.Led;
 import com.pi.devices.Led.LedConfig;
 import com.pi.devices.Outlet;
@@ -20,6 +18,8 @@ import com.pi.devices.Switch.SwitchConfig;
 import com.pi.devices.Thermostat;
 import com.pi.devices.Thermostat.ThermostatConfig;
 import com.pi.devices.asynchronousdevices.Timer;
+import com.pi.devices.asynchronousdevices.AmazonEchoSwitch;
+import com.pi.devices.asynchronousdevices.AmazonEchoSwitch.AmazonEchoSwitchConfig;
 import com.pi.devices.asynchronousdevices.BluetoothAdapter;
 import com.pi.devices.asynchronousdevices.BluetoothAdapter.BluetoothAdapterConfig;
 import com.pi.devices.asynchronousdevices.DeviceDetector;
@@ -52,6 +52,7 @@ public abstract class DeviceType
 	public static final String DEVICE_SENSOR = "device_sensor";
 	public static final String BLUETOOTH_ADAPTER = "bluetooth_adapter";
 	public static final String TIMER = "timer";
+	public static final String ECHO = "echo";
 
 	public static final String REMOTE_DEVICE = "remote_device";
 	public static final String PROCESSOR = "processor";
@@ -69,6 +70,7 @@ public abstract class DeviceType
 
 	public static interface Params
 	{
+		public final static String LOCK = "lock";
 		public final static String RED = "red";
 		public final static String GREEN = "green";
 		public final static String BLUE = "blue";
@@ -78,7 +80,7 @@ public abstract class DeviceType
 		public final static String LOOP = "loop";
 		public final static String INTERVAL = "interval";
 
-		public final static String IS_ON = "isOn";
+		public final static String ON = "on";
 
 		public final static String TEMPATURE = "temperature";
 		public final static String HUMIDITY = "humidity";
@@ -105,7 +107,7 @@ public abstract class DeviceType
 		paramTypes.put(Params.SEQUENCES, List.class);
 		paramTypes.put(Params.LOOP, Boolean.class);
 		paramTypes.put(Params.INTERVAL, Integer.class);	
-		paramTypes.put(Params.IS_ON, Boolean.class);	
+		paramTypes.put(Params.ON, Boolean.class);	
 		paramTypes.put(Params.TEMPATURE, Integer.class);
 		paramTypes.put(Params.HUMIDITY, Integer.class);
 		paramTypes.put(Params.IS_DARK, Boolean.class);	
@@ -128,6 +130,7 @@ public abstract class DeviceType
 		idToConfig.put(DeviceType.DEVICE_SENSOR, DeviceDetectorConfig.class);
 		idToConfig.put(DeviceType.BLUETOOTH_ADAPTER, BluetoothAdapterConfig.class);
 		idToConfig.put(DeviceType.TIMER, TimerConfig.class);
+		idToConfig.put(DeviceType.ECHO, AmazonEchoSwitchConfig.class);
 		
 		typeToId.put(RemoteDevice.class, DeviceType.REMOTE_DEVICE);
 		typeToId.put(PILed.class, DeviceType.PI_LED);
@@ -141,14 +144,6 @@ public abstract class DeviceType
 		typeToId.put(DeviceDetector.class, DeviceType.DEVICE_SENSOR);
 		typeToId.put(BluetoothAdapter.class, DeviceType.BLUETOOTH_ADAPTER);
 		typeToId.put(Timer.class, DeviceType.TIMER);
+		typeToId.put(AmazonEchoSwitch.class, DeviceType.ECHO);
 	};
-	
-	public static final void validate(DeviceState state, String... params)
-	{
-		for(String param : params)
-		{
-			if(state.getParamTyped(param, paramTypes.get(param)) == null)
-				throw new RuntimeException("Param missing: " + param);
-		}
-	}
 }

@@ -38,7 +38,7 @@ public class Switch extends Device
 	@Override
 	protected void performAction(DeviceState state)
 	{
-		gpioPin.setState(! (Boolean)state.getParam(Params.IS_ON));
+		gpioPin.setState(! (Boolean)state.getParamNonNull(Params.ON));
 	}
 
 	@Override
@@ -52,7 +52,7 @@ public class Switch extends Device
 	public DeviceState getState(Boolean forDatabase)
 	{
 		DeviceState state = Device.createNewDeviceState(name);
-		state.setParam(Params.IS_ON, gpioPin.isLow());
+		state.setParam(Params.ON, gpioPin.isLow());
 		
 		return state;
 	}
