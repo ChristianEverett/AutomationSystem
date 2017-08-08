@@ -1,6 +1,7 @@
 package com.pi.infrastructure;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,15 +13,16 @@ import com.pi.Application;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.model.DeviceState;
+import com.pi.model.repository.RepositoryType;
 
-public abstract class NodeController
+public abstract class BaseNodeController
 {
-	protected static NodeController singleton = null;
+	protected static BaseNodeController singleton = null;
 	
 	protected Multimap<String, DeviceConfig> uninitializedRemoteDevices = ArrayListMultimap.create();
 	protected HashMap<String, Device> deviceMap = new HashMap<>();
 	
-	public static NodeController getInstance()
+	public static BaseNodeController getInstance()
 	{
 		if (singleton == null)
 			throw new RuntimeException("Node has not been created");
@@ -150,6 +152,10 @@ public abstract class NodeController
 		
 		return null;
 	}
+	
+	abstract public <T extends Serializable> T getRepositoryValue(String type, String key);
+	
+	abstract public <T extends Serializable> void setRepositoryValue(String type, String key, T value);
 	
 	static
 	{

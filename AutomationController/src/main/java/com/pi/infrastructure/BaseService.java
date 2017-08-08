@@ -2,11 +2,13 @@ package com.pi.infrastructure;
 
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.stereotype.Service;
+
 import com.pi.SystemLogger;
 import com.pi.services.TaskExecutorService;
 import com.pi.services.TaskExecutorService.Task;
 
-public abstract class Service implements Runnable
+public abstract class BaseService implements Runnable
 {
 	private static TaskExecutorService taskService = new TaskExecutorService(2);
 	private Task serviceTask;

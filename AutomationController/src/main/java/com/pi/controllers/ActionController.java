@@ -25,9 +25,9 @@ import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.util.DeviceLockedException;
 import com.pi.model.ActionProfile;
-import com.pi.model.ActionProfileRepository;
 import com.pi.model.DeviceState;
 import com.pi.model.DeviceStateRecord;
+import com.pi.model.repository.ActionProfileRepository;
 import com.pi.services.Processor;
 
 /**
@@ -109,14 +109,7 @@ public class ActionController
 	@RequestMapping(value = (PATH + "/{device}"), method = RequestMethod.POST)
 	public void scheduleAction(HttpServletRequest request, HttpServletResponse response, @RequestBody DeviceState state)
 	{		
-		try
-		{
-			bgp.scheduleAction(state);
-		}
-		catch (DeviceLockedException e)
-		{
-			response.setStatus(403);
-		}	
+		bgp.scheduleAction(state);
 	}
 	
 	@RequestMapping(value = (PATH + "/getAllActionProfiles"), method = RequestMethod.GET)
@@ -157,8 +150,7 @@ public class ActionController
 	@RequestMapping(value = (PATH + "/removeActionProfile/{name}"), method = RequestMethod.DELETE)
 	public void removeActionProfile(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String profileName)
 	{
-		if(actionProfileRepository.remove(profileName) == null)
-			response.setStatus(404);
+		actionProfileRepository.remove(profileName);
 	}
 	
 	private DeviceState getState(HttpServletResponse response, String deviceName)

@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import javax.xml.bind.annotation.XmlAttribute;
 
 import com.pi.model.DeviceState;
+import com.pi.model.repository.RepositoryType;
 import com.pi.services.TaskExecutorService;
 import com.pi.services.TaskExecutorService.Task;
 import com.pi4j.io.gpio.GpioController;
@@ -25,7 +26,7 @@ public abstract class Device
 	protected static GpioController gpioController = GpioFactory.getInstance();
 
 	// Used to find Remote Devices that exist on another node
-	private static NodeController node = null;
+	private static BaseNodeController node = null;
 
 	// Device Name
 	protected final String name;
@@ -37,7 +38,7 @@ public abstract class Device
 
 	protected static final String DEVICE = "device";
 
-	public static final void registerNodeManger(NodeController node)
+	public static final void registerNodeManger(BaseNodeController node)
 	{
 		Device.node = node;
 	}
@@ -104,7 +105,7 @@ public abstract class Device
 			if (state != null)
 			{
 				performAction(state);
-				if (!(this instanceof RemoteDevice) && !(this instanceof AsynchronousDevice))
+				if (!(this instanceof RemoteDeviceProxy) && !(this instanceof AsynchronousDevice))
 					update(getState(false));
 			} 
 		}
@@ -146,6 +147,16 @@ public abstract class Device
 		node.scheduleAction(state);
 	}
 
+	protected <T extends Serializable> T getRepositoryValue(String type, String key)
+	{
+		return node.getRepositoryValue(type, key);	
+	}
+	
+	protected <T extends Serializable> void setRepositoryValue(String type, String key, T value)
+	{
+		node.setRepositoryValue(type, key, value);
+	}
+	
 	public static Task createTask(Runnable task, Long delay, TimeUnit unit)
 	{
 		return taskService.scheduleTask(task, delay, unit);

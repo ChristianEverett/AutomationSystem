@@ -31,7 +31,7 @@ import com.pi.devices.asynchronousdevices.TemperatureSensor.TemperatureSensorCon
 import com.pi.devices.asynchronousdevices.Timer.TimerConfig;
 import com.pi.devices.asynchronousdevices.WeatherSensor;
 import com.pi.devices.asynchronousdevices.WeatherSensor.WeatherSensorConfig;
-import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
+import com.pi.infrastructure.RemoteDeviceProxy.RemoteDeviceConfig;
 import com.pi.model.DeviceState;
 
 /**
@@ -132,7 +132,7 @@ public abstract class DeviceType
 		idToConfig.put(DeviceType.TIMER, TimerConfig.class);
 		idToConfig.put(DeviceType.ECHO, AmazonEchoSwitchConfig.class);
 		
-		typeToId.put(RemoteDevice.class, DeviceType.REMOTE_DEVICE);
+		typeToId.put(RemoteDeviceProxy.class, DeviceType.REMOTE_DEVICE);
 		typeToId.put(PILed.class, DeviceType.PI_LED);
 		typeToId.put(Led.class, DeviceType.LED);
 		typeToId.put(MotionSensor.class, DeviceType.MOTION_SENSOR);

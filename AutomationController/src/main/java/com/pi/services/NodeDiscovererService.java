@@ -14,23 +14,27 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 
-import com.pi.SystemLogger;
-import com.pi.infrastructure.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
-public class NodeDiscovererService extends Service
+import com.pi.SystemLogger;
+import com.pi.infrastructure.BaseService;
+
+@Service
+public class NodeDiscovererService extends BaseService
 {
 	public static final String AUTOMATION_CONTROLLER = "automation_controller";
 	private static final String INET_ADDRESS = "224.0.0.3";
 	private static final int DISCOVERY_PORT = 9876;
-	public Processor processor;
+	@Autowired
+	private Processor processor;
 
 	private MulticastSocket serverSocket = null;
 
-	public NodeDiscovererService(Processor processor)
+	private NodeDiscovererService()
 	{
 		try
 		{
-			this.processor = processor;
 			InetAddress address = InetAddress.getByName(INET_ADDRESS);
 			serverSocket = new MulticastSocket(DISCOVERY_PORT);
 			serverSocket.joinGroup(address);

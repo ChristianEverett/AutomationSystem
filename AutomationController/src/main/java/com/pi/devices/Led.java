@@ -22,8 +22,9 @@ import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
-import com.pi.model.LedSequenceRepoistory;
-import com.pi.model.LedSequenceRepoistory.LedSequence;
+import com.pi.model.LedSequence;
+import com.pi.model.repository.LedSequenceRepoistory;
+import com.pi.model.repository.RepositoryType;
 import com.pi.services.TaskExecutorService.Task;
 
 /**
@@ -102,14 +103,14 @@ public class Led extends Device
 		{
 			Boolean loop = state.getParamTyped(Params.LOOP, Boolean.class, false);
 			Integer interval = state.getParamTyped(Params.INTERVAL, Integer.class, 15);
-			LedSequenceRepoistory.getInstance().put(sequenceName, new LedSequence(interval, loop));
+			setRepositoryValue(RepositoryType.LedSequence, sequenceName, new LedSequence(interval, loop));
 			recordingName = sequenceName;
 		}
 	}
 
 	private void playSequence(String sequenceName)
 	{
-		LedSequence sequence = LedSequenceRepoistory.getInstance().get(sequenceName);
+		LedSequence sequence = getRepositoryValue(RepositoryType.LedSequence, sequenceName);
 
 		if (sequence == null)
 			throw new RuntimeException("No Sequence found for: " + sequenceName);
@@ -124,18 +125,15 @@ public class Led extends Device
 	{
 		if (recording.get())
 		{
-			LedSequence sequence = LedSequenceRepoistory.getInstance().get(recordingName);
+			LedSequence sequence = getRepositoryValue(RepositoryType.LedSequence, recordingName);
 			sequence.addToSequence(red, green, blue);
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	@Override
 	protected void load(DeviceState state) throws IOException
 	{
-		// sequences = (Map<String, LedSequence>)
-		// state.getParamNonNull(Params.SEQUENCES);
-		// this.execute(state); TODO
+		 this.execute(state);
 	}
 
 	public void setLedColor(int red, int green, int blue) throws IOException
@@ -177,11 +175,6 @@ public class Led extends Device
 		state.setParam(Params.RED, currentColor.getRed());
 		state.setParam(Params.GREEN, currentColor.getGreen());
 		state.setParam(Params.BLUE, currentColor.getBlue());
-
-		// if(forDatabase) TODO
-		// {
-		// state.setParam(Params.SEQUENCES, sequences);
-		// }
 
 		return state;
 	}

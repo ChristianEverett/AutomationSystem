@@ -4,7 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class ActionProfile
+public class ActionProfile extends DatabaseElement
 {
 	private String name;
 	private Set<DeviceState> deviceStates = new HashSet<>();

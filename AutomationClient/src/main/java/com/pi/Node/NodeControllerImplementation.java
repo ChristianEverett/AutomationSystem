@@ -5,25 +5,24 @@ package com.pi.Node;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.Serializable;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.concurrent.TimeUnit;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pi.SystemLogger;
 import com.pi.controllers.ActionController;
 import com.pi.controllers.EventController;
+import com.pi.controllers.RepositoryController;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.NodeController;
-import com.pi.infrastructure.RemoteDevice;
+import com.pi.infrastructure.BaseNodeController;
+import com.pi.infrastructure.RemoteDeviceProxy;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.util.HttpClient;
 import com.pi.infrastructure.util.HttpClient.ObjectResponse;
 import com.pi.infrastructure.util.HttpClient.Response;
 import com.pi.model.DeviceState;
 import com.pi.services.NodeDiscovererService;
-import com.pi.services.TaskExecutorService.Task;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -32,7 +31,7 @@ import com.sun.net.httpserver.HttpServer;
  * @author Christian Everett
  *
  */
-public class NodeControllerImplementation extends NodeController implements HttpHandler
+public class NodeControllerImplementation extends BaseNodeController implements HttpHandler
 {
 	private HttpServer server = null;
 	private static final int QUEUE = 5;
@@ -60,7 +59,7 @@ public class NodeControllerImplementation extends NodeController implements Http
 			Device.registerNodeManger(this);
 			
 			server = HttpServer.create(new InetSocketAddress(8080), QUEUE);
-			server.createContext(RemoteDevice.REMOTE_CONFIG_PATH, this);
+			server.createContext(RemoteDeviceProxy.REMOTE_CONFIG_PATH, this);
 			server.setExecutor(null); // creates a default executor
 			server.start();
 			
@@ -158,6 +157,9 @@ public class NodeControllerImplementation extends NodeController implements Http
 			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
 			ObjectResponse response = client.sendGetObject(null, ActionController.PATH + "/AC/" + name);
 			
+			if(!response.isHTTP_OK())
+				throw new IOException("Could not get device state: " + response.getStatusCode());
+			
 			return (DeviceState) response.getResponseObject();
 		}
 		catch (Exception e)
@@ -186,5 +188,43 @@ public class NodeControllerImplementation extends NodeController implements Http
 		{
 			SystemLogger.getLogger().severe("Could not connect to Automation Controller. " + e.getMessage());
 		}
+	}
+
+	@Override
+	public <T extends Serializable> T getRepositoryValue(String type, String key)
+	{
+		try
+		{
+			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
+			ObjectResponse response = client.sendGetObject("key=" + key, RepositoryController.PATH + "/" + type);
+			
+			if(!response.isHTTP_OK())
+				throw new IOException("Could not get repository " + type + " : " + response.getStatusCode());
+			
+			return (T) response.getResponseObject();
+		}
+		catch (Exception e)
+		{
+			SystemLogger.getLogger().severe("Could not connect to Automation Controller. " + e.getMessage());
+		}
+		
+		return null;
+	}
+
+	@Override
+	public <T extends Serializable> void setRepositoryValue(String type, String key, T value)
+	{
+		try
+		{
+			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_ADDRESS);
+			ObjectResponse response = client.sendPostObject("key=" + key, RepositoryController.PATH + "/" + type, value);
+			
+			if(!response.isHTTP_OK())
+				throw new IOException("Could not set repository " + type + " : " + response.getStatusCode());
+		}
+		catch (Exception e)
+		{
+			SystemLogger.getLogger().severe("Could not connect to Automation Controller. " + e.getMessage());
+		}	
 	}
 }

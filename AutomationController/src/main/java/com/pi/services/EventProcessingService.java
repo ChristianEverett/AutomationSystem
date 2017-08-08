@@ -11,9 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.pi.model.ActionProfile;
-import com.pi.model.ActionProfileRepository;
 import com.pi.model.DeviceState;
 import com.pi.model.EventHandler;
+import com.pi.model.repository.ActionProfileRepository;
 
 @Service
 public class EventProcessingService

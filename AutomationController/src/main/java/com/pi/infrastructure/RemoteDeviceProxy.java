@@ -24,7 +24,7 @@ import com.pi.model.DeviceState;
  * @author Christian Everett
  *
  */
-public class RemoteDevice extends Device
+public class RemoteDeviceProxy extends Device
 {
 	public static final String REMOTE_CONFIG_PATH = "/config";
 	public static final String DEVICE_NAME_QUERY_PARAM = "device";
@@ -35,7 +35,7 @@ public class RemoteDevice extends Device
 	private String type;
 
 	@SuppressWarnings("unchecked")
-	public RemoteDevice(String name, String type, String url, DeviceConfig config) throws Exception
+	public RemoteDeviceProxy(String name, String type, String url, DeviceConfig config) throws Exception
 	{
 		super(name);
 		this.type = type;
@@ -134,7 +134,7 @@ public class RemoteDevice extends Device
 		@Override
 		public Device buildDevice() throws Exception
 		{
-			return new RemoteDevice(name, type, url, config);
+			return new RemoteDeviceProxy(name, type, url, config);
 		}
 
 		public void setElement(DeviceConfig config)

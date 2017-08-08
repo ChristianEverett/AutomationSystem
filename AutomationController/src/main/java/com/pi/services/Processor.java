@@ -4,6 +4,7 @@
 package com.pi.services;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.sql.SQLException;
 import java.util.Collection;
@@ -24,14 +25,15 @@ import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.DeviceType.Params;
-import com.pi.infrastructure.DeviceLoader;
 import com.pi.infrastructure.DeviceType;
-import com.pi.infrastructure.NodeController;
-import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
+import com.pi.infrastructure.BaseNodeController;
+import com.pi.infrastructure.RemoteDeviceProxy.RemoteDeviceConfig;
 import com.pi.infrastructure.util.DeviceLockedException;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
+import com.pi.infrastructure.util.RepositoryDoesNotExistException;
 import com.pi.model.DeviceState;
+import com.pi.model.repository.BaseRepository;
 import com.pi.services.TaskExecutorService.Task;
 
 /**
@@ -40,7 +42,7 @@ import com.pi.services.TaskExecutorService.Task;
  */
 
 @Service
-public class Processor extends NodeController implements Runnable
+public class Processor extends BaseNodeController implements Runnable
 {
 	private AtomicBoolean shutdownProcessor = new AtomicBoolean(false);
 	private static Thread processingThread = null;
@@ -51,47 +53,29 @@ public class Processor extends NodeController implements Runnable
 	private ConcurrentHashMap<String, DeviceState> cachedStates = new ConcurrentHashMap<>();
 	private Map<String, DeviceState> databaseSavedStates = new HashMap<>();
 	private Set<String> lockedDevices = new HashSet<>();
-
+	@Autowired
+	private Map<String, BaseRepository<?, ?>> repositorys;
+	
 	// Background processor services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
-	private PersistenceManager persistenceManager = null;
+	@Autowired
+	private DatabaseService persistenceManager = null;
 	@Autowired
 	private EventProcessingService eventProcessingService;
-	private DeviceLoggingService deviceLoggingService = null;
-	private DeviceLoader deviceLoader = null;
-	private NodeDiscovererService nodeDiscovererService = null;
+	@Autowired
+	private DeviceLoggingService deviceLoggingService;
+	@Autowired
+	private DeviceLoadingService deviceLoader;
+	@Autowired
+	private NodeDiscovererService nodeDiscovererService;
 
 	// Background processor tasks
 	private Task databaseTask;
 
-//	public static synchronized Thread createBackgroundProcessor() throws Exception
-//	{
-//		if (singleton != null)
-//			throw new Exception("Background Processor already created");
-//		singleton = new Processor();
-//		processingThread = new Thread((Runnable) singleton);
-//		return processingThread;
-//	}
-
-//	public static Processor getInstance()
-//	{
-//		return (Processor) NodeController.getInstance();
-//	}
-
 	private Processor() throws Exception
 	{
-		SystemLogger.getLogger().info("Starting Node Discovery Service");
-		nodeDiscovererService = new NodeDiscovererService(this);
-		nodeDiscovererService.start(5);
 		Device.registerNodeManger(this);
-		
-		persistenceManager = PersistenceManager.loadPersistanceManager();
-		deviceLoader = DeviceLoader.createNewDeviceLoader();
 
-		SystemLogger.getLogger().info("Starting Device Logging Service");
-		deviceLoggingService = new DeviceLoggingService(this);
-		deviceLoggingService.start();
-		
 		SystemLogger.getLogger().info("Scheduling Database Task");
 		Long interval = Long.parseLong(PropertyManger.loadProperty(PropertyKeys.DATABASE_POLL_FREQUENCY, "30"));
 		databaseTask = taskService.scheduleTask(() ->
@@ -111,7 +95,7 @@ public class Processor extends NodeController implements Runnable
 
 	@Override
 	public void run()
-	{
+	{	
 		try
 		{
 			while (!shutdownProcessor.get())
@@ -133,7 +117,7 @@ public class Processor extends NodeController implements Runnable
 		return taskService;
 	}
 
-	public PersistenceManager getPersistenceManger()
+	public DatabaseService getPersistenceManger()
 	{
 		return persistenceManager;
 	}
@@ -143,6 +127,28 @@ public class Processor extends NodeController implements Runnable
 		return eventProcessingService;
 	}
 
+	@Override
+	public <T extends Serializable> T getRepositoryValue(String type, String key)
+	{
+		BaseRepository<?, ?> repository = repositorys.get(type);
+		
+		if(repository == null)
+			throw new RepositoryDoesNotExistException(type);
+		
+		return (T) repository.get(key);
+	}
+
+	@Override
+	public <T extends Serializable> void setRepositoryValue(String type, String key, T value)
+	{
+		BaseRepository<?, ?> repository = repositorys.get(type);
+		
+		if(repository == null)
+			throw new RuntimeException("Repository does not exist");
+		
+		repository.put(key, value);
+	}
+	
 	public synchronized void registerNode(String node, InetAddress address)
 	{
 		nodeMap.put(node, address);
@@ -176,7 +182,7 @@ public class Processor extends NodeController implements Runnable
 			if (!isLocked(state.getName()))
 				processingQueue.add(state);
 			else
-				throw new DeviceLockedException("This device is locked");
+				throw new DeviceLockedException(state.getName());
 		}
 	}
 
@@ -196,7 +202,6 @@ public class Processor extends NodeController implements Runnable
 	@Override
 	public synchronized String createNewDevice(DeviceConfig config, boolean isRemoteDevice) throws IOException
 	{
-		// TODO enable logging
 		if(!isRemoteDevice)
 		{
 			String name = super.createNewDevice(config, false);
@@ -221,7 +226,6 @@ public class Processor extends NodeController implements Runnable
 
 		if (address == null)
 			return;
-
 
 		Collection<DeviceConfig> configs = uninitializedRemoteDevices.removeAll(nodeID);
 
@@ -248,6 +252,12 @@ public class Processor extends NodeController implements Runnable
 	{
 		try
 		{
+			SystemLogger.getLogger().info("Starting Node Discovery Service");
+			nodeDiscovererService.start(5);
+			
+			SystemLogger.getLogger().info("Starting Device Logging Service");
+			deviceLoggingService.start();
+			
 			loadDeviceStatesIntoCache();
 
 			SystemLogger.getLogger().info("Loading Devices");

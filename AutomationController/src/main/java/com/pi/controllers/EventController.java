@@ -14,9 +14,9 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.SystemLogger;
 import com.pi.infrastructure.util.ActionProfileDoesNotExist;
-import com.pi.model.ActionProfileRepository;
 import com.pi.model.DeviceState;
 import com.pi.model.EventHandler;
+import com.pi.model.repository.ActionProfileRepository;
 import com.pi.services.Processor;
 
 @Controller
@@ -108,6 +108,6 @@ public class EventController
 	private void verifiyActionProfileExists(String profileName)
 	{
 		if(actionProfileRepository.get(profileName) == null)
-			throw new ActionProfileDoesNotExist("No Profile by name of: " + profileName);
+			throw new ActionProfileDoesNotExist(profileName);
 	}
 }

@@ -12,8 +12,8 @@ import java.util.HashMap;
 import com.pi.Main;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.RemoteDevice;
-import com.pi.infrastructure.RemoteDevice.RemoteDeviceMessage;
+import com.pi.infrastructure.RemoteDeviceProxy;
+import com.pi.infrastructure.RemoteDeviceProxy.RemoteDeviceMessage;
 import com.pi.infrastructure.util.HttpClient;
 import com.pi.model.DeviceState;
 import com.sun.net.httpserver.HttpExchange;
@@ -45,7 +45,7 @@ class DeviceHandler implements HttpHandler
 
 			switch (message.getMethodID())
 			{
-			case RemoteDevice.PERFORM_ACTION:
+			case RemoteDeviceProxy.PERFORM_ACTION:
 			{
 				DeviceState action = (DeviceState) message.getData();
 
@@ -56,7 +56,7 @@ class DeviceHandler implements HttpHandler
 				
 				break;
 			}
-			case RemoteDevice.GET_STATE:
+			case RemoteDeviceProxy.GET_STATE:
 			{
 				Boolean forDatabase = (Boolean) message.getData();
 				request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
@@ -65,7 +65,7 @@ class DeviceHandler implements HttpHandler
 				output.close();
 				break;
 			}
-			case RemoteDevice.CLOSE:
+			case RemoteDeviceProxy.CLOSE:
 			{
 				device.close();
 				SystemLogger.getLogger().info("Closed: " + device.getName());

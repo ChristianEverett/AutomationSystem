@@ -15,9 +15,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.pi.SystemLogger;
-import com.pi.infrastructure.Service;
+import com.pi.infrastructure.BaseService;
 
-public class UPNPBroadcastResponderService extends Service
+public class UPNPBroadcastResponderService extends BaseService
 {
 	private static final String IP_STRING = "239.255.255.250";
 	private static final int PORT = 1900;

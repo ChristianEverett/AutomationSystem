@@ -7,22 +7,26 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.pi.infrastructure.Service;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.pi.infrastructure.BaseService;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import com.pi.model.DeviceState;
 import com.pi.model.DeviceStateRecord;
 
-public class DeviceLoggingService extends Service
+@Service
+public class DeviceLoggingService extends BaseService
 {
 	private ConcurrentLinkedQueue<DeviceStateRecord> loggingQueue = new ConcurrentLinkedQueue<>();
 	private Set<String> loggingEnabledDevices = ConcurrentHashMap.newKeySet();
-	private Processor processor = null;
+	@Autowired
+	private Processor processor;
 	private AtomicBoolean loggingEnabled = new AtomicBoolean(false);
 	
-	public DeviceLoggingService(Processor processor)
+	private DeviceLoggingService()
 	{
-		this.processor = processor;
 		long interval = Long.parseLong(PropertyManger.loadProperty(PropertyKeys.DEVICE_STATE_LOG_FREQUENCY, "10"));
 	}
 	

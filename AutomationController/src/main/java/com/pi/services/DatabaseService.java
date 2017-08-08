@@ -18,6 +18,8 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.springframework.stereotype.Repository;
+
 import com.pi.Application;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.MySQLHandler;
@@ -31,8 +33,10 @@ import com.pi.model.EventHandler;
  * @author Christian Everett
  *
  */
-public class PersistenceManager
-{
+
+@Repository
+public class DatabaseService
+{//TODO switch to hibernate
 	public static final String CREATE_STATE_TABLE = "createStateTable";
 	public static final String CREATE_EVENT_TABLE = "createEventTable";
 	public static final String CREATE_STATE_LOG_TABLE = "createStateLog";
@@ -50,21 +54,8 @@ public class PersistenceManager
 	public static final String WRITE_TO_DEVICE_LOG = "writeDeviceLog";
 
 	private MySQLHandler dbHandler = null;
-	private static PersistenceManager singleton = null;
 
-	public static PersistenceManager loadPersistanceManager() throws Exception
-	{
-		if (singleton == null)
-		{
-			String dbUser = loadProperty(PropertyKeys.DBUSER);
-			String dbPass = loadProperty(PropertyKeys.DBPASS);
-			singleton = new PersistenceManager(dbUser, dbPass);
-		}
-
-		return singleton;
-	}
-
-	private PersistenceManager(String username, String password) throws Exception
+	public DatabaseService() throws Exception
 	{
 		String dbuser = PropertyManger.loadProperty(PropertyKeys.DBUSER);
 		String dbpass = PropertyManger.loadProperty(PropertyKeys.DBPASS);

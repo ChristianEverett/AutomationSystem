@@ -7,7 +7,7 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
-import com.pi.infrastructure.NodeController;
+import com.pi.infrastructure.BaseNodeController;
 
 public class DeviceState extends DatabaseElement
 {
@@ -35,7 +35,7 @@ public class DeviceState extends DatabaseElement
 	public void setName(String name)
 	{
 		this.name = name;
-		type = NodeController.getInstance().getDeviceType(name);
+		type = BaseNodeController.getInstance().getDeviceType(name);
 	}
 
 	public Map<String, Object> getParams()

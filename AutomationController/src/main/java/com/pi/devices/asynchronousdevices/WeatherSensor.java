@@ -61,12 +61,12 @@ public class WeatherSensor extends AsynchronousDevice
 				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36")
 				.validateTLSCertificates(false);
 		
-		lightHttpConnection = Jsoup.connect("http://www.isitdarkoutside.com/").userAgent(
-				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36")
-				.validateTLSCertificates(false);
+//		lightHttpConnection = Jsoup.connect("http://www.isitdarkoutside.com/").userAgent(
+//				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36")
+//				.validateTLSCertificates(false);
 		
-//		sunRiseHttpConnection = Jsoup.connect("http://www.google.com/search?q=sun+rise+sun+set").userAgent(
-//				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
+		sunRiseHttpConnection = Jsoup.connect("http://www.google.com/search?q=sun+rise+sun+set").userAgent(
+				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36");
 		createAsynchronousTask(10L, updateFrequency, TimeUnit.SECONDS);
 	}
 
@@ -78,32 +78,32 @@ public class WeatherSensor extends AsynchronousDevice
 
 		locationTempature = Integer.parseInt(element.html());
 
-		document = lightHttpConnection.get();
-		element = document.getElementById("answer");
-		
-		if ("YES".equalsIgnoreCase(element.html()))
-			isDark = true;
-		else
-			isDark = false;
-		
-//		document = sunRiseHttpConnection.get();
-//		Elements elements = document.getElementsByClass("vk_ans");
+//		document = lightHttpConnection.get();
+//		element = document.getElementById("answer");
 //		
-//		String sunRiseString = elements.first().html();
-//		String sunSetString = elements.last().html();
-//		
-//		LocalTime sunRise = LocalTime.parse(sunRiseString, parseFormat);
-//		LocalTime sunSet = LocalTime.parse(sunSetString, parseFormat);
-//		
-//		LocalTime now = LocalTime.now();
-//		
-//		boolean isBeforeSunRise = now.isBefore(sunRise);
-//		boolean isAfterSunSet = now.isAfter(sunSet);
-//		
-//		if(isBeforeSunRise || isAfterSunSet)
+//		if ("YES".equalsIgnoreCase(element.html()))
 //			isDark = true;
 //		else
 //			isDark = false;
+		
+		document = sunRiseHttpConnection.get();
+		Elements elements = document.getElementsByClass("_I5m");
+		
+		String sunRiseString = elements.first().html();
+		String sunSetString = elements.last().html();
+		
+		LocalTime sunRise = LocalTime.parse(sunRiseString, parseFormat);
+		LocalTime sunSet = LocalTime.parse(sunSetString, parseFormat);
+		
+		LocalTime now = LocalTime.now();
+		
+		boolean isBeforeSunRise = now.isBefore(sunRise.minusHours(1));
+		boolean isAfterSunSet = now.isAfter(sunSet.minusHours(1));
+		
+		if(isBeforeSunRise || isAfterSunSet)
+			isDark = true;
+		else
+			isDark = false;
 		
 		update(getState());		
 	}

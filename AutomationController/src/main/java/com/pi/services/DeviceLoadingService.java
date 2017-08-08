@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.pi.infrastructure;
+package com.pi.services;
 
 import static com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import static com.pi.infrastructure.util.PropertyManger.loadProperty;
@@ -9,7 +9,9 @@ import static com.pi.infrastructure.util.PropertyManger.loadProperty;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -18,6 +20,7 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 
+import org.springframework.stereotype.Service;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
@@ -26,20 +29,24 @@ import org.xml.sax.SAXException;
 
 import com.pi.Application;
 import com.pi.SystemLogger;
+import com.pi.infrastructure.Device;
+import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.BaseNodeController;
+import com.pi.infrastructure.RemoteDeviceProxy;
 import com.pi.infrastructure.Device.DeviceConfig;
-import com.pi.infrastructure.RemoteDevice.RemoteDeviceConfig;
+import com.pi.infrastructure.RemoteDeviceProxy.RemoteDeviceConfig;
 
 /**
  * @author Christian Everett
  *
  */
-public class DeviceLoader
+
+@Service
+public class DeviceLoadingService
 {//TODO rework
 	public static final String DEVICE_NAME = "device-name";
 	public static final String DEVICE_TYPE = "device-type";
 	public static final String DEVICE = "device";
-
-	private static DeviceLoader singleton = null;
 	private Document xmlDocument = null;
 
 	private static HashMap<String, Class<?>> registeredDeviceConfigs = new HashMap<>();
@@ -49,7 +56,7 @@ public class DeviceLoader
 		registeredDeviceConfigs.putAll(DeviceType.registerAllDeviceConfigs());
 	}
 
-	private DeviceLoader() throws IOException, ParserConfigurationException, SAXException
+	private DeviceLoadingService() throws IOException, ParserConfigurationException, SAXException
 	{
 		File xmlFile = new File(loadProperty(PropertyKeys.DEVICE_CONFIG));
 		boolean create = xmlFile.createNewFile();
@@ -61,12 +68,38 @@ public class DeviceLoader
 		xmlDocument.getDocumentElement().normalize();
 	}
 
-	public void loadDevices(NodeController deviceFactory)
+	public DeviceConfig loadDevice()
+	{
+		return null;
+		
+	}
+	
+	public List<DeviceConfig> loadDevices()
+	{
+		return null;
+		
+	}
+	
+	private Map<String, NodeList> getDeviceTags()
+	{
+		Map<String, NodeList> deviceTags = new HashMap<>();
+		Set<String> tags = registeredDeviceConfigs.keySet();
+		
+		for(String tag : tags)
+		{
+			NodeList deviceList = xmlDocument.getElementsByTagName(tag);
+			deviceTags.put(tag, deviceList);
+		}
+		
+		return deviceTags;
+	}
+	
+	public void loadDevices(BaseNodeController deviceFactory)
 	{
 		loadDevice(deviceFactory, null);
 	}
 
-	public void loadDevice(NodeController deviceFactory, String name)
+	public void loadDevice(BaseNodeController deviceFactory, String name)
 	{
 		NodeList deviceList = xmlDocument.getElementsByTagName(DEVICE);
 
@@ -82,10 +115,10 @@ public class DeviceLoader
 		}
 	}
 	
-	private void createDevice(NodeController deviceFactory, Element element, String name)
+	private void createDevice(BaseNodeController deviceFactory, Element element, String name)
 	{
-		String type = element.getAttribute(DeviceLoader.DEVICE_TYPE);
-		String xmlName = element.getAttribute(DeviceLoader.DEVICE_NAME);
+		String type = element.getAttribute(DeviceLoadingService.DEVICE_TYPE);
+		String xmlName = element.getAttribute(DeviceLoadingService.DEVICE_NAME);
 		
 		if(name != null && !xmlName.equals(name))
 			return;
@@ -108,9 +141,9 @@ public class DeviceLoader
 	
 	private DeviceConfig loadRemoteDevice(Element element, DeviceConfig config) throws JAXBException, Exception
 	{
-		Element deviceElement = (Element) element.getElementsByTagName(DeviceLoader.DEVICE).item(0);
-		String name = deviceElement.getAttribute(DeviceLoader.DEVICE_NAME);
-		String type = deviceElement.getAttribute(DeviceLoader.DEVICE_TYPE);
+		Element deviceElement = (Element) element.getElementsByTagName(DeviceLoadingService.DEVICE).item(0);
+		String name = deviceElement.getAttribute(DeviceLoadingService.DEVICE_NAME);
+		String type = deviceElement.getAttribute(DeviceLoadingService.DEVICE_TYPE);
 		String nodeID = element.getElementsByTagName("nodeID").item(0).getTextContent();
 		
 		((RemoteDeviceConfig) config).setElement(load(deviceElement, type));
@@ -130,13 +163,5 @@ public class DeviceLoader
 		Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
 		DeviceConfig config = (DeviceConfig) jaxbUnmarshaller.unmarshal(element);
 		return config;
-	}
-
-	public static DeviceLoader createNewDeviceLoader() throws IOException, ParserConfigurationException, SAXException
-	{
-		if (singleton == null)
-			singleton = new DeviceLoader();
-
-		return singleton;
 	}
 }

@@ -11,9 +11,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.springframework.stereotype.Service;
+
 /**
  * @author Christian Everett
  */
+
 public class TaskExecutorService
 {
 	private Map<Integer, Future<?>> taskMap = new HashMap<>();
