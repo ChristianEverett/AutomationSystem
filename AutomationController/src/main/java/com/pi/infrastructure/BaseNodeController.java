@@ -9,17 +9,13 @@ import java.util.Map.Entry;
 import java.util.Set;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
-import com.pi.Application;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.model.DeviceState;
-import com.pi.model.repository.RepositoryType;
 
 public abstract class BaseNodeController
 {
 	protected static BaseNodeController singleton = null;
-	
-	protected Multimap<String, DeviceConfig> uninitializedRemoteDevices = ArrayListMultimap.create();
 	protected HashMap<String, Device> deviceMap = new HashMap<>();
 	
 	public static BaseNodeController getInstance()
@@ -133,7 +129,7 @@ public abstract class BaseNodeController
 		return stateList;
 	}
 	
-	public synchronized String createNewDevice(DeviceConfig config, boolean isRemoteDevice) throws IOException
+	public synchronized String createNewDevice(DeviceConfig config) throws IOException
 	{
 		try
 		{

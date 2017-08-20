@@ -84,7 +84,7 @@ public class NodeControllerImplementation extends BaseNodeController implements 
 		{
 			DeviceConfig config = (DeviceConfig) input.readObject();
 			
-			createNewDevice(config, false);
+			createNewDevice(config);
 
 			server.createContext(createPathFromName(config.getName()), new DeviceHandler(lookupDevice(config.getName())));
 			request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);

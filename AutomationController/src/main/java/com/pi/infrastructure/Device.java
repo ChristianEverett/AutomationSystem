@@ -2,13 +2,12 @@ package com.pi.infrastructure;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.annotation.XmlAttribute;
 
+import com.pi.infrastructure.DeviceType.DeviceTypeMap;
 import com.pi.model.DeviceState;
-import com.pi.model.repository.RepositoryType;
 import com.pi.services.TaskExecutorService;
 import com.pi.services.TaskExecutorService.Task;
 import com.pi4j.io.gpio.GpioController;
@@ -37,7 +36,7 @@ public abstract class Device
 	public static final int CLOSE = 2;
 
 	protected static final String DEVICE = "device";
-
+	
 	public static final void registerNodeManger(BaseNodeController node)
 	{
 		Device.node = node;
@@ -82,7 +81,7 @@ public abstract class Device
 	
 	public String getType()
 	{
-		return DeviceType.typeToId.get(this.getClass());
+		return DeviceTypeMap.getType(this.getClass());
 	}
 	
 	public synchronized final void loadSavedData(DeviceState state) throws IOException

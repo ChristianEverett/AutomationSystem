@@ -137,7 +137,7 @@ public class RemoteDeviceProxy extends Device
 			return new RemoteDeviceProxy(name, type, url, config);
 		}
 
-		public void setElement(DeviceConfig config)
+		public void setConfig(DeviceConfig config)
 		{
 			this.config = config;
 		}

@@ -13,6 +13,7 @@ import java.net.MulticastSocket;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.function.BiConsumer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,10 +27,10 @@ public class NodeDiscovererService extends BaseService
 	public static final String AUTOMATION_CONTROLLER = "automation_controller";
 	private static final String INET_ADDRESS = "224.0.0.3";
 	private static final int DISCOVERY_PORT = 9876;
-	@Autowired
-	private Processor processor;
 
-	private MulticastSocket serverSocket = null;
+	private MulticastSocket serverSocket;
+	
+	private BiConsumer<String, InetAddress> register;
 
 	private NodeDiscovererService()
 	{
@@ -44,6 +45,12 @@ public class NodeDiscovererService extends BaseService
 			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
+	
+	public synchronized void start(int seconds, BiConsumer<String, InetAddress> register)
+	{
+		this.register = register;
+		super.start(seconds);
+	}
 
 	@Override
 	public void executeService() throws Exception
@@ -53,7 +60,7 @@ public class NodeDiscovererService extends BaseService
 			DatagramPacket receivePacket = listenForProbe();
 			Probe probe = extractProbeFromDatagram(receivePacket);
 					
-			processor.registerNode(probe.getNodeName(), receivePacket.getAddress());
+			register.accept(probe.getNodeName(), receivePacket.getAddress());
 			replyToNode(receivePacket.getAddress(), receivePacket.getPort());
 		}
 		catch (Exception e)

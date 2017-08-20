@@ -47,6 +47,4 @@ public class ActionProfileRepository extends BaseRepository<String, ActionProfil
 		
 		return profile;
 	}
-	
-	
 }

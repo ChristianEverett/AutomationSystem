@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +21,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
@@ -28,6 +31,7 @@ import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.BaseNodeController;
 import com.pi.infrastructure.RemoteDeviceProxy.RemoteDeviceConfig;
+import com.pi.infrastructure.util.DeviceDoesNotExist;
 import com.pi.infrastructure.util.DeviceLockedException;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
@@ -53,6 +57,7 @@ public class Processor extends BaseNodeController implements Runnable
 	private ConcurrentHashMap<String, DeviceState> cachedStates = new ConcurrentHashMap<>();
 	private Map<String, DeviceState> databaseSavedStates = new HashMap<>();
 	private Set<String> lockedDevices = new HashSet<>();
+	protected Multimap<String, RemoteDeviceConfig> uninitializedRemoteDevices = ArrayListMultimap.create();	
 	@Autowired
 	private Map<String, BaseRepository<?, ?>> repositorys;
 	
@@ -90,6 +95,8 @@ public class Processor extends BaseNodeController implements Runnable
 			}
 		}, 1L, interval, TimeUnit.MINUTES);
 		
+		SystemLogger.getLogger().info("Starting Node Discovery Service");
+		nodeDiscovererService.start(5, (node, address) -> registerNode(node, address));
 		singleton = this;
 	}
 
@@ -151,9 +158,12 @@ public class Processor extends BaseNodeController implements Runnable
 	
 	public synchronized void registerNode(String node, InetAddress address)
 	{
-		nodeMap.put(node, address);
-		createRemoteDevices(node);
-		SystemLogger.getLogger().info("Registered Node: " + node);
+		if (nodeMap.get(node) == null)
+		{
+			nodeMap.put(node, address);
+			createRemoteDevicesForNode(node);
+			SystemLogger.getLogger().info("Registered Node: " + node);
+		}
 	}
 
 	public InetAddress lookupNodeAddress(String node)
@@ -199,45 +209,61 @@ public class Processor extends BaseNodeController implements Runnable
 		return super.getDeviceState(name, isForDatabase);
 	}
 
-	@Override
-	public synchronized String createNewDevice(DeviceConfig config, boolean isRemoteDevice) throws IOException
+	public void loadDevices()
 	{
-		if(!isRemoteDevice)
+		List<DeviceConfig> configs = deviceLoader.loadDevices();
+		
+		for(DeviceConfig config : configs)
 		{
-			String name = super.createNewDevice(config, false);
-			Device device = lookupDevice(name);
-			if(device != null)
-				device.loadSavedData(databaseSavedStates.remove(name));
-			return name;
+			try
+			{
+				if (config instanceof RemoteDeviceConfig)
+					createNewRemoteDevice(config);
+				else
+					createNewDevice(config);
+			}
+			catch (Exception e)
+			{
+				SystemLogger.getLogger().severe("Error creating Device: " + config.getName() + ". Exception: " + e.getMessage());
+			}
 		}
-		else
-		{
-			deviceMap.put(config.getName(), null);
-			RemoteDeviceConfig remoteDeviceConfig = (RemoteDeviceConfig) config;
-			uninitializedRemoteDevices.put(remoteDeviceConfig.getNodeID(), config);
-			createRemoteDevices(remoteDeviceConfig.getNodeID());
-			return config.getName();
-		}	
+	}
+	
+	@Override
+	public synchronized String createNewDevice(DeviceConfig config) throws IOException
+	{
+		String name = super.createNewDevice(config);
+		Device device = lookupDevice(name);
+		loadSavedState(device);
+		
+		return name;
+	}
+	
+	public synchronized void createNewRemoteDevice(DeviceConfig config)
+	{
+		deviceMap.put(config.getName(), null);
+		RemoteDeviceConfig remoteDeviceConfig = (RemoteDeviceConfig) config;
+		uninitializedRemoteDevices.put(remoteDeviceConfig.getNodeID(), remoteDeviceConfig);
+		createRemoteDevicesForNode(remoteDeviceConfig.getNodeID());
 	}
 
-	public synchronized void createRemoteDevices(String nodeID)
+	public synchronized void createRemoteDevicesForNode(String nodeID)
 	{
 		InetAddress address = lookupNodeAddress(nodeID);
 
 		if (address == null)
 			return;
 
-		Collection<DeviceConfig> configs = uninitializedRemoteDevices.removeAll(nodeID);
+		Collection<RemoteDeviceConfig> configs = uninitializedRemoteDevices.removeAll(nodeID);
 
-		for (DeviceConfig config : configs)
+		for (RemoteDeviceConfig config : configs)
 		{
 			try
 			{
-				((RemoteDeviceConfig) config).setUrl("http://" + address.getHostAddress() + ":8080");
+				config.setUrl("http://" + address.getHostAddress() + ":8080");
 				Device device = config.buildDevice();
 
-				if(device != null)
-					device.loadSavedData(databaseSavedStates.remove(device.getName()));
+				loadSavedState(device);
 				
 				deviceMap.put(device.getName(), device);
 			}
@@ -248,20 +274,23 @@ public class Processor extends BaseNodeController implements Runnable
 		}
 	}
 
+	private void loadSavedState(Device device) throws IOException
+	{
+		if(device != null)
+			device.loadSavedData(databaseSavedStates.remove(device.getName()));
+	}
+
 	public void load()
 	{
 		try
 		{
-			SystemLogger.getLogger().info("Starting Node Discovery Service");
-			nodeDiscovererService.start(5);
-			
 			SystemLogger.getLogger().info("Starting Device Logging Service");
 			deviceLoggingService.start();
 			
 			loadDeviceStatesIntoCache();
 
 			SystemLogger.getLogger().info("Loading Devices");
-			deviceLoader.loadDevices(this);
+			loadDevices();
 			
 			SystemLogger.getLogger().info("Loading Events");
 			eventProcessingService.createEvents(persistenceManager.readAllEvent());
@@ -353,35 +382,25 @@ public class Processor extends BaseNodeController implements Runnable
 				{
 				case PROCESSOR_ACTIONS.RELOAD_DEVICE:
 
-					device = lookupDevice(deviceToConfig);
-
-					if (device != null)
-					{
-						DeviceState savedState = device.getState(false);
-						closeDevice(deviceToConfig);
-						deviceLoader.loadDevice(this, deviceToConfig);
-						device = lookupDevice(deviceToConfig);
-
-						if (device != null)
-						{
-							device.execute(savedState);
-							SystemLogger.getLogger().info("Reloaded " + deviceToConfig);
-						}
-						else
-							SystemLogger.getLogger().info("Could not load: " + deviceToConfig);
-					}
+					reloadDevice(deviceToConfig);
 
 					break;
 				case PROCESSOR_ACTIONS.RELOAD_DEVICE_ALL:
+				{
 					saveAndCloseAllDevices();
 					loadDeviceStatesIntoCache();
-					deviceLoader.loadDevices(this);
+					DeviceConfig config = deviceLoader.loadDevice(deviceToConfig);
+					createNewDevice(config);
 					SystemLogger.getLogger().info("Reloaded Devices");
 					break;
+				}
 				case PROCESSOR_ACTIONS.LOAD_DEVICE:
-					deviceLoader.loadDevice(this, deviceToConfig);
+				{
+					DeviceConfig config = deviceLoader.loadDevice(deviceToConfig);
+					createNewDevice(config);
+					SystemLogger.getLogger().info("Reloaded Device: " + deviceToConfig);
 					break;
-
+				}
 				case PROCESSOR_ACTIONS.CLOSE_DEVICE:
 					closeDevice(deviceToConfig);
 					break;
@@ -409,6 +428,28 @@ public class Processor extends BaseNodeController implements Runnable
 				throw e;
 			SystemLogger.getLogger().severe(e.getMessage());
 		}
+	}
+
+	private void reloadDevice(String deviceToConfig) throws IOException
+	{
+		Device device = lookupDevice(deviceToConfig);
+
+		if(device == null)
+			throw new DeviceDoesNotExist(deviceToConfig);
+
+		DeviceState savedState = device.getState(true);
+		closeDevice(deviceToConfig);
+		DeviceConfig config = deviceLoader.loadDevice(deviceToConfig);
+		createNewDevice(config);
+		device = lookupDevice(deviceToConfig);
+
+		if (device != null)
+		{
+			device.loadSavedData(savedState);
+			SystemLogger.getLogger().info("Reloaded " + deviceToConfig);
+		}
+		else
+			SystemLogger.getLogger().info("Could not load: " + deviceToConfig);
 	}
 
 	public void checkIfLockShouldBeSet(DeviceState state)

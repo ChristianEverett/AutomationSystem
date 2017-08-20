@@ -8,7 +8,7 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.SystemLogger;
-import com.pi.infrastructure.DeviceType;
+import com.pi.infrastructure.DeviceType.DeviceTypeMap;
 
 public class DeviceStateTriggerRange extends DeviceState
 {
@@ -16,6 +16,8 @@ public class DeviceStateTriggerRange extends DeviceState
 	private Map<String, Object> endRange = new HashMap<>();
 	private Boolean triggerOnChange = false;
 
+	private static DeviceTypeMap deviceTypeMap = new DeviceTypeMap();
+	
 	public Map<String, Object> getEndRange()
 	{
 		return endRange;
@@ -69,7 +71,7 @@ public class DeviceStateTriggerRange extends DeviceState
 		
 		try
 		{
-			Method method = lower.getClass().getMethod(COMPARE_TO, DeviceType.paramTypes.get(key));
+			Method method = lower.getClass().getMethod(COMPARE_TO, DeviceTypeMap.getParamType(key));
 			Integer compare = (Integer) method.invoke(lower, greater);
 			return (compare < 1) ? true : false;
 		}
