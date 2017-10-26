@@ -1,6 +1,9 @@
 package com.pi.controllers;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
@@ -14,10 +17,13 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.SystemLogger;
 import com.pi.infrastructure.util.ActionProfileDoesNotExist;
+import com.pi.infrastructure.util.EventRegistry;
 import com.pi.model.DeviceState;
 import com.pi.model.EventHandler;
-import com.pi.model.repository.ActionProfileRepository;
-import com.pi.services.Processor;
+import com.pi.model.repository.ActionProfileJpaRepository;
+import com.pi.services.EventProcessingService;
+import com.pi.services.PrimaryNodeControllerImpl;
+
 
 @Controller
 public class EventController
@@ -25,10 +31,13 @@ public class EventController
 	public static final String PATH = "/event";
 	
 	@Autowired
-	private Processor processor;
+	private EventRegistry eventRegistry;
 	
 	@Autowired
-	private ActionProfileRepository actionProfileRepository;
+	private PrimaryNodeControllerImpl nodeController;
+	
+	@Autowired
+	private EventProcessingService eventProcessingService;
 	
 	public EventController()
 	{
@@ -37,44 +46,30 @@ public class EventController
 	@RequestMapping(value = PATH, method = RequestMethod.GET)
 	public @ResponseBody Collection<EventHandler> getEvents(HttpServletRequest request, HttpServletResponse response)
 	{
-		return processor.getEventProcessingService().getAllEvents();
+		return eventRegistry.getAllEvents();
 	}
 	
 	@RequestMapping(value = PATH + "/group", method = RequestMethod.POST)
-	public void createEvents(HttpServletRequest request, HttpServletResponse response, @RequestBody Collection<EventHandler> events)
+	public void createEvents(HttpServletRequest request, HttpServletResponse response, @RequestBody List<EventHandler> events)
 	{
-		for (EventHandler event : events)
-		{
-			try
-			{
-				verifiyActionProfileExists(event.getActionProfileName());
-				processor.getEventProcessingService().createEvent(event);
-			}
-			catch (ActionProfileDoesNotExist e)
-			{
-				SystemLogger.getLogger().severe(e.getMessage());
-			}
-		}
+		eventRegistry.createEvents(events, false);
+		
+		events.stream().forEach(event -> eventProcessingService.checkIfTriggered(event, null));
 	}
 	
 	@RequestMapping(value = PATH, method = RequestMethod.POST)
 	public @ResponseBody Integer createEvent(HttpServletRequest request, HttpServletResponse response, @RequestBody EventHandler event)
 	{
-		verifiyActionProfileExists(event.getActionProfileName());
-		return processor.getEventProcessingService().createEvent(event);
-	}
-	
-	@RequestMapping(value = (PATH + "/update/{hash}"), method = RequestMethod.POST)
-	public @ResponseBody Integer changeEvent(HttpServletRequest request, HttpServletResponse response, @RequestBody EventHandler event
-			,@PathVariable("hash") Integer hash)
-	{
-		return processor.getEventProcessingService().changeEvent(hash, event);
+		int id = eventRegistry.createEvent(event, false);
+		
+		eventProcessingService.checkIfTriggered(event, null);
+		return id;
 	}
 	
 	@RequestMapping(value = (PATH + "/{hash}"), method = RequestMethod.DELETE)
 	public void removeEvent(HttpServletRequest request, HttpServletResponse response, @PathVariable("hash") Integer hash)
 	{
-		processor.getEventProcessingService().removeEvent(hash);
+		eventRegistry.removeEvent(hash);
 	}
 	
 	/*
@@ -84,7 +79,7 @@ public class EventController
 	public @ResponseBody Collection<String> getAllRegisterListeners(HttpServletRequest request, HttpServletResponse response, 
 			@PathVariable("id") Integer hash)
 	{
-		return processor.getEventProcessingService().getAllListenersForEvent(hash);
+		return eventRegistry.getAllListenersForEvent(hash);
 	}
 	
 	/*
@@ -96,18 +91,12 @@ public class EventController
 		try//(ObjectInputStream input = new ObjectInputStream(request.getInputStream()))
 		{
 			//DeviceState state = (DeviceState) input.readObject();
-			processor.update(state);
+			nodeController.update(state);
 		}
 		catch (Exception e)
 		{
 			response.setStatus(503);
 			SystemLogger.getLogger().severe(e.getMessage());
 		}
-	}
-	
-	private void verifiyActionProfileExists(String profileName)
-	{
-		if(actionProfileRepository.get(profileName) == null)
-			throw new ActionProfileDoesNotExist(profileName);
 	}
 }

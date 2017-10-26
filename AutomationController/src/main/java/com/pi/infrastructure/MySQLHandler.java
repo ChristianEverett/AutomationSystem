@@ -14,8 +14,19 @@ public class MySQLHandler
 	private String DATABASE;
 	private File sqlQueryFile;
 
+	public MySQLHandler(String username, String password) throws Exception
+	{
+		// This will load the MySQL driver, each DB has its own driver
+		Class.forName("com.mysql.jdbc.Driver");
+		// Setup the connection with the DB
+		connection = DriverManager.getConnection("jdbc:mysql://localhost/?user=" + username + "&password=" + password);
+		connection.setAutoCommit(false);
+	}
+	
 	public MySQLHandler(String username, String password, String queryFile) throws Exception
 	{
+		this(username, password);
+		
 		sqlQueryFile = new File(queryFile);
 
 		if (!sqlQueryFile.exists())
@@ -23,13 +34,7 @@ public class MySQLHandler
 
 		FileInputStream input = new FileInputStream(sqlQueryFile);
 		properties.load(input);
-		input.close();
-
-		// This will load the MySQL driver, each DB has its own driver
-		Class.forName("com.mysql.jdbc.Driver");
-		// Setup the connection with the DB
-		connection = DriverManager.getConnection("jdbc:mysql://localhost/?user=" + username + "&password=" + password);
-		connection.setAutoCommit(false);
+		input.close();	
 	}
 
 	public void loadDatabase(final String DATABASE) throws Exception

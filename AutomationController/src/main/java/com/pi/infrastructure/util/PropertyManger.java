@@ -47,9 +47,14 @@ public class PropertyManger
 		}
 	}
 
-	public static String loadProperty(String key)
+	public static String loadPropertyNotNull(String key)
 	{
-		return properties.getProperty(key);
+		String value = properties.getProperty(key);
+		
+		if(value == null)
+			throw new RuntimeException("No Property for : " + key);
+		
+		return value;
 	}
 	
 	public static String loadProperty(String key, String defaultValue)
@@ -66,6 +71,7 @@ public class PropertyManger
 	public static interface PropertyKeys
 	{
 		public static final String LOGFILE = "log.file";
+		public static final String DATABASE_NAME = "database.name";
 		public static final String DBUSER = "database.username";
 		public static final String DBPASS = "database.password";
 		public static final String SQL_PROPERTIES = "database.querys";

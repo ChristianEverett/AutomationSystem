@@ -15,8 +15,6 @@ public class DeviceStateTriggerRange extends DeviceState
 	private static final String COMPARE_TO = "compareTo";
 	private Map<String, Object> endRange = new HashMap<>();
 	private Boolean triggerOnChange = false;
-
-	private static DeviceTypeMap deviceTypeMap = new DeviceTypeMap();
 	
 	public Map<String, Object> getEndRange()
 	{
@@ -34,9 +32,9 @@ public class DeviceStateTriggerRange extends DeviceState
 	}
 	
 	@JsonIgnore
-	public boolean isTriggered(DeviceState state, DeviceState newState)
+	public boolean isTriggered(DeviceState cachedState, DeviceState newState)
 	{		
-		if(state == null || !getName().equals(state.getName()) || !getType().equals(state.getType()))
+		if(cachedState == null || !getName().equals(cachedState.getName()) || !getType().equals(cachedState.getType()))
 			return false;
 	
 		if(triggerOnChange)
@@ -45,20 +43,18 @@ public class DeviceStateTriggerRange extends DeviceState
 		}
 		
 		if(endRange.isEmpty())
-			return state.contains(this);
+			return cachedState.contains(this);
 		
 		for (String key : getParams().keySet())
 		{
-			Object value = state.getParam(key, false);
+			Object value = cachedState.getParam(key, false);
 			Object start = getParam(key, false);
 			Object end = endRange.get(key);
-
 
 			if (!checkBound(start, value, key) || !checkBound(value, end, key))
 				return false;
 		} 
-		
-		
+			
 		return true;
 	}
 

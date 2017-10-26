@@ -49,9 +49,8 @@ public class Switch extends Device
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase)
-	{
-		DeviceState state = Device.createNewDeviceState(name);
+	public DeviceState getState(DeviceState state)
+	{	
 		state.setParam(Params.ON, gpioPin.isLow());
 		
 		return state;

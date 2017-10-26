@@ -5,25 +5,16 @@ package com.pi.devices;
 
 import java.awt.Color;
 import java.io.IOException;
-import java.io.Serializable;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;
 import com.pi.model.LedSequence;
-import com.pi.model.repository.LedSequenceRepoistory;
 import com.pi.model.repository.RepositoryType;
 import com.pi.services.TaskExecutorService.Task;
 
@@ -38,9 +29,8 @@ public class Led extends Device
 	private final int BLUE_PIN;
 	private Color currentColor = new Color(0, 0, 0);
 
-	private AtomicBoolean recording = new AtomicBoolean(false);
-	private String recordingName = "";
-
+	private LedSequence recordingSequence;
+	
 	private Task ledEquencingTask = null;
 
 	private boolean feature = false;
@@ -65,8 +55,8 @@ public class Led extends Device
 	{
 		try
 		{
-			Boolean record = state.getParamTyped(Params.SEQUENCE_RECORD, Boolean.class, null);
-			String sequenceName = state.getParamTyped(Params.NAME, String.class, null);
+			Boolean record = state.getParamTyped(Params.SEQUENCE_RECORD, null);
+			String sequenceName = state.getParamTyped(Params.NAME, null);
 
 			if (!ledEquencingTask.isDone())
 				ledEquencingTask.interruptAndCancel();
@@ -81,9 +71,9 @@ public class Led extends Device
 			}
 			else
 			{
-				Integer red = state.getParamTyped(Params.RED, Integer.class, 0);
-				Integer green = state.getParamTyped(Params.GREEN, Integer.class, 0);
-				Integer blue = state.getParamTyped(Params.BLUE, Integer.class, 0);
+				Integer red = state.getParamTyped(Params.RED, 0);
+				Integer green = state.getParamTyped(Params.GREEN, 0);
+				Integer blue = state.getParamTyped(Params.BLUE, 0);
 
 				setLedColor(red, green, blue);
 				updateSequenceIfRecording(red, green, blue);
@@ -95,16 +85,21 @@ public class Led extends Device
 		}
 	}
 
-	private void startRecording(DeviceState state, Boolean record, String sequenceName)
+	private synchronized void startRecording(DeviceState state, Boolean record, String sequenceName)
 	{
-		recording.set(record);
-
 		if (record)
 		{
-			Boolean loop = state.getParamTyped(Params.LOOP, Boolean.class, false);
-			Integer interval = state.getParamTyped(Params.INTERVAL, Integer.class, 15);
-			setRepositoryValue(RepositoryType.LedSequence, sequenceName, new LedSequence(interval, loop));
-			recordingName = sequenceName;
+			Boolean loop = state.getParamTyped(Params.LOOP, false);
+			Integer interval = state.getParamTyped(Params.INTERVAL, 15);
+			setRepositoryValue(RepositoryType.LedSequence, sequenceName, new LedSequence(sequenceName, interval, loop));
+			recordingSequence = getRepositoryValue(RepositoryType.LedSequence, sequenceName);
+		}
+		else
+		{
+			if(recordingSequence != null)
+				setRepositoryValue(RepositoryType.LedSequence, sequenceName, recordingSequence);
+			
+			recordingSequence = null;
 		}
 	}
 
@@ -121,19 +116,12 @@ public class Led extends Device
 		}, 0L, TimeUnit.MILLISECONDS);
 	}
 
-	private void updateSequenceIfRecording(int red, int green, int blue)
+	private synchronized void updateSequenceIfRecording(int red, int green, int blue)
 	{
-		if (recording.get())
+		if (recordingSequence != null)
 		{
-			LedSequence sequence = getRepositoryValue(RepositoryType.LedSequence, recordingName);
-			sequence.addToSequence(red, green, blue);
+			recordingSequence.addToSequence(red, green, blue);
 		}
-	}
-
-	@Override
-	protected void load(DeviceState state) throws IOException
-	{
-		 this.execute(state);
 	}
 
 	public void setLedColor(int red, int green, int blue) throws IOException
@@ -141,7 +129,7 @@ public class Led extends Device
 		currentColor = new Color(red, green, blue);
 
 		if (feature)
-		{
+		{//TODO finish
 			initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
 			setRGBPWM(name.hashCode(), (255 - red), (255 - green), (255 - blue));
 		}
@@ -169,9 +157,8 @@ public class Led extends Device
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase)
+	public DeviceState getState(DeviceState state)
 	{
-		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.RED, currentColor.getRed());
 		state.setParam(Params.GREEN, currentColor.getGreen());
 		state.setParam(Params.BLUE, currentColor.getBlue());

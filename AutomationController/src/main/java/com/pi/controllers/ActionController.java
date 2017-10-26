@@ -24,11 +24,15 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.util.DeviceLockedException;
+import com.pi.infrastructure.util.EventRegistry;
 import com.pi.model.ActionProfile;
 import com.pi.model.DeviceState;
 import com.pi.model.DeviceStateRecord;
-import com.pi.model.repository.ActionProfileRepository;
-import com.pi.services.Processor;
+import com.pi.model.repository.ActionProfileJpaRepository;
+import com.pi.services.DeviceLoggingService;
+import com.pi.services.EventProcessingService;
+import com.pi.services.PrimaryNodeControllerImpl;
+import com.pi.services.RepositoryUpdateNotifierService;
 
 /**
  * @author Christian Everett
@@ -41,10 +45,19 @@ public class ActionController
 	public static final String PATH = "/action";
 	
 	@Autowired
-	private Processor bgp;
+	private PrimaryNodeControllerImpl nodeController;
 	
 	@Autowired
-	private ActionProfileRepository actionProfileRepository;
+	private ActionProfileJpaRepository actionProfileRepository;
+	
+	@Autowired
+	private DeviceLoggingService deviceLoggingService;
+	
+	@Autowired
+	private EventRegistry eventRegistry;
+	
+	@Autowired
+	private RepositoryUpdateNotifierService repositoryUpdateNotifierService;
 	
 	public ActionController()
 	{
@@ -55,7 +68,7 @@ public class ActionController
 	{
 		try
 		{
-			return bgp.getStates(false);
+			return nodeController.getStates();
 		}
 		catch (Exception e)
 		{
@@ -93,7 +106,7 @@ public class ActionController
 	{
 		try
 		{
-			List<DeviceStateRecord> list = bgp.getPersistenceManger().getRecords(start, end);
+			List<DeviceStateRecord> list = deviceLoggingService.getRecords(start, end);
 			Collections.sort(list);
 			return list;
 		}
@@ -109,19 +122,25 @@ public class ActionController
 	@RequestMapping(value = (PATH + "/{device}"), method = RequestMethod.POST)
 	public void scheduleAction(HttpServletRequest request, HttpServletResponse response, @RequestBody DeviceState state)
 	{		
-		bgp.scheduleAction(state);
+		nodeController.scheduleAction(state);
 	}
 	
 	@RequestMapping(value = (PATH + "/getAllActionProfiles"), method = RequestMethod.GET)
 	public @ResponseBody Collection<ActionProfile> getActionProfile(HttpServletRequest request, HttpServletResponse response)
 	{
-		return actionProfileRepository.getAll();	
+		return actionProfileRepository.findAll();	
+	}
+	
+	@RequestMapping(value = (PATH + "/trigger/{name}"), method = RequestMethod.POST)
+	public void triggerActionProfile(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String actionProfileName)
+	{
+		nodeController.trigger(actionProfileName);
 	}
 	
 	@RequestMapping(value = (PATH + "/getActionProfile/{name}"), method = RequestMethod.GET)
 	public @ResponseBody ActionProfile getActionProfiles(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String profileName)
 	{
-		ActionProfile profile = actionProfileRepository.get(profileName);	
+		ActionProfile profile = actionProfileRepository.findOne(profileName);	
 		
 		if(profile == null)
 			response.setStatus(404);
@@ -135,22 +154,20 @@ public class ActionController
 	{
 		ActionProfile profile = new ActionProfile(profileName, actions);
 		
-		actionProfileRepository.add(profile);
+		repositoryUpdateNotifierService.newActionProfile(actionProfileRepository.save(profile));
 	}
 	
 	@RequestMapping(value = (PATH + "/createActionProfile/group"), method = RequestMethod.POST)
 	public void createActionProfiles(HttpServletRequest request, HttpServletResponse response, @RequestBody Collection<ActionProfile> profiles)
 	{
-		for (ActionProfile profile : profiles)
-		{
-			actionProfileRepository.add(profile);
-		}
+		repositoryUpdateNotifierService.newActionProfile(actionProfileRepository.save(profiles));
 	}
 	
 	@RequestMapping(value = (PATH + "/removeActionProfile/{name}"), method = RequestMethod.DELETE)
 	public void removeActionProfile(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String profileName)
 	{
-		actionProfileRepository.remove(profileName);
+		actionProfileRepository.delete(profileName);
+		eventRegistry.removeEventsWithActionProfile(profileName);
 	}
 	
 	private DeviceState getState(HttpServletResponse response, String deviceName)

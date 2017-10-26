@@ -2,8 +2,6 @@ package com.pi.infrastructure;
 
 import java.util.concurrent.TimeUnit;
 
-import org.springframework.stereotype.Service;
-
 import com.pi.SystemLogger;
 import com.pi.services.TaskExecutorService;
 import com.pi.services.TaskExecutorService.Task;

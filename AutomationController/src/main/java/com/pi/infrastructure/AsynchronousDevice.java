@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 import com.pi.SystemLogger;
+import com.pi.model.DeviceState;
 import com.pi.services.TaskExecutorService.Task;
 
 public abstract class AsynchronousDevice extends Device implements Runnable
@@ -32,12 +33,12 @@ public abstract class AsynchronousDevice extends Device implements Runnable
 		}
 	}
 	
-	public void run()
+	public final void run()
 	{
 		try
 		{
 			update();
-			super.update(getState());
+			super.update(getCurrentDeviceState());
 		}
 		catch (Throwable e)
 		{
@@ -46,6 +47,12 @@ public abstract class AsynchronousDevice extends Device implements Runnable
 	}
 
 	protected abstract void update() throws Exception;
+	
+	@Override
+	public boolean isAsynchronousDevice()
+	{
+		return true;
+	}
 	
 	@Override
 	public final void close() throws Exception

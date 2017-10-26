@@ -103,9 +103,8 @@ public class Thermostat extends Device
 	}
 	
 	@Override
-	public DeviceState getState(Boolean forDatabase)
+	public DeviceState getState(DeviceState state)
 	{
-		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.TARGET_TEMPATURE, targetTempInFehrenheit);
 		state.setParam(Params.MODE, currentMode.toString());
 		state.setParam(Params.TARGET_MODE, targetMode.toString());

@@ -3,16 +3,9 @@ package com.pi.devices;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.jboss.logging.annotations.Param;
-
-import com.pi.Application;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
 
@@ -54,9 +47,8 @@ public class PILed extends Device
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase) throws IOException
+	public DeviceState getState(DeviceState state) throws IOException
 	{
-		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.ON, ledOn);
 		
 		return state;

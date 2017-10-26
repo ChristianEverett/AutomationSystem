@@ -4,17 +4,12 @@
 package com.pi.services;
 
 import static com.pi.infrastructure.util.PropertyManger.PropertyKeys;
-import static com.pi.infrastructure.util.PropertyManger.loadProperty;
+import static com.pi.infrastructure.util.PropertyManger.loadPropertyNotNull;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
@@ -29,13 +24,8 @@ import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 
-import com.pi.Application;
 import com.pi.SystemLogger;
-import com.pi.infrastructure.Device;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.DeviceTypeMap;
-import com.pi.infrastructure.BaseNodeController;
-import com.pi.infrastructure.RemoteDeviceProxy;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.RemoteDeviceProxy.RemoteDeviceConfig;
 
@@ -57,7 +47,7 @@ public class DeviceLoadingService
 
 	private DeviceLoadingService() throws IOException, ParserConfigurationException, SAXException
 	{
-		xmlFile = new File(loadProperty(PropertyKeys.DEVICE_CONFIG));
+		xmlFile = new File(loadPropertyNotNull(PropertyKeys.DEVICE_CONFIG));
 		boolean create = xmlFile.createNewFile();
 
 		DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();

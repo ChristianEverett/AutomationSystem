@@ -3,6 +3,7 @@ package com.pi.infrastructure;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -26,6 +27,7 @@ public abstract class BaseNodeController
 	}
 	
 	public abstract void update(DeviceState state);	
+	public abstract void trigger(String actionProfileName);	
 	
 	public void scheduleAction(DeviceState state) throws IOException
 	{
@@ -94,15 +96,10 @@ public abstract class BaseNodeController
 	
 	public DeviceState getDeviceState(String name)
 	{
-		return getDeviceState(name, false);
-	}
-	
-	public DeviceState getDeviceState(String name, boolean isForDatabase)
-	{
 		try
 		{
 			Device device = deviceMap.get(name);
-			return (device != null) ? device.getState(isForDatabase) : null;
+			return (device != null) ? device.getCurrentDeviceState() : null;
 		}
 		catch (Exception e)
 		{
@@ -111,17 +108,13 @@ public abstract class BaseNodeController
 		}
 	}
 	
-	/**
-	 * @param forDatabase
-	 * @return all device states
-	 */
-	public List<DeviceState> getStates(Boolean forDatabase)
+	public List<DeviceState> getStates()
 	{
 		List<DeviceState> stateList = new ArrayList<>();
 
 		for (Entry<String, Device> device : deviceMap.entrySet())
 		{
-			DeviceState state = getDeviceState(device.getKey(), forDatabase);
+			DeviceState state = getDeviceState(device.getKey());
 			if (state != null)
 				stateList.add(state);
 		}
@@ -129,7 +122,7 @@ public abstract class BaseNodeController
 		return stateList;
 	}
 	
-	public synchronized String createNewDevice(DeviceConfig config) throws IOException
+	public synchronized Device createNewDevice(DeviceConfig config) throws IOException
 	{
 		try
 		{
@@ -139,7 +132,7 @@ public abstract class BaseNodeController
 			Device device = config.buildDevice();
 			deviceMap.put(config.getName(), device);
 			SystemLogger.getLogger().info("Loaded: " + config.getName());
-			return config.getName();
+			return device;
 		}
 		catch (Exception e)
 		{
@@ -149,9 +142,11 @@ public abstract class BaseNodeController
 		return null;
 	}
 	
-	abstract public <T extends Serializable> T getRepositoryValue(String type, String key);
+	abstract public <T extends Serializable> Collection<T> getRepositoryValues(String type);
 	
-	abstract public <T extends Serializable> void setRepositoryValue(String type, String key, T value);
+	abstract public <T extends Serializable, K extends Serializable> T getRepositoryValue(String type, K key);
+	
+	abstract public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, K key, T value);
 	
 	static
 	{

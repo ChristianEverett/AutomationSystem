@@ -55,10 +55,8 @@ public class MotionSensor extends AsynchronousDevice
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase)
+	public DeviceState getState(DeviceState state)
 	{
-		DeviceState state = Device.createNewDeviceState(name);
-		
 		state.setParam(Params.ON, gpioPin.isHigh());
 		
 		return state;

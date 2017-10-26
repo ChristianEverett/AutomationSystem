@@ -5,24 +5,22 @@ package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.pi.SystemLogger;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
-import com.pi.services.TaskExecutorService.Task;
+import com.pi.model.MacAddress;
+import com.pi.model.repository.RepositoryType;
 
 /**
  * @author Christian Everett
@@ -30,9 +28,7 @@ import com.pi.services.TaskExecutorService.Task;
  */
 public class DeviceDetector extends AsynchronousDevice
 {
-	private static final String MAC_ADDRESS_REGEX = "([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$";
-	private Pattern regex = Pattern.compile(MAC_ADDRESS_REGEX);
-	private HashSet<String> registeredMACs = new HashSet<>();
+	private HashSet<MacAddress> registeredMACs = new HashSet<>();
 	private String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
 	private String lastMAC = "";
 	
@@ -40,19 +36,20 @@ public class DeviceDetector extends AsynchronousDevice
 	{
 		super(name);
 		setupScanner();
+		
+		Collection<MacAddress> addresses = getRepositoryValues(RepositoryType.MACAddress);
+		addresses = addresses.stream().filter(address -> !address.isBluetoothAddress()).collect(Collectors.toList());
+		registeredMACs.addAll(addresses);
+		
 		createAsynchronousTask(10000L, 10L, TimeUnit.MILLISECONDS);
 	}
 
 	private void registerMACAddress(String address)
 	{
-		Matcher match = regex.matcher(address);
-		if(match.matches())
-		{
-			registerAddress(address);
-			registeredMACs.add(address);
-		}
-		else
-			SystemLogger.getLogger().severe("MAC Address is not in a valid format: " + address);
+		MacAddress macAddress = new MacAddress(address);
+		registerAddress(address);
+		registeredMACs.add(macAddress);
+		setRepositoryValue(RepositoryType.MACAddress, macAddress.getAddressString(), macAddress);
 	}
 
 	@Override
@@ -75,19 +72,10 @@ public class DeviceDetector extends AsynchronousDevice
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase)
+	public DeviceState getState(DeviceState state)
 	{
-		DeviceState state = Device.createNewDeviceState(name);
-		
-		if (!forDatabase)
-		{
-			state.setParam(Params.MAC, lastMAC);
-		}
-		else
-		{
-			state.setParam(Params.MACS, new ArrayList<>(registeredMACs));
-		}
-		
+		state.setParam(Params.MAC, lastMAC);
+	
 		return state;
 	}
 

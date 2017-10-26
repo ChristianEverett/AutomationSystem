@@ -44,9 +44,8 @@ public class Timer extends AsynchronousDevice
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase) throws IOException
+	public DeviceState getState(DeviceState state) throws IOException
 	{
-		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.TIME, formatter.format(new Date()));
 		return state;
 	}

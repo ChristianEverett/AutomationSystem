@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -14,11 +15,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Service;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -28,7 +31,6 @@ import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.DeviceType.Params;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.BaseNodeController;
 import com.pi.infrastructure.RemoteDeviceProxy.RemoteDeviceConfig;
 import com.pi.infrastructure.util.DeviceDoesNotExist;
@@ -36,8 +38,12 @@ import com.pi.infrastructure.util.DeviceLockedException;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import com.pi.infrastructure.util.RepositoryDoesNotExistException;
+import com.pi.model.ActionProfile;
 import com.pi.model.DeviceState;
-import com.pi.model.repository.BaseRepository;
+import com.pi.model.DeviceStateDAO;
+import com.pi.model.repository.ActionProfileJpaRepository;
+import com.pi.model.repository.CurrentDeviceStateJpaRepository;
+import com.pi.model.repository.RepositoryType;
 import com.pi.services.TaskExecutorService.Task;
 
 /**
@@ -46,25 +52,22 @@ import com.pi.services.TaskExecutorService.Task;
  */
 
 @Service
-public class Processor extends BaseNodeController implements Runnable
+public class PrimaryNodeControllerImpl extends BaseNodeController
 {
 	private AtomicBoolean shutdownProcessor = new AtomicBoolean(false);
-	private static Thread processingThread = null;
 
-	// Background processor data structures
-	private LinkedBlockingQueue<DeviceState> processingQueue = new LinkedBlockingQueue<>(10_000);
+	// NodeController data structures
 	private ConcurrentHashMap<String, InetAddress> nodeMap = new ConcurrentHashMap<>();
 	private ConcurrentHashMap<String, DeviceState> cachedStates = new ConcurrentHashMap<>();
 	private Map<String, DeviceState> databaseSavedStates = new HashMap<>();
 	private Set<String> lockedDevices = new HashSet<>();
 	protected Multimap<String, RemoteDeviceConfig> uninitializedRemoteDevices = ArrayListMultimap.create();	
 	@Autowired
-	private Map<String, BaseRepository<?, ?>> repositorys;
+	private Map<String, JpaRepository<?, ?>> repositorys;
 	
-	// Background processor services
+	// NodeController services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
-	@Autowired
-	private DatabaseService persistenceManager = null;
+
 	@Autowired
 	private EventProcessingService eventProcessingService;
 	@Autowired
@@ -74,11 +77,18 @@ public class Processor extends BaseNodeController implements Runnable
 	@Autowired
 	private NodeDiscovererService nodeDiscovererService;
 
-	// Background processor tasks
+	// NodeController tasks
 	private Task databaseTask;
 
-	private Processor() throws Exception
+	private PrimaryNodeControllerImpl() throws Exception
 	{
+	}
+
+	@PostConstruct
+	public void load()
+	{
+		singleton = this;
+		
 		Device.registerNodeManger(this);
 
 		SystemLogger.getLogger().info("Scheduling Database Task");
@@ -95,70 +105,58 @@ public class Processor extends BaseNodeController implements Runnable
 			}
 		}, 1L, interval, TimeUnit.MINUTES);
 		
-		SystemLogger.getLogger().info("Starting Node Discovery Service");
-		nodeDiscovererService.start(5, (node, address) -> registerNode(node, address));
-		singleton = this;
-	}
-
-	@Override
-	public void run()
-	{	
 		try
 		{
-			while (!shutdownProcessor.get())
-			{
-				DeviceState result = processingQueue.take();
+			SystemLogger.getLogger().info("Starting Node Discovery Service");
+			nodeDiscovererService.start(5, (node, address) -> registerNode(node, address));
 
-				if (!shutdownProcessor.get() && result != null)
-					processAction(result);
-			}
+			SystemLogger.getLogger().info("Starting Device Logging Service");
+			deviceLoggingService.start();
+			
+			loadDeviceStatesIntoCache();			
 		}
 		catch (Exception e)
 		{
-			SystemLogger.getLogger().info(e.getMessage());
+			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
-
-	public TaskExecutorService getTaskExecutorService()
-	{
-		return taskService;
-	}
-
-	public DatabaseService getPersistenceManger()
-	{
-		return persistenceManager;
-	}
-
-	public EventProcessingService getEventProcessingService()
-	{
-		return eventProcessingService;
-	}
-
+	
 	@Override
-	public <T extends Serializable> T getRepositoryValue(String type, String key)
+	public <T extends Serializable> Collection<T> getRepositoryValues(String type)
 	{
-		BaseRepository<?, ?> repository = repositorys.get(type);
+		JpaRepository<?, ?> repository = repositorys.get(type);
 		
 		if(repository == null)
 			throw new RepositoryDoesNotExistException(type);
 		
-		return (T) repository.get(key);
+		return (Collection<T>) repository.findAll();
+	}
+	
+	@Override
+	public <T extends Serializable, K extends Serializable> T getRepositoryValue(String type, K key)
+	{
+		JpaRepository<?, K> repository = (JpaRepository<?, K>) repositorys.get(type);
+		
+		if(repository == null)
+			throw new RepositoryDoesNotExistException(type);
+		
+		return (T) repository.findOne(key);
 	}
 
 	@Override
-	public <T extends Serializable> void setRepositoryValue(String type, String key, T value)
+	public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, K key, T value)
 	{
-		BaseRepository<?, ?> repository = repositorys.get(type);
+		JpaRepository<T, K> repository = (JpaRepository<T, K>) repositorys.get(type);
 		
 		if(repository == null)
 			throw new RuntimeException("Repository does not exist");
 		
-		repository.put(key, value);
+		repository.save(value);
 	}
 	
 	public synchronized void registerNode(String node, InetAddress address)
 	{
-		if (nodeMap.get(node) == null)
+		if (!nodeMap.containsKey(node))
 		{
 			nodeMap.put(node, address);
 			createRemoteDevicesForNode(node);
@@ -170,73 +168,75 @@ public class Processor extends BaseNodeController implements Runnable
 	{
 		return nodeMap.get(node);
 	}
+	
+	private boolean isInCache(DeviceState deviceState)
+	{
+		DeviceState cacheState = cachedStates.get(deviceState.getName());
+		
+		return cacheState != null && cacheState.contains(deviceState);
+	}
 
 	@Override
 	public void update(DeviceState state)
 	{
-		cachedStates.put(state.getName(), state);
-		
-		if (eventProcessingService != null)
-			eventProcessingService.update(state);
-		
 		deviceLoggingService.log(state);
+		
+//		if(isInCache(state))
+//			return;
+		
+		cachedStates.put(state.getName(), state);
+		eventProcessingService.update(state);
+	}
+	
+	@Override
+	public DeviceState getDeviceState(String name)
+	{
+		DeviceState state = cachedStates.get(name);
+		if (state != null)
+			return state;
+			
+		return super.getDeviceState(name);
 	}
 
 	@Override
 	public void scheduleAction(DeviceState state)
 	{
-		checkIfLockShouldBeSet(state);
-		
 		if (state.hasData())
 		{
 			if (!isLocked(state.getName()))
-				processingQueue.add(state);
+				processAction(state);
 			else
 				throw new DeviceLockedException(state.getName());
 		}
+		
+		checkIfLockShouldBeSet(state);
 	}
 
 	@Override
-	public DeviceState getDeviceState(String name, boolean isForDatabase)
+	public void trigger(String profileName)
 	{
-		if (!isForDatabase)
-		{
-			DeviceState state = cachedStates.get(name);
-			if (state != null)
-				return state;
-		}
+		ActionProfileJpaRepository actionProfileRepository = (ActionProfileJpaRepository) repositorys.get(RepositoryType.ActionProfile);
+		ActionProfile profile = actionProfileRepository.findOne(profileName);
 		
-		return super.getDeviceState(name, isForDatabase);
-	}
-
-	public void loadDevices()
-	{
-		List<DeviceConfig> configs = deviceLoader.loadDevices();
-		
-		for(DeviceConfig config : configs)
+		if (profile != null)
 		{
-			try
+			for (DeviceState element : profile.getDeviceStates())
 			{
-				if (config instanceof RemoteDeviceConfig)
-					createNewRemoteDevice(config);
-				else
-					createNewDevice(config);
-			}
-			catch (Exception e)
-			{
-				SystemLogger.getLogger().severe("Error creating Device: " + config.getName() + ". Exception: " + e.getMessage());
-			}
+				if (!element.equals(getDeviceState(element.getName())))
+				{
+					scheduleAction(element);
+				}
+			} 
 		}
 	}
 	
 	@Override
-	public synchronized String createNewDevice(DeviceConfig config) throws IOException
+	public synchronized Device createNewDevice(DeviceConfig config) throws IOException
 	{
-		String name = super.createNewDevice(config);
-		Device device = lookupDevice(name);
+		Device device = super.createNewDevice(config);
 		loadSavedState(device);
 		
-		return name;
+		return device;
 	}
 	
 	public synchronized void createNewRemoteDevice(DeviceConfig config)
@@ -260,7 +260,7 @@ public class Processor extends BaseNodeController implements Runnable
 		{
 			try
 			{
-				config.setUrl("http://" + address.getHostAddress() + ":8080");
+				config.setHost(address.getHostAddress());
 				Device device = config.buildDevice();
 
 				loadSavedState(device);
@@ -280,39 +280,51 @@ public class Processor extends BaseNodeController implements Runnable
 			device.loadSavedData(databaseSavedStates.remove(device.getName()));
 	}
 
-	public void load()
+	public void loadDevices()
 	{
-		try
+		SystemLogger.getLogger().info("Loading Devices");
+		List<DeviceConfig> configs = deviceLoader.loadDevices();
+		
+		for(DeviceConfig config : configs)
 		{
-			SystemLogger.getLogger().info("Starting Device Logging Service");
-			deviceLoggingService.start();
-			
-			loadDeviceStatesIntoCache();
-
-			SystemLogger.getLogger().info("Loading Devices");
-			loadDevices();
-			
-			SystemLogger.getLogger().info("Loading Events");
-			eventProcessingService.createEvents(persistenceManager.readAllEvent());
-		}
-		catch (Exception e)
-		{
-			SystemLogger.getLogger().severe(e.getMessage());
+			try
+			{
+				if (config instanceof RemoteDeviceConfig)
+					createNewRemoteDevice(config);
+				else
+					createNewDevice(config);
+			}
+			catch (Exception e)
+			{
+				SystemLogger.getLogger().severe("Error creating Device: " + config.getName() + ". Exception: " + e.getMessage());
+			}
 		}
 	}
 
 	private void loadDeviceStatesIntoCache() throws SQLException, IOException
 	{
 		SystemLogger.getLogger().info("Loading Device States");
-		persistenceManager.readAllDeviceStates().forEach((state) ->
+		CurrentDeviceStateJpaRepository repository = (CurrentDeviceStateJpaRepository) repositorys.get(RepositoryType.DeviceState);
+		
+		repository.findAll().forEach((state) ->
 		{
-			databaseSavedStates.put(state.getName(), state);
+			databaseSavedStates.put(state.getDeviceName(), state.getDeviceState());
 		});
 	}
 	
 	private void save() throws SQLException, IOException
 	{
-		persistenceManager.saveStates(getStates(true));
+		CurrentDeviceStateJpaRepository repository = (CurrentDeviceStateJpaRepository) repositorys.get(RepositoryType.DeviceState);
+		
+		List<DeviceState> states = getStates();
+		List<DeviceStateDAO> savedStates = new ArrayList<>(states.size());
+		
+		states.forEach(state ->
+		{
+			savedStates.add(new DeviceStateDAO(state));
+		});
+		
+		repository.save(savedStates);
 	}
 
 	private void saveAndCloseAllDevices() throws SQLException, IOException
@@ -326,10 +338,10 @@ public class Processor extends BaseNodeController implements Runnable
 		if(device == null)
 			throw new RuntimeException("device not found for: " + state.getName());
 		
-		return (device instanceof AsynchronousDevice || !state.contains(cachedStates.get(state.getName())));
+		return (device.isAsynchronousDevice() || !isInCache(state));
 	}
 	
-	public synchronized void shutdown()
+	public void shutdown()
 	{
 		if (!shutdownProcessor.get())
 		{
@@ -337,19 +349,20 @@ public class Processor extends BaseNodeController implements Runnable
 			{
 				shutdownProcessor.set(true);
 				
-				if (processingThread.isAlive())
-				{
-					// Queue a No-Op to wakeup background processor
-					processingQueue.add(Device.createNewDeviceState(DeviceType.UNKNOWN));
-				}
 				SystemLogger.getLogger().info("Stopping all background tasks");
 				taskService.cancelAllTasks();
 				nodeDiscovererService.stop();
 				deviceLoggingService.stop();
+				
 				// Shutdown all devices and save their state
 				SystemLogger.getLogger().info("Saving Device States and shutting down");
 				saveAndCloseAllDevices();
-				persistenceManager.close();
+				repositorys.forEach((name, repository) -> 
+				{
+					repository.flush();
+				});
+				
+				notify();
 			}
 			catch (Throwable e)
 			{
@@ -357,12 +370,12 @@ public class Processor extends BaseNodeController implements Runnable
 			}
 			finally
 			{
-				SystemLogger.getLogger().info("System has been shutdown.");
+				SystemLogger.getLogger().info("Primary Node has been shutdown.");
 			} 
 		}
 	}
 
-	private synchronized void processAction(DeviceState state) throws Exception
+	private synchronized void processAction(DeviceState state)
 	{
 		try
 		{
@@ -416,6 +429,7 @@ public class Processor extends BaseNodeController implements Runnable
 				default:					
 					if (deviceNeedsUpdate(device, state))
 					{
+						//eventProcessingService.updateEventSuppression(state); TODO
 						device.execute(state);
 					}
 					break;
@@ -424,8 +438,6 @@ public class Processor extends BaseNodeController implements Runnable
 		}
 		catch (Exception e)
 		{
-			if (e instanceof InterruptedException)
-				throw e;
 			SystemLogger.getLogger().severe(e.getMessage());
 		}
 	}
@@ -437,7 +449,7 @@ public class Processor extends BaseNodeController implements Runnable
 		if(device == null)
 			throw new DeviceDoesNotExist(deviceToConfig);
 
-		DeviceState savedState = device.getState(true);
+		DeviceState savedState = device.getCurrentDeviceState();
 		closeDevice(deviceToConfig);
 		DeviceConfig config = deviceLoader.loadDevice(deviceToConfig);
 		createNewDevice(config);
@@ -452,9 +464,9 @@ public class Processor extends BaseNodeController implements Runnable
 			SystemLogger.getLogger().info("Could not load: " + deviceToConfig);
 	}
 
-	public void checkIfLockShouldBeSet(DeviceState state)
+	public synchronized void checkIfLockShouldBeSet(DeviceState state)
 	{
-		Boolean shouldLock = state.getParamTyped(Params.LOCK, Boolean.class, null);
+		Boolean shouldLock = state.getParamTyped(Params.LOCK, null);
 		
 		if(shouldLock != null)
 		{
@@ -465,7 +477,7 @@ public class Processor extends BaseNodeController implements Runnable
 		}
 	}
 
-	public boolean isLocked(String deviceName)
+	public synchronized boolean isLocked(String deviceName)
 	{
 		return lockedDevices.contains(deviceName);
 	}

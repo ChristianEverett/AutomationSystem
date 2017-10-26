@@ -5,10 +5,19 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.channels.Channel;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.util.Date;
 import java.util.UUID;
+
+import com.pi.SystemLogger;
 
 public abstract class UPNPDevice
 {
@@ -16,56 +25,58 @@ public abstract class UPNPDevice
 	protected String version = "Unspecified, UPnP/1.0, Unspecified";
 	protected String headers;
 	private String uuid;
-	private ServerSocket serverSocket;
-	protected UPNPBroadcastResponderService responder;
-
-	public UPNPDevice(UPNPBroadcastResponderService responder, String persistent_uuid, String headers) throws IOException
+	private ServerSocketChannel serverSocketChannel = ServerSocketChannel.open();
+	
+	public UPNPDevice(String persistent_uuid, String headers) throws IOException
 	{
 		this.persistent_uuid = persistent_uuid;
 		this.headers = headers;
 		this.uuid = UUID.randomUUID().toString();
-		this.responder = responder;
-		this.serverSocket = new ServerSocket(0);
-		responder.addDevice(this);
+		serverSocketChannel.socket().bind(new InetSocketAddress(0));
+		serverSocketChannel.configureBlocking(false);
 	}
 
 	abstract protected String handleRequest(InetAddress address, String request) throws IOException;
 	abstract protected boolean isValidSearch(UPNPPacket result);
 
-	public void listen() throws IOException
+	protected void acceptRequest(ServerSocketChannel serverSocketChannel) throws IOException
 	{
-		Socket connection;
+		SocketChannel channel;
 		
 		try
 		{
-			connection = serverSocket.accept();
+			channel = serverSocketChannel.accept();
 		}
 		catch (Exception e)
 		{
 			return;
 		}
-
-		try(InputStreamReader input = new InputStreamReader(connection.getInputStream());
-			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream())))
+		
+		try(InputStreamReader input = new InputStreamReader(channel.socket().getInputStream());
+				BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(channel.socket().getOutputStream())))
 		{
 			char[] buf = new char[4096];
 			int length = input.read(buf);
 			String message = new String(buf, 0, length);
-			
-			String response = handleRequest(connection.getInetAddress(), message);
-			
+			String response = handleRequest(channel.socket().getInetAddress(), message);
 			writer.write(response);
 		}
-		catch (Exception e) 
+		catch (Exception e)
 		{
 			throw e;
 		}
 		finally 
 		{
-			connection.close();
-		}	
+			channel.close();
+		}
 	}
-
+	
+	protected int register(Selector selector) throws ClosedChannelException
+	{
+		serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+		return serverSocketChannel.socket().getLocalPort();
+	}
+	
 	public String getSearchResponse(UPNPPacket request) throws IOException
 	{
 		String target = "urn:Belkin:device:**";
@@ -75,7 +86,7 @@ public abstract class UPNPDevice
 		message.append("CACHE-CONTROL: max-age=86400\r\n");
 		message.append("DATE: " + new Date().toString() + "\r\n");
 		message.append("EXT:\r\n");
-		message.append("LOCATION: http://" + UPNPBroadcastResponderService.getLocalIpAddress().getHostAddress() + ":" + serverSocket.getLocalPort() + "/setup.xml\r\n");
+		message.append("LOCATION: http://" + UPNPBroadcastResponderService.getLocalIpAddress().getHostAddress() + ":" + serverSocketChannel.socket().getLocalPort() + "/setup.xml\r\n");
 		message.append("OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n");
 		message.append("01-NLS:" + uuid + "\r\n");
 		message.append("SERVER: " + version + "\r\n");
@@ -102,7 +113,6 @@ public abstract class UPNPDevice
 	
 	public final void close() throws IOException
 	{
-		responder.removeDevice(this);
-		serverSocket.close();
+		serverSocketChannel.close();
 	}
 }

@@ -35,12 +35,12 @@ public class HttpClient
 	private static final String POST = "POST";
 	private String baseUrl = null;
 
-	public HttpClient(String host) throws MalformedURLException
+	public HttpClient(String host, int port) throws MalformedURLException
 	{
 		if (host == null)
 			throw new MalformedURLException();
 
-		this.baseUrl = host;
+		this.baseUrl = "http://" + host + ":" + port;
 	}
 
 	/**

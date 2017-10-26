@@ -17,7 +17,7 @@ public class SystemLogger
 		try
 		{
 			//LOGGER.setUseParentHandlers(false);
-			FileHandler handle = new FileHandler(PropertyManger.loadProperty(PropertyKeys.LOGFILE));
+			FileHandler handle = new FileHandler(PropertyManger.loadPropertyNotNull(PropertyKeys.LOGFILE));
 			handle.setFormatter(format);
 			LOGGER.addHandler(handle);
 		}

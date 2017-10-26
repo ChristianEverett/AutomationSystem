@@ -2,11 +2,16 @@ package com.pi.infrastructure;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.rmi.Remote;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.annotation.XmlAttribute;
 
+import com.pi.SystemLogger;
 import com.pi.infrastructure.DeviceType.DeviceTypeMap;
+import com.pi.model.ActionProfile;
 import com.pi.model.DeviceState;
 import com.pi.services.TaskExecutorService;
 import com.pi.services.TaskExecutorService.Task;
@@ -17,7 +22,7 @@ import com.pi4j.io.gpio.GpioFactory;
  * @author Christian Everett
  *
  */
-public abstract class Device
+public abstract class Device implements RepositoryObserver
 {
 	private static TaskExecutorService taskService = new TaskExecutorService(3);
 
@@ -29,11 +34,6 @@ public abstract class Device
 
 	// Device Name
 	protected final String name;
-
-	// Constants to bind method calls on remote devices
-	public static final int PERFORM_ACTION = 0;
-	public static final int GET_STATE = 1;
-	public static final int CLOSE = 2;
 
 	protected static final String DEVICE = "device";
 	
@@ -54,6 +54,11 @@ public abstract class Device
 	{
 		return name;
 	}
+	
+	public boolean isAsynchronousDevice()
+	{
+		return false;
+	}
 
 	/**
 	 * @param state
@@ -68,7 +73,7 @@ public abstract class Device
 	 *         closed returns null
 	 * @throws IOException
 	 */
-	public abstract DeviceState getState(Boolean forDatabase) throws IOException;
+	public abstract DeviceState getState(DeviceState state) throws IOException;
 
 	/**
 	 * Shutdown device and release resources. All future calls to performAction
@@ -86,15 +91,10 @@ public abstract class Device
 	
 	public synchronized final void loadSavedData(DeviceState state) throws IOException
 	{
-		if (state != null)
+		if (state != null && !isAsynchronousDevice())
 		{
-			load(state);
+			execute(state);
 		}
-	}
-	
-	protected synchronized void load(DeviceState state) throws IOException
-	{
-		execute(state);
 	}
 	
 	public synchronized final void execute(DeviceState state) throws IOException
@@ -104,14 +104,29 @@ public abstract class Device
 			if (state != null)
 			{
 				performAction(state);
-				if (!(this instanceof RemoteDeviceProxy) && !(this instanceof AsynchronousDevice))
-					update(getState(false));
+				if (!(this instanceof RemoteDeviceProxy) && !isAsynchronousDevice())
+					update(getCurrentDeviceState());
 			} 
 		}
 		catch (Exception e)
 		{
 			throw new IOException("Could not performAction on " + state.getName());
 		}
+	}
+	
+	public synchronized final DeviceState getCurrentDeviceState()
+	{
+		try
+		{
+			DeviceState state = Device.createNewDeviceState(name);
+			
+			return getState(state);
+		}
+		catch (IOException e)
+		{
+			SystemLogger.getLogger().severe(e.getMessage());
+		}
+		return null;
 	}
 	
 	public void close() throws Exception
@@ -127,18 +142,21 @@ public abstract class Device
 		}
 	}
 
-	public synchronized DeviceState getState() throws IOException
+	protected void trigger(String profileName)
 	{
-		return getState(false);
+		if (profileName != null)
+		{
+			node.trigger(profileName);
+		}
 	}
-
+	
 	/**
 	 * @param name of device
 	 * @return device state or null if device not found
 	 */
 	public static final DeviceState getDeviceState(String name)
 	{
-		return node.getDeviceState(name, false);
+		return node.getDeviceState(name);
 	}
 
 	public static void queueAction(DeviceState state) throws IOException
@@ -146,6 +164,19 @@ public abstract class Device
 		node.scheduleAction(state);
 	}
 
+	public static void queueActions(List<DeviceState> states) throws IOException
+	{
+		for (DeviceState state : states)
+		{
+			node.scheduleAction(state);
+		}
+	}
+	
+	protected <T extends Serializable> Collection<T> getRepositoryValues(String type)
+	{
+		return node.getRepositoryValues(type);
+	}
+	
 	protected <T extends Serializable> T getRepositoryValue(String type, String key)
 	{
 		return node.getRepositoryValue(type, key);	

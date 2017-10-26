@@ -14,18 +14,26 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import com.pi.SystemLogger;
-import com.pi.services.Processor;
+import com.pi.services.PrimaryNodeControllerImpl;
 
 @Controller
-public class RepositoryController
+public class DataRepositoryController
 {
 	public static final String PATH = "/repository";
 	
 	@Autowired
-	private Processor processor;
+	private PrimaryNodeControllerImpl processor;
 
-	public RepositoryController()
+	public DataRepositoryController()
 	{
+	}
+	
+	@RequestMapping(value = PATH + "/{repository}/all", method = RequestMethod.GET)
+	public void getValues(HttpServletRequest request, HttpServletResponse response, @PathVariable("repository") String repository)
+	{
+		Object object = processor.getRepositoryValues(repository);
+		
+		returnData(response, object);
 	}
 	
 	@RequestMapping(value = PATH + "/{repository}", method = RequestMethod.GET)
@@ -34,16 +42,7 @@ public class RepositoryController
 	{
 		Object object = processor.getRepositoryValue(repository, key);
 		
-		try(ObjectOutputStream output = new ObjectOutputStream(response.getOutputStream()))
-		{
-			output.writeObject(object);
-			output.flush();
-		}
-		catch (Exception e)
-		{
-			response.setStatus(503);
-			SystemLogger.getLogger().severe(e.getMessage());
-		}
+		returnData(response, object);
 	}
 	
 	@RequestMapping(value = PATH + "/{repository}", method = RequestMethod.POST)
@@ -59,5 +58,19 @@ public class RepositoryController
 			response.setStatus(503);
 			SystemLogger.getLogger().severe(e.getMessage());
 		}	
+	}
+	
+	private void returnData(HttpServletResponse response, Object object)
+	{
+		try(ObjectOutputStream output = new ObjectOutputStream(response.getOutputStream()))
+		{
+			output.writeObject(object);
+			output.flush();
+		}
+		catch (Exception e)
+		{
+			response.setStatus(503);
+			SystemLogger.getLogger().severe(e.getMessage());
+		}
 	}
 }

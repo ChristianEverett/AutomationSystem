@@ -12,15 +12,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
+import com.pi.infrastructure.MySQLHandler;
 import com.pi.infrastructure.util.Email;
-import com.pi.services.Processor;
+import com.pi.infrastructure.util.PropertyManger;
+import com.pi.services.PrimaryNodeControllerImpl;
 
 import static com.pi.infrastructure.util.PropertyManger.PropertyKeys;
-import static com.pi.infrastructure.util.PropertyManger.loadProperty;
+import static com.pi.infrastructure.util.PropertyManger.loadPropertyNotNull;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.logging.*;
 
 /**
  * @author Christian Everett
@@ -42,7 +43,7 @@ import java.util.logging.*;
 // find any Controllers or other components that are part of our application.
 // Any class in this package that is annotated with @Controller is going to be
 // automatically discovered and connected to the DispatcherServlet.
-@ComponentScan("com.pi")
+@ComponentScan
 // We use the @Import annotation to include our OAuth2SecurityConfiguration
 // as part of this configuration so that we can have security and oauth
 // setup by Spring
@@ -51,15 +52,20 @@ public class Application extends WebMvcAutoConfiguration
 {	
 	public static void main(String[] args)
 	{
-		SystemLogger.getLogger().info("Starting Processing Service");
 		try
 		{
-			// Run the background processor
-			//Thread processorThread = Processor.createBackgroundProcessor();
+			String dbuser = PropertyManger.loadPropertyNotNull(PropertyKeys.DBUSER);
+			String dbpass = PropertyManger.loadPropertyNotNull(PropertyKeys.DBPASS);
+			String dbname = PropertyManger.loadPropertyNotNull(PropertyKeys.DATABASE_NAME);
+			
+			MySQLHandler dbHandler = new MySQLHandler(dbuser, dbpass);
+			dbHandler.loadDatabase(dbname);
+			
+			SystemLogger.getLogger().info("Starting Application");
 			
 			// Run the Spring Dispatcher
 			ConfigurableApplicationContext context = SpringApplication.run(Application.class, args);
-			Processor processor = context.getBean(Processor.class);
+			PrimaryNodeControllerImpl processor = context.getBean(PrimaryNodeControllerImpl.class);
 			
 			Runtime.getRuntime().addShutdownHook(new Thread()
 			{
@@ -71,17 +77,14 @@ public class Application extends WebMvcAutoConfiguration
 				}
 			});
 			
-			processor.load();
-			Thread processorThread = new Thread(processor);
-			processorThread.start();
-			processorThread.setPriority(Thread.MAX_PRIORITY);
-											
+			processor.loadDevices();
+										
 			SystemLogger.getLogger().info("------------Service Running-------------");
 
-			processorThread.join();
-			Email.create(loadProperty(PropertyKeys.ADMIN_EMAIL)).setSubject("Automation System Shutting down").setMessageBody(
-					"Shutting down at: " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())).send();
-			SystemLogger.getLogger().info("------------Service Stopped-------------");
+//			processor.wait();
+//			Email.create(loadPropertyNotNull(PropertyKeys.ADMIN_EMAIL)).setSubject("Automation System Shutting down").setMessageBody(
+//					"Shutting down at: " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())).send();
+//			SystemLogger.getLogger().info("------------Service Stopped-------------");
 		}
 		catch (Throwable e)
 		{
@@ -90,7 +93,7 @@ public class Application extends WebMvcAutoConfiguration
 		}
 		finally
 		{
-			System.exit(1);
+			//System.exit(1);
 		}
 	}
 }

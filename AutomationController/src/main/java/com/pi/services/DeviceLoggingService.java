@@ -1,5 +1,8 @@
 package com.pi.services;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
@@ -15,15 +18,17 @@ import com.pi.infrastructure.util.PropertyManger;
 import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 import com.pi.model.DeviceState;
 import com.pi.model.DeviceStateRecord;
+import com.pi.model.repository.DeviceStateRecordJpaRepository;
 
 @Service
 public class DeviceLoggingService extends BaseService
 {
 	private ConcurrentLinkedQueue<DeviceStateRecord> loggingQueue = new ConcurrentLinkedQueue<>();
 	private Set<String> loggingEnabledDevices = ConcurrentHashMap.newKeySet();
-	@Autowired
-	private Processor processor;
 	private AtomicBoolean loggingEnabled = new AtomicBoolean(false);
+	
+	@Autowired
+	private DeviceStateRecordJpaRepository deviceStateRecordJpaRepository;
 	
 	private DeviceLoggingService()
 	{
@@ -48,6 +53,14 @@ public class DeviceLoggingService extends BaseService
 		}
 	}
 
+	public List<DeviceStateRecord> getRecords(String start, String end)
+	{
+		LocalDateTime startDateTime = LocalDateTime.parse(start, DeviceStateRecord.sdf);
+		LocalDateTime endDateTime = LocalDateTime.parse(end, DeviceStateRecord.sdf);
+		
+		return deviceStateRecordJpaRepository.findByDateBetween(startDateTime, endDateTime);
+	}
+	
 	@Override
 	public void executeService() throws Exception
 	{
@@ -61,7 +74,7 @@ public class DeviceLoggingService extends BaseService
 		}
 		
 		if(!states.isEmpty())
-			processor.getPersistenceManger().commitToDeviceLog(states);
+			deviceStateRecordJpaRepository.save(states);
 	}
 	
 	@Override

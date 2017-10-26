@@ -46,9 +46,6 @@ public class TemperatureSensor extends AsynchronousDevice
 	{
 		SensorReading reading = readSensor(GPIO_PIN.getBCM_Pin(headerPin), sensorType);
 		
-		if((sensorTempature != reading.getTempature()) || (sensorHumidity != reading.getHumidity()))
-			update(getState(false));
-		
 		sensorTempature = Math.round((1.8F * reading.getTempature()) + 32);
 		sensorHumidity = Math.round(reading.getHumidity());		
 	}
@@ -59,9 +56,8 @@ public class TemperatureSensor extends AsynchronousDevice
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase)
+	public DeviceState getState(DeviceState state)
 	{
-		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.TEMPATURE, sensorTempature);
 		state.setParam(Params.HUMIDITY, sensorHumidity);
 		

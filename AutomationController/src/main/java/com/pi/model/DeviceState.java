@@ -1,18 +1,19 @@
 package com.pi.model;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.BaseNodeController;
 
-public class DeviceState extends DatabaseElement
+public class DeviceState implements Serializable
 {
 	private String name;
 	private String type;
+
 	private Map<String, Object> params = new HashMap<>();
 	
 	public DeviceState()
@@ -26,7 +27,6 @@ public class DeviceState extends DatabaseElement
 		this.type = type;
 	}
 
-	@Override
 	public String getName()
 	{
 		return name;
@@ -92,17 +92,17 @@ public class DeviceState extends DatabaseElement
 	}
 	
 	@JsonIgnore
-	public <T> T getParamTypedNonNull(String key, Class<T> type)
+	public <T> T getParamTypedNonNull(String key)
 	{
-		return type.cast(getParamNonNull(key));
+		return (T) getParamNonNull(key);
 	}
 	
 	@JsonIgnore
-	public <T> T getParamTyped(String key, Class<T> type, T defaultValue)
+	public <T> T getParamTyped(String key, T defaultValue)
 	{
 		try
 		{
-			return getParamTypedNonNull(key, type);
+			return getParamTypedNonNull(key);
 		}
 		catch (RuntimeException e)
 		{
@@ -129,9 +129,9 @@ public class DeviceState extends DatabaseElement
 		if(state == null)
 			return false;
 		
-		for(String paramName : state.getParams().keySet())
+		for(String paramName : state.params.keySet())
 		{
-			if(!state.params.get(paramName).equals(params.get(paramName)))
+			if(!Objects.equals(params.get(paramName), state.params.get(paramName)))
 				return false;
 		}
 		
@@ -150,11 +150,5 @@ public class DeviceState extends DatabaseElement
 	public int hashCode()
 	{
 		return Objects.hash(name, params.hashCode());
-	}
-
-	@Override
-	public int getDatabaseIdentification()
-	{
-		return name.hashCode();
 	}
 }

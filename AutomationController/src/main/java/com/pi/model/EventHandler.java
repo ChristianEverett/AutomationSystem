@@ -1,30 +1,53 @@
 package com.pi.model;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Function;
 
-public class EventHandler extends DatabaseElement
+import javax.persistence.Column;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Table;
+import javax.persistence.Transient;
+
+@Entity
+@Table(name = "EventHandler")
+public class EventHandler extends Model
 {
+	@Id
+	@GeneratedValue(strategy = GenerationType.AUTO)
+	private int id;
 	// In order for the event to be considered triggered, all device states in
 	// triggerEvents must be met
-	private List<DeviceStateTriggerRange> triggerEvents = new LinkedList<>();
+	@ElementCollection(fetch = FetchType.EAGER)
+	@Column(length = 3000) 
+	private List<DeviceStateTriggerRange> triggerStates = new LinkedList<>();
 
 	private String actionProfileName;
 	
 	private Boolean requireAll = true;
 
+	@Transient
+	private LocalDateTime lastTrigger = LocalDateTime.ofEpochSecond(0L, 0, ZoneOffset.UTC);
+	
 	public EventHandler()
 	{
 	}
 
 	@JsonIgnore
-	public boolean checkIfTriggered(Function<String, DeviceState> stateCache, DeviceState newState)
+	public boolean checkIfTriggered(Map<String, DeviceState> stateCache, DeviceState newState)
 	{
 		if (requireAll)
 		{
@@ -37,11 +60,11 @@ public class EventHandler extends DatabaseElement
 	}
 
 	@JsonIgnore
-	private boolean allStatesMet(Function<String, DeviceState> stateCache, DeviceState newState)
+	private boolean allStatesMet(Map<String, DeviceState> stateCache, DeviceState newState)
 	{
-		for (DeviceStateTriggerRange triggerState : triggerEvents)
+		for (DeviceStateTriggerRange triggerState : triggerStates)
 		{
-			if (!triggerState.isTriggered(stateCache.apply(triggerState.getName()), newState))
+			if (!triggerState.isTriggered(stateCache.get(triggerState.getName()), newState))
 				return false;
 		}
 
@@ -49,11 +72,11 @@ public class EventHandler extends DatabaseElement
 	}
 
 	@JsonIgnore
-	private boolean anyStateMet(Function<String, DeviceState> stateCache, DeviceState newState)
+	private boolean anyStateMet(Map<String, DeviceState> stateCache, DeviceState newState)
 	{
-		for (DeviceStateTriggerRange triggerState : triggerEvents)
+		for (DeviceStateTriggerRange triggerState : triggerStates)
 		{
-			if (triggerState.isTriggered(stateCache.apply(triggerState.getName()), newState))
+			if (triggerState.isTriggered(stateCache.get(triggerState.getName()), newState))
 				return true;
 		}
 
@@ -63,9 +86,9 @@ public class EventHandler extends DatabaseElement
 	@JsonIgnore
 	public List<String> getDependencyDevices()
 	{
-		List<String> deviceNames = new ArrayList<>(triggerEvents.size());
+		List<String> deviceNames = new ArrayList<>(triggerStates.size());
 
-		for (DeviceStateTriggerRange state : triggerEvents)
+		for (DeviceStateTriggerRange state : triggerStates)
 		{
 			deviceNames.add(state.getName());
 		}
@@ -73,26 +96,12 @@ public class EventHandler extends DatabaseElement
 		return deviceNames;
 	}
 	
-	@JsonIgnore
-	public void replace(EventHandler event)
-	{
-		setTriggerEvents(event.getTriggerEvents());
-		setRequireAll(event.getRequireAll());
-	}
-
-	@Override
-	@JsonIgnore
-	public String getName()
-	{
-		return super.getName();
-	}
-	
 	// Json Fields ------------------------------------
 	@Override
 	@JsonGetter
 	public int hashCode()
 	{
-		return Objects.hash(triggerEvents.hashCode(), requireAll);
+		return Objects.hash(triggerStates.hashCode(), requireAll);
 	}
 	
 	public String getActionProfileName()
@@ -105,14 +114,14 @@ public class EventHandler extends DatabaseElement
 		this.actionProfileName = name;
 	}
 	
-	public List<DeviceStateTriggerRange> getTriggerEvents()
+	public List<DeviceStateTriggerRange> getTriggerStates()
 	{
-		return triggerEvents;
+		return triggerStates;
 	}
 
-	public void setTriggerEvents(List<DeviceStateTriggerRange> triggerEvents)
+	public void setTriggerStates(List<DeviceStateTriggerRange> triggerStates)
 	{
-		this.triggerEvents = triggerEvents;
+		this.triggerStates = triggerStates;
 	}
 	
 	public void setRequireAll(Boolean value)
@@ -123,5 +132,15 @@ public class EventHandler extends DatabaseElement
 	public Boolean getRequireAll()
 	{
 		return requireAll;
+	}
+
+	public LocalDateTime getLastTrigger()
+	{
+		return lastTrigger;
+	}
+
+	public void setLastTrigger(LocalDateTime lastTrigger)
+	{
+		this.lastTrigger = lastTrigger;
 	}
 }

@@ -5,19 +5,32 @@ import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.Id;
+
 import com.pi.SystemLogger;
 import com.pi.devices.Led;
 
-public class LedSequence extends DatabaseElement
+@Entity
+public class LedSequence extends Model
 {
+	@Id
+	private String ledSequenceName;
+	@ElementCollection
 	private List<Color> sequence = new LinkedList<>();
 	private Integer intervalMiliseconds = 15;
-	private Boolean loop = new Boolean(false);
+	private Boolean loopFlag = false;
 	
-	public LedSequence(Integer interval, Boolean loop)
+	public LedSequence()
+	{
+		
+	}
+	
+	public LedSequence(String name, Integer interval, Boolean loop)
 	{
 		this.intervalMiliseconds = interval;
-		this.loop = loop;
+		this.loopFlag = loop;
 	}
 	
 	public void addToSequence(int red, int green, int blue)
@@ -36,7 +49,7 @@ public class LedSequence extends DatabaseElement
 					led.setLedColor(color.getRed(), color.getGreen(), color.getBlue());
 					Thread.sleep(intervalMiliseconds);
 				} 
-			} while (loop);
+			} while (loopFlag);
 		}
 		catch (InterruptedException e)
 		{	
@@ -45,5 +58,25 @@ public class LedSequence extends DatabaseElement
 		{
 			SystemLogger.getLogger().severe(e.getMessage());
 		}
+	}
+
+	public void setLedSequenceName(String ledSequenceName)
+	{
+		this.ledSequenceName = ledSequenceName;
+	}
+
+	public void setSequence(List<Color> sequence)
+	{
+		this.sequence = sequence;
+	}
+
+	public void setIntervalMiliseconds(Integer intervalMiliseconds)
+	{
+		this.intervalMiliseconds = intervalMiliseconds;
+	}
+
+	public void setLoop(Boolean loop)
+	{
+		this.loopFlag = loop;
 	}
 }

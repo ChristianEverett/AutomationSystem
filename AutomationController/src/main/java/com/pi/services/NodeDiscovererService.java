@@ -8,14 +8,16 @@ import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.Enumeration;
 import java.util.function.BiConsumer;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.pi.SystemLogger;
@@ -152,6 +154,28 @@ public class NodeDiscovererService extends BaseService
 		}	
 	}
 
+	public static String getLocalIPv4Address() throws SocketException, UnknownHostException
+	{
+		Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+		
+		while(interfaces.hasMoreElements())
+		{
+			NetworkInterface networkInterface = interfaces.nextElement();
+			
+			Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
+			
+			while(addresses.hasMoreElements())
+			{
+				InetAddress address = addresses.nextElement();
+				
+				if(!address.isLoopbackAddress() && address instanceof Inet4Address)
+					return address.getHostAddress();
+			}
+		}
+		
+		return InetAddress.getLocalHost().getHostName();
+	}
+	
 	private static class Probe implements Serializable
 	{
 		public static final int BROAD_CAST = 1;

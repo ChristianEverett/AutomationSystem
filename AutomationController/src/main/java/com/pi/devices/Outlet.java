@@ -69,9 +69,8 @@ public class Outlet extends Device
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase)
+	public DeviceState getState(DeviceState state)
 	{
-		DeviceState state = Device.createNewDeviceState(name);
 		state.setParam(Params.ON, isOn.get());
 		
 		return state;

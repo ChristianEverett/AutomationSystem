@@ -6,17 +6,13 @@ package com.pi.infrastructure;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.HttpURLConnection;
-import java.util.List;
-
-import javax.xml.bind.annotation.XmlElement;
+import java.rmi.Naming;
+import java.rmi.RemoteException;
+import java.util.Collection;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import org.w3c.dom.Element;
-
-import com.pi.Application;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.util.HttpClient;
-import com.pi.infrastructure.util.HttpClient.ObjectResponse;
 import com.pi.infrastructure.util.HttpClient.Response;
 import com.pi.model.DeviceState;
 
@@ -24,27 +20,29 @@ import com.pi.model.DeviceState;
  * @author Christian Everett
  *
  */
-public class RemoteDeviceProxy extends Device
+public class RemoteDeviceProxy extends Device implements RepositoryObserver
 {
 	public static final String REMOTE_CONFIG_PATH = "/config";
-	public static final String DEVICE_NAME_QUERY_PARAM = "device";
-	public static final String DEVICE_TYPE_QUERY_PARAM = "type";
 
 	private HttpClient client = null;
-
 	private String type;
+	private boolean isAsyncDevice = false;
+	private DeviceAPI device;
 
 	@SuppressWarnings("unchecked")
-	public RemoteDeviceProxy(String name, String type, String url, DeviceConfig config) throws Exception
+	public RemoteDeviceProxy(String name, String type, String host, DeviceConfig config) throws Exception
 	{
 		super(name);
 		this.type = type;
-		client = new HttpClient(url);
+		client = new HttpClient(host, 8080);
 
 		Response response = client.sendPostObject(null, REMOTE_CONFIG_PATH, (Serializable) config);
 
 		if (response.getStatusCode() != HttpURLConnection.HTTP_OK)
 			throw new IOException("Error creating device. Status Code: " + response.getStatusCode() + " on device: " + name);
+		
+		device = (DeviceAPI) Naming.lookup("//" + host + "/" + name);
+		isAsyncDevice = device.isAsynchronousDevice();
 	}
 
 	@Override
@@ -52,9 +50,7 @@ public class RemoteDeviceProxy extends Device
 	{
 		try
 		{
-			ObjectResponse response = client.sendPostObject(null, "/" + name, new RemoteDeviceMessage(PERFORM_ACTION, state));
-			if (response.getStatusCode() != HttpURLConnection.HTTP_OK)
-				throw new IOException("Status Code: " + response.getStatusCode() + " on device: " + name);
+			device.execute(state);
 		}
 		catch (Exception e)
 		{
@@ -63,19 +59,15 @@ public class RemoteDeviceProxy extends Device
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase)
+	public DeviceState getState(DeviceState state)
 	{
 		try
 		{
-			ObjectResponse response = client.sendPostObject(null, "/" + name, new RemoteDeviceMessage(GET_STATE, forDatabase));
-			if (response.getStatusCode() != HttpURLConnection.HTTP_OK)
-				throw new IOException("Status Code: " + response.getStatusCode() + " on device: " + name);
-
-			return (DeviceState) response.getResponseObject();
+			return device.getCurrentDeviceState();
 		}
 		catch (Exception e)
 		{
-			SystemLogger.getLogger().severe("Remote Device performAction failure - " + e.getMessage());
+			SystemLogger.getLogger().severe("Remote Device getState failure - " + e.getMessage());
 		}
 
 		return null;
@@ -86,55 +78,43 @@ public class RemoteDeviceProxy extends Device
 	{
 		try
 		{
-			ObjectResponse response = client.sendPostObject(null, "/" + name, new RemoteDeviceMessage(CLOSE, null));
-			if (response.getStatusCode() != HttpURLConnection.HTTP_OK)
-				throw new IOException("Status Code: " + response.getStatusCode() + " on device: " + name);
+			device.close();
 		}
 		catch (Exception e)
 		{
-			SystemLogger.getLogger().severe("Remote Device performAction failure - " + e.getMessage());
+			SystemLogger.getLogger().severe("Remote Device tearDown failure - " + e.getMessage());
 		}
 	}
 
 	@Override
+	public void newActionProfile(Collection<String> actionProfileNames) throws RemoteException
+	{
+		device.newActionProfile(actionProfileNames);
+	}
+	
+	@Override
+	public boolean isAsynchronousDevice()
+	{
+		return isAsyncDevice;
+	}
+	
+	@Override
 	public String getType()
 	{
 		return type;
-	}
-	
-	public static class RemoteDeviceMessage implements Serializable
-	{
-		private int methodID;
-		private Object data;
-		
-		public RemoteDeviceMessage(int methodID, Object data)
-		{
-			this.methodID = methodID;
-			this.data = data;
-		}
-
-		public int getMethodID()
-		{
-			return methodID;
-		}
-
-		public Object getData()
-		{
-			return data;
-		}
 	}
 
 	@XmlRootElement(name = DEVICE)
 	public static class RemoteDeviceConfig extends DeviceConfig
 	{
 		private DeviceConfig config;
-		private String type, url;
+		private String type, host;
 		private String nodeID;
 
 		@Override
 		public Device buildDevice() throws Exception
 		{
-			return new RemoteDeviceProxy(name, type, url, config);
+			return new RemoteDeviceProxy(name, type, host, config);
 		}
 
 		public void setConfig(DeviceConfig config)
@@ -147,9 +127,9 @@ public class RemoteDeviceProxy extends Device
 			this.type = type;
 		}
 
-		public void setUrl(String url)
+		public void setHost(String url)
 		{
-			this.url = url;
+			this.host = url;
 		}
 		
 		public void setNodeID(String nodeID)

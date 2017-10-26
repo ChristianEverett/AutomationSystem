@@ -20,8 +20,8 @@ import com.pi.devices.Switch.SwitchConfig;
 import com.pi.devices.Thermostat;
 import com.pi.devices.Thermostat.ThermostatConfig;
 import com.pi.devices.asynchronousdevices.Timer;
-import com.pi.devices.asynchronousdevices.AmazonEchoSwitch;
-import com.pi.devices.asynchronousdevices.AmazonEchoSwitch.AmazonEchoSwitchConfig;
+import com.pi.devices.asynchronousdevices.AmazonEcho;
+import com.pi.devices.asynchronousdevices.AmazonEcho.AmazonEchoSwitchConfig;
 import com.pi.devices.asynchronousdevices.BluetoothAdapter;
 import com.pi.devices.asynchronousdevices.BluetoothAdapter.BluetoothAdapterConfig;
 import com.pi.devices.asynchronousdevices.DeviceDetector;
@@ -89,6 +89,8 @@ public abstract class DeviceType
 		public final static String SCAN = "scan";
 		
 		public final static String TIME = "time";
+		
+		public final static String ACTION_PROFILE_NAMES = "action_profile_names";
 	}
 
 	public static class DeviceTypeMap
@@ -144,7 +146,7 @@ public abstract class DeviceType
 			typeToId.put(DeviceDetector.class, DeviceType.DEVICE_SENSOR);
 			typeToId.put(BluetoothAdapter.class, DeviceType.BLUETOOTH_ADAPTER);
 			typeToId.put(Timer.class, DeviceType.TIMER);
-			typeToId.put(AmazonEchoSwitch.class, DeviceType.ECHO);
+			typeToId.put(AmazonEcho.class, DeviceType.ECHO);
 		}
 		
 		public static Class<?> getConfig(String type)

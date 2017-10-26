@@ -2,63 +2,58 @@ package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.pi.Application;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.model.DeviceState;
+import com.pi.model.MacAddress;
+import com.pi.model.repository.RepositoryType;
 import com.pi.services.TaskExecutorService.Task;
 
 public class BluetoothAdapter extends AsynchronousDevice
-{//TODO refactor class
-	private static final String MAC_ADDRESS_REGEX = "([0-9A-Fa-f]{2}[:]){5}([0-9A-Fa-f]{2})$";
-	private Pattern regex = Pattern.compile(MAC_ADDRESS_REGEX);
-	private Map<String, Boolean> macToLastPing = new ConcurrentHashMap<>();
+{
+	private Map<MacAddress, Boolean> macToLastPing = new ConcurrentHashMap<>();
 	private Task scanningTask = null;
 
 	public BluetoothAdapter(String name) throws IOException
 	{
 		super(name);
 		setupBluetooth();
+		
+		Collection<MacAddress> addresses = getRepositoryValues(RepositoryType.MACAddress);
+		addresses = addresses.stream().filter(address -> address.isBluetoothAddress()).collect(Collectors.toList());
+		
+		for(MacAddress address : addresses)
+				macToLastPing.put(address, false);
+		
 		createAsynchronousTask(5L, 1L, TimeUnit.SECONDS);
 	}
 
 	@Override
 	public void update() throws InterruptedException, IOException
 	{
-		Set<String> keys = macToLastPing.keySet();
+		Set<MacAddress> keys = macToLastPing.keySet();
 		
-		for(String key : keys)
+		for(MacAddress key : keys)
 		{
-			String result = ping(key);
-			if(!result.isEmpty())
-			{
-				macToLastPing.put(key, true);
-			}
-			else
-			{
-				macToLastPing.put(key, false);
-			}
+			String result = synchronizedPing(key.getAddressString());
+
+			macToLastPing.put(key, !result.isEmpty());
 		}
 		
 		if (keys.isEmpty())
 			Thread.sleep(2000);
-		else
-			update(getState());
 	}
 
 	@Override
@@ -66,15 +61,12 @@ public class BluetoothAdapter extends AsynchronousDevice
 	{
 		@SuppressWarnings("unchecked")
 		List<String> addresses = (List<String>) state.getParamNonNull(Params.MACS);
-		Boolean runScan = state.getParamTyped(Params.SCAN, Boolean.class, false);
+		Boolean runScan = state.getParamTyped(Params.SCAN, false);
 		
 		for (String address : addresses)
 		{
-			Matcher match = regex.matcher(address);
-			if (match.matches())
-			{
-				macToLastPing.put(address, false);
-			} 
+			MacAddress macAddress = new MacAddress(address);
+			macToLastPing.put(macAddress, false);	
 		}
 		if(runScan)
 		{
@@ -82,32 +74,36 @@ public class BluetoothAdapter extends AsynchronousDevice
 			
 			for(String item : newAddresses)
 			{
-				macToLastPing.put(item, true);
+				String result = synchronizedPing(item);
+				if (!result.isEmpty())
+				{
+					MacAddress macAddress = new MacAddress(item);
+					macToLastPing.put(macAddress, true);
+					setRepositoryValue(RepositoryType.MACAddress, result, macAddress);
+				}
 			}
 		}
 	}
 
 	@Override
-	public DeviceState getState(Boolean forDatabase) throws IOException
+	public DeviceState getState(DeviceState state) throws IOException
 	{
-		DeviceState state = Device.createNewDeviceState(name);
-		
-		if (forDatabase)
+		for (Entry<MacAddress, Boolean> entry : macToLastPing.entrySet())
 		{
-			state.setParam(Params.MACS, new ArrayList<>(macToLastPing.keySet()));
-			state.setParam(Params.SCAN, false);
-		}
-		else 
-		{
-			for (Entry<String, Boolean> entry : macToLastPing.entrySet())
-			{
-				state.setParam(entry.getKey(), entry.getValue());
-			}
+			state.setParam(entry.getKey().getAddressString(), entry.getValue());
 		}
 		
 		return state;
 	}
 
+	private String synchronizedPing(String address)
+	{
+		synchronized (this)
+		{
+			return ping(address);
+		}
+	}
+	
 	@Override
 	protected void tearDown() throws IOException
 	{

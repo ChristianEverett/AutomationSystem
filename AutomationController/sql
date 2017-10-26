@@ -1,10 +1,20 @@
- select * from device_state;
- select * from event;
- select * from state_log;
+ select * from ActionProfile;
+ select * from ActionProfile_deviceStates;
+ select * from DeviceState;
+ select * from action_profile_device_states;
+ select * from event_handler;
+ select * from LedSequence_sequence;
+ select * from SavedDeviceStates;
 
- delete from device_state;
- delete from event;
- delete from state_log;
+ drop table ActionProfile_deviceStates;
+ drop table ActionProfile;
+ drop table DeviceState;
+ drop table LedSequence_sequence;
+ 
+ drop database pidb;
+ 
+ DESCRIBE ActionProfile_deviceStates;
+ show tables;
  
  CREATE TABLE java_objects ( 
  id INT AUTO_INCREMENT, 
