@@ -16,6 +16,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 
 import com.pi.Application;
 import com.pi.SystemLogger;
+import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
@@ -29,10 +30,9 @@ import com.pi4j.io.gpio.PinState;
  * @author Christian Everett
  *
  */
-public class Thermostat extends Device
+public class Thermostat extends AsynchronousDevice
 {
 	private List<String> temperatureSensors = null;
-	private Task updateTask = null;
 	private Task fanTurnOffDelayTask = null;
 	
 	private GpioPinDigitalOutput FAN = null;
@@ -71,65 +71,21 @@ public class Thermostat extends Device
 		
 		this.modeChangeDelay = modeChangeDelay;
 		
-		updateTask = createTask(() ->
-		{
-			try
-			{
-				process();
-			}
-			catch (Exception e)
-			{
-				SystemLogger.getLogger().severe(e.getMessage());
-			}
-		}, INTERVAL, INTERVAL, TimeUnit.SECONDS);
+		createTask(INTERVAL, INTERVAL, TimeUnit.SECONDS);
 	}
 
-	@Override
-	protected void performAction(DeviceState state)
-	{
-		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE, false);
-		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParamNonNull(Params.TARGET_MODE)).toUpperCase());
-		
-		if (targetTemp == null || targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
-		{
-			synchronized (this)
-			{
-				if(targetTemp != null)
-					targetTempInFehrenheit = targetTemp;
-				targetMode = mode;
-			}
-			process();
-		}
-	}
-	
-	@Override
-	public DeviceState getState(DeviceState state)
-	{
-		state.setParam(Params.TARGET_TEMPATURE, targetTempInFehrenheit);
-		state.setParam(Params.MODE, currentMode.toString());
-		state.setParam(Params.TARGET_MODE, targetMode.toString());
-
-		return state;
-	}
-
-	@Override
-	protected void tearDown()
-	{
-		updateTask.cancel();
-		turnOff();
-	}
-	
 	/**
 	 * Check the status of the temperature Sensor and update the state of the thermostat
 	 */
-	private synchronized void process()
+	@Override
+	protected synchronized void update() throws Exception
 	{
 		if (targetTempatureReached() && !modeChangeLock.get() && targetMode != ThermostatMode.FAN_MODE)
-		{			
+		{
 			turnOff();
 			lockThermostat();
 		}
-		else 
+		else
 		{
 			if (currentMode != targetMode)
 			{
@@ -139,13 +95,13 @@ public class Thermostat extends Device
 					turnOff();
 					break;
 				case FAN_MODE:
-					
-					if((COMPRESSOR.isState(ON) || HEAT.isState(ON)) && !fanLock.get())
+
+					if ((COMPRESSOR.isState(ON) || HEAT.isState(ON)) && !fanLock.get())
 					{
 						fanLock.set(true);
-						createTask(()->fanLock.set(false), fanTurnOffDelay, TimeUnit.SECONDS);
+						createTask(() -> fanLock.set(false), fanTurnOffDelay, TimeUnit.SECONDS);
 					}
-					
+
 					FAN.setState(ON);
 					COMPRESSOR.setState(OFF);
 					HEAT.setState(OFF);
@@ -174,8 +130,49 @@ public class Thermostat extends Device
 				default:
 					break;
 				}
-			}	
-		}	
+			}
+		}			
+	}
+	
+	@Override
+	protected void performAction(DeviceState state)
+	{
+		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE, false);
+		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParamNonNull(Params.TARGET_MODE)).toUpperCase());
+		
+		if (targetTemp == null || targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
+		{
+			synchronized (this)
+			{
+				if(targetTemp != null)
+					targetTempInFehrenheit = targetTemp;
+				targetMode = mode;
+			}
+			try
+			{
+				update();
+			}
+			catch (Exception e)
+			{
+				SystemLogger.LOGGER.severe(e.getMessage());
+			}
+		}
+	}
+	
+	@Override
+	public DeviceState getState(DeviceState state)
+	{
+		state.setParam(Params.TARGET_TEMPATURE, targetTempInFehrenheit);
+		state.setParam(Params.MODE, currentMode.toString());
+		state.setParam(Params.TARGET_MODE, targetMode.toString());
+
+		return state;
+	}
+
+	@Override
+	protected void tearDown()
+	{
+		turnOff();
 	}
 
 	private synchronized void lockThermostat()
@@ -246,6 +243,13 @@ public class Thermostat extends Device
 				|| (targetMode.equals(ThermostatMode.HEAT_MODE) && temperature >= targetTempInFehrenheit);
 	}
 
+	@Override
+	public boolean isAsynchronousDevice()
+	{
+		// Thermostat is Async-Sync device
+		return false;
+	}
+	
 	public class SensorReading
 	{
 		private float temperature = 0;

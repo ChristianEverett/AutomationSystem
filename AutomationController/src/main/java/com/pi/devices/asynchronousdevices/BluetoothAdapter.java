@@ -37,7 +37,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 		for(MacAddress address : addresses)
 				macToLastPing.put(address, false);
 		
-		createAsynchronousTask(5L, 1L, TimeUnit.SECONDS);
+		createTask(5L, 1L, TimeUnit.SECONDS);
 	}
 
 	@Override

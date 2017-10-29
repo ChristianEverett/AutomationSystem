@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.nio.channels.ClosedChannelException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
@@ -32,7 +33,8 @@ import com.pi.model.repository.RepositoryType;
 public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String, Boolean>, RepositoryObserver
 {
 	protected static UPNPBroadcastResponderService responder;
-
+	private List<String> registeredEchoCommands = new ArrayList<>();
+	
 	static
 	{
 		try
@@ -49,7 +51,7 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 	public AmazonEcho(String name) throws IOException
 	{
 		super(name);
-		createAsynchronousTask(5L, 1L, TimeUnit.SECONDS);
+		createTask(5L, 1L, TimeUnit.SECONDS);
 		registerAllCommands();
 	}
 
@@ -68,6 +70,7 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 		try
 		{
 			responder.addDevice(new FauxmoSwitch(actionProfileName, this));
+			registeredEchoCommands.add(actionProfileName);
 		}
 		catch (IOException e)
 		{
@@ -78,8 +81,8 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 	@Override
 	public void newActionProfile(Collection<String> actionProfileNames)
 	{
-//		for(String actionProfileName : actionProfileNames) TODO
-//			addNewFauxmoDevice(actionProfileName);
+		for(String actionProfileName : actionProfileNames)
+			addNewFauxmoDevice(actionProfileName);
 	}
 	
 	@Override
@@ -87,6 +90,8 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 	{
 		if(on)
 			trigger(actionProfileName);
+		else
+			unTrigger(actionProfileName);
 	}
 	
 	@Override
@@ -107,7 +112,8 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 	@Override
 	public DeviceState getState(DeviceState state) throws IOException
 	{	
-		return state;//TODO implement
+		state.setParam(Params.ACTION_PROFILE_NAMES, registeredEchoCommands);
+		return state;
 	}
 
 	@Override
@@ -146,10 +152,10 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 
 		private String handleSetup()
 		{
-			SystemLogger.getLogger().info("Registering Fauxmo Device - " + name);
+			SystemLogger.getLogger().info("Registering Fauxmo Device - " + actionProfileName);
 			//responder.removeDevice(this);
 			StringBuilder response = new StringBuilder();
-			String xml = SETUP_XML.replace("(device_name)", name);
+			String xml = SETUP_XML.replace("(device_name)", actionProfileName);
 			xml = xml.replace("(device_serial)", persistent_uuid);
 			createOkResponse(response, xml.length());
 			response.append(xml);

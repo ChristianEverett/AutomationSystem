@@ -270,4 +270,11 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 			SystemLogger.getLogger().severe("Could not connect to Automation Controller. " + e.getMessage());
 		}
 	}
+
+	@Override
+	public void unTrigger(String profileName)
+	{
+		// TODO Auto-generated method stub
+		
+	}
 }

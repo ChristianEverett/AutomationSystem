@@ -38,9 +38,6 @@ public class EventHandler extends Model
 	private String actionProfileName;
 	
 	private Boolean requireAll = true;
-
-	@Transient
-	private LocalDateTime lastTrigger = LocalDateTime.ofEpochSecond(0L, 0, ZoneOffset.UTC);
 	
 	public EventHandler()
 	{
@@ -132,15 +129,5 @@ public class EventHandler extends Model
 	public Boolean getRequireAll()
 	{
 		return requireAll;
-	}
-
-	public LocalDateTime getLastTrigger()
-	{
-		return lastTrigger;
-	}
-
-	public void setLastTrigger(LocalDateTime lastTrigger)
-	{
-		this.lastTrigger = lastTrigger;
 	}
 }

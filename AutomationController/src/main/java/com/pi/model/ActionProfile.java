@@ -22,6 +22,10 @@ public class ActionProfile extends Model
 	@Column(length = 3000) 
 	private Set<DeviceState> deviceStates = new HashSet<>();
 	
+	@ElementCollection(fetch = FetchType.EAGER)
+	@Column(length = 3000) 
+	private Set<DeviceState> invertedDeviceStates = new HashSet<>();
+	
 	public ActionProfile()
 	{
 		
@@ -38,18 +42,28 @@ public class ActionProfile extends Model
 		return name;
 	}
 
+	public void setName(String name)
+	{
+		this.name = name;
+	}
+	
 	public Set<DeviceState> getDeviceStates()
 	{
 		return deviceStates;
 	}
 
-	public void setName(String name)
-	{
-		this.name = name;
-	}
-
 	public void setDeviceStates(Set<DeviceState> deviceStates)
 	{
 		this.deviceStates = deviceStates;
+	}
+
+	public Set<DeviceState> getInvertedDeviceStates()
+	{
+		return invertedDeviceStates;
+	}
+
+	public void setInvertedDeviceStates(Set<DeviceState> invertedDeviceStates)
+	{
+		this.invertedDeviceStates = invertedDeviceStates;
 	}
 }

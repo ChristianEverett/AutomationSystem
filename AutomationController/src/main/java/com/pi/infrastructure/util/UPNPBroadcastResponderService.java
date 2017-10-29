@@ -15,6 +15,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -76,10 +77,12 @@ public class UPNPBroadcastResponderService extends BaseService
 		int readyChannels = selector.select();
 		if(readyChannels == 0) return;
 		
-		Set<SelectionKey> selectedKeys = selector.selectedKeys();
+		Iterator<SelectionKey> selectedKeys = selector.selectedKeys().iterator();
 		
-		for(SelectionKey key : selectedKeys)
+		while(selectedKeys.hasNext())
 		{
+			SelectionKey key = selectedKeys.next();
+			
 			if (key.isAcceptable())
 			{
 				ServerSocketChannel serverSocketChannel = (ServerSocketChannel) key.channel();
@@ -88,6 +91,8 @@ public class UPNPBroadcastResponderService extends BaseService
 				if(upnpDevice != null)
 					upnpDevice.acceptRequest(serverSocketChannel);
 			}
+			
+			selectedKeys.remove();
 		}
 	}
 	

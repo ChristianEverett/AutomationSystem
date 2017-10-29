@@ -1,5 +1,6 @@
 package com.pi.services;
 
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -22,6 +23,8 @@ public class EventProcessingService
 	@Autowired
 	private EventRegistry eventRegistry;
 	
+	private Set<EventHandler> activeSet = new HashSet<>();
+	
 	private EventProcessingService()
 	{	
 	}
@@ -39,17 +42,18 @@ public class EventProcessingService
 		}
 	}
 
-	public void checkIfTriggered(EventHandler event, DeviceState state)
+	public void checkIfTriggered(EventHandler event, DeviceState state)//TODO finish
 	{
 		Map<String, DeviceState> cachedStates = event.getTriggerStates().stream()
 				.map((range) -> processor.getDeviceState(range.getName()))
 				.collect(Collectors.toMap(DeviceState::getName, cacheState -> cacheState));
 		
-		if (event.checkIfTriggered(cachedStates, state))
+		if (event.checkIfTriggered(cachedStates, state) /*&& !activeSet.contains(event)*/)
 		{
 			try
-			{
+			{		
 				processor.trigger(event.getActionProfileName());
+				//activeSet.add(event);
 			}
 			catch (ActionProfileDoesNotExist e)
 			{
@@ -57,10 +61,9 @@ public class EventProcessingService
 				eventRegistry.removeEvent(event.hashCode());
 			}
 		}
-	}
-	
-	public void updateEventSuppression(DeviceState state)
-	{
-		
+		else
+		{
+			//activeSet.remove(event); add untrigger
+		}
 	}
 }

@@ -26,9 +26,6 @@ public abstract class BaseNodeController
 		return singleton;
 	}
 	
-	public abstract void update(DeviceState state);	
-	public abstract void trigger(String actionProfileName);	
-	
 	public void scheduleAction(DeviceState state) throws IOException
 	{
 		Device device = deviceMap.get(state.getName());
@@ -141,11 +138,11 @@ public abstract class BaseNodeController
 		
 		return null;
 	}
-	
+	abstract public void update(DeviceState state);	
+	abstract public void trigger(String actionProfileName);	
+	abstract public void unTrigger(String profileName);
 	abstract public <T extends Serializable> Collection<T> getRepositoryValues(String type);
-	
 	abstract public <T extends Serializable, K extends Serializable> T getRepositoryValue(String type, K key);
-	
 	abstract public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, K key, T value);
 	
 	static

@@ -16,12 +16,12 @@ public abstract class AsynchronousDevice extends Device implements Runnable
 		super(name);
 	}
 	
-	protected void createAsynchronousTask(long intialDelay, long interval, TimeUnit timeUnit)
+	protected void createTask(long intialDelay, long interval, TimeUnit timeUnit)
 	{
-		createAsynchronousTask(intialDelay, interval, timeUnit, false);
+		createTask(intialDelay, interval, timeUnit, false);
 	}
 	
-	protected void createAsynchronousTask(long intialDelay, long interval, TimeUnit timeUnit, boolean fixedRate)
+	protected void createTask(long intialDelay, long interval, TimeUnit timeUnit, boolean fixedRate)
 	{
 		if(fixedRate)
 		{

@@ -110,7 +110,7 @@ public abstract class Device implements RepositoryObserver
 		}
 		catch (Exception e)
 		{
-			throw new IOException("Could not performAction on " + state.getName());
+			throw new IOException("Could not performAction on " + state.getName() + " Got:" + e.getMessage());
 		}
 	}
 	
@@ -147,6 +147,14 @@ public abstract class Device implements RepositoryObserver
 		if (profileName != null)
 		{
 			node.trigger(profileName);
+		}
+	}
+	
+	protected void unTrigger(String profileName)
+	{
+		if (profileName != null)
+		{
+			node.unTrigger(profileName);
 		}
 	}
 	
@@ -187,17 +195,17 @@ public abstract class Device implements RepositoryObserver
 		node.setRepositoryValue(type, key, value);
 	}
 	
-	public static Task createTask(Runnable task, Long delay, TimeUnit unit)
+	protected Task createTask(Runnable task, Long delay, TimeUnit unit)
 	{
 		return taskService.scheduleTask(task, delay, unit);
 	}
 
-	public static Task createTask(Runnable task, Long delay, Long interval, TimeUnit unit)
+	protected Task createTask(Runnable task, Long delay, Long interval, TimeUnit unit)
 	{
 		return taskService.scheduleTask(task, delay, interval, unit);
 	}
 
-	public static Task createFixedRateTask(Runnable task, Long delay, Long interval, TimeUnit unit)
+	protected Task createFixedRateTask(Runnable task, Long delay, Long interval, TimeUnit unit)
 	{
 		return taskService.scheduleFixedRateTask(task, delay, interval, unit);
 	}

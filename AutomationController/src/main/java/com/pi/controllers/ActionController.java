@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -148,18 +149,10 @@ public class ActionController
 		return profile;
 	}
 	
-	@RequestMapping(value = (PATH + "/createActionProfile/{name}"), method = RequestMethod.POST)
-	public void createActionProfile(HttpServletRequest request, HttpServletResponse response, @RequestBody Set<DeviceState> actions, 
-			@PathVariable("name") String profileName)
-	{
-		ActionProfile profile = new ActionProfile(profileName, actions);
-		
-		repositoryUpdateNotifierService.newActionProfile(actionProfileRepository.save(profile));
-	}
-	
 	@RequestMapping(value = (PATH + "/createActionProfile/group"), method = RequestMethod.POST)
 	public void createActionProfiles(HttpServletRequest request, HttpServletResponse response, @RequestBody Collection<ActionProfile> profiles)
 	{
+		profiles = profiles.stream().filter(profile -> !actionProfileRepository.exists(profile.getName())).collect(Collectors.toList());
 		repositoryUpdateNotifierService.newActionProfile(actionProfileRepository.save(profiles));
 	}
 	

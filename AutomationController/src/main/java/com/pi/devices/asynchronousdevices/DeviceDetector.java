@@ -41,7 +41,7 @@ public class DeviceDetector extends AsynchronousDevice
 		addresses = addresses.stream().filter(address -> !address.isBluetoothAddress()).collect(Collectors.toList());
 		registeredMACs.addAll(addresses);
 		
-		createAsynchronousTask(10000L, 10L, TimeUnit.MILLISECONDS);
+		createTask(10000L, 10L, TimeUnit.MILLISECONDS);
 	}
 
 	private void registerMACAddress(String address)

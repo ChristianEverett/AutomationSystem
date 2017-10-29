@@ -38,7 +38,7 @@ public class TemperatureSensor extends AsynchronousDevice
 		super(name);
 		this.headerPin = headerPin;
 		this.sensorType = sensorType;
-		createAsynchronousTask(1L, sensorUpdateFrequency, TimeUnit.SECONDS);
+		createTask(1L, sensorUpdateFrequency, TimeUnit.SECONDS);
 	}
 
 	@Override

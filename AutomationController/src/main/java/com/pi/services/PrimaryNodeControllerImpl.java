@@ -215,14 +215,25 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	@Override
 	public void trigger(String profileName)
 	{
+		scheduleAll(profileName, false);
+	}
+	
+	@Override
+	public void unTrigger(String profileName)
+	{
+		scheduleAll(profileName, true);
+	}
+	
+	private void scheduleAll(String profileName, boolean inverted)
+	{
 		ActionProfileJpaRepository actionProfileRepository = (ActionProfileJpaRepository) repositorys.get(RepositoryType.ActionProfile);
 		ActionProfile profile = actionProfileRepository.findOne(profileName);
 		
 		if (profile != null)
 		{
-			for (DeviceState element : profile.getDeviceStates())
+			for (DeviceState element : inverted ? profile.getInvertedDeviceStates() : profile.getDeviceStates())
 			{
-				if (!element.equals(getDeviceState(element.getName())))
+				if (!isInCache(element))
 				{
 					scheduleAction(element);
 				}
@@ -429,7 +440,6 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 				default:					
 					if (deviceNeedsUpdate(device, state))
 					{
-						//eventProcessingService.updateEventSuppression(state); TODO
 						device.execute(state);
 					}
 					break;
