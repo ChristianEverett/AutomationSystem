@@ -1,6 +1,7 @@
 package com.pi.Node;
 
-import java.io.IOException;
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Collection;
@@ -9,8 +10,9 @@ import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.DeviceAPI;
 import com.pi.model.DeviceState;
+import com.pi.model.MacAddress;
 
-public class RemoteDeviceHandler extends UnicastRemoteObject implements DeviceAPI
+public class RemoteDeviceHandler extends UnicastRemoteObject implements /*InvocationHandler,*/ DeviceAPI
 {
 	private NodeControllerImpl node;
 	private Device device;
@@ -24,14 +26,7 @@ public class RemoteDeviceHandler extends UnicastRemoteObject implements DeviceAP
 	@Override
 	public void execute(DeviceState deviceState) throws RemoteException
 	{
-		try
-		{
-			device.execute(deviceState);
-		}
-		catch (IOException e)
-		{
-			SystemLogger.getLogger().severe(e.getMessage());
-		}		
+		device.execute(deviceState);
 	}
 
 	@Override
@@ -51,10 +46,22 @@ public class RemoteDeviceHandler extends UnicastRemoteObject implements DeviceAP
 	{
 		device.newActionProfile(actionProfileNames);
 	}
-
+	
 	@Override
 	public boolean isAsynchronousDevice() throws RemoteException
 	{
 		return device.isAsynchronousDevice();
 	}
+
+	@Override
+	public void newMacAddress(Collection<MacAddress> addresses) throws RemoteException
+	{
+		device.newMacAddress(addresses);
+	}
+
+//	@Override
+//	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
+//	{
+//		return method.invoke(device, args);
+//	}
 }

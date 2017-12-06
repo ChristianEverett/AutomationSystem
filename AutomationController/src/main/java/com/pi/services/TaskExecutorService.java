@@ -8,10 +8,13 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.stereotype.Service;
+
+import com.pi.SystemLogger;
 
 /**
  * @author Christian Everett
@@ -19,7 +22,7 @@ import org.springframework.stereotype.Service;
 
 public class TaskExecutorService
 {
-	private Map<Integer, Future<?>> taskMap = new HashMap<>();
+	private Map<Integer, ScheduledFuture<?>> taskMap = new HashMap<>();
 	private AtomicInteger atomicInteger = new AtomicInteger();
 	private ScheduledExecutorService executorService;
 	
@@ -35,8 +38,19 @@ public class TaskExecutorService
 	
 	public Task scheduleTask(Runnable task, Long delay, Long interval, TimeUnit unit)
 	{
-		Future<?> scheduledTask = executorService.scheduleWithFixedDelay(task, delay, interval, unit);
+		ScheduledFuture<?> scheduledTask = executorService.scheduleWithFixedDelay(task, delay, interval, unit);
+
+		int id = atomicInteger.incrementAndGet();
 		
+		taskMap.put(id, scheduledTask);
+		
+		return new ReocurringTask(id, scheduledTask, this);
+	}
+	
+	public Task scheduleSafeTask(Runnable task, Long delay, Long interval, TimeUnit unit)
+	{
+		ScheduledFuture<?> scheduledTask = executorService.scheduleWithFixedDelay(new SafeRunnable(task), delay, interval, unit);
+
 		int id = atomicInteger.incrementAndGet();
 		
 		taskMap.put(id, scheduledTask);
@@ -46,7 +60,7 @@ public class TaskExecutorService
 	
 	public Task scheduleFixedRateTask(Runnable task, Long delay, Long interval, TimeUnit unit)
 	{
-		Future<?> scheduledTask = executorService.scheduleAtFixedRate(task, delay, interval, unit);
+		ScheduledFuture<?> scheduledTask = executorService.scheduleAtFixedRate(task, delay, interval, unit);
 		
 		int id = atomicInteger.incrementAndGet();
 		
@@ -57,7 +71,7 @@ public class TaskExecutorService
 	
 	public boolean cancel(Integer id, boolean interrupt)
 	{
-		Future<?> task = taskMap.remove(id);
+		ScheduledFuture<?> task = taskMap.remove(id);
 		
 		if(task == null)
 			return false;
@@ -67,7 +81,7 @@ public class TaskExecutorService
 	
 	public void cancelAllTasks()
 	{
-		for(Map.Entry<Integer, Future<?>> entry : taskMap.entrySet())
+		for(Map.Entry<Integer, ScheduledFuture<?>> entry : taskMap.entrySet())
 		{
 			entry.getValue().cancel(false);
 		}
@@ -75,12 +89,35 @@ public class TaskExecutorService
 		taskMap.clear();
 	}
 	
+	public static class SafeRunnable implements Runnable
+	{
+		private Runnable runnable;
+		
+		public SafeRunnable(Runnable runnable)
+		{
+			this.runnable = runnable;
+		}
+		
+		@Override
+		public void run()
+		{
+			try
+			{
+				runnable.run();
+			}
+			catch (Throwable e)
+			{
+				SystemLogger.LOGGER.severe(e.getMessage());
+			}	
+		}
+	}
+	
 	public static class Task
 	{
-		protected Future <?> task = null;
+		protected ScheduledFuture <?> task = null;
 		protected TaskExecutorService service = null;
 		
-		public Task(Future <?> task, TaskExecutorService service)
+		public Task(ScheduledFuture <?> task, TaskExecutorService service)
 		{
 			this.task = task;
 			this.service = service;
@@ -105,13 +142,18 @@ public class TaskExecutorService
 		{
 			return task.isDone();
 		}
+		
+		public long minutesUntilExecution()
+		{
+			return task.getDelay(TimeUnit.MINUTES);
+		}
 	}
 	
 	public static class ReocurringTask extends Task
 	{
 		protected Integer id;
 		
-		public ReocurringTask(Integer id, Future<?> task, TaskExecutorService service)
+		public ReocurringTask(Integer id, ScheduledFuture<?> task, TaskExecutorService service)
 		{
 			super(task, service);		
 			this.id = id;

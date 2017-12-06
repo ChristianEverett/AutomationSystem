@@ -3,6 +3,7 @@ package com.pi.model;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 
@@ -15,6 +16,7 @@ public class MacAddress extends Model
 	private static Pattern regex = Pattern.compile(MAC_ADDRESS_REGEX);
 	
 	@Id
+	@Column(length = 100)
 	private String address;
 	private boolean isBluetoothAddress = false;
 	

@@ -1,7 +1,7 @@
 /**
  * 
  */
-package com.pi.devices;
+package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -71,7 +71,7 @@ public class Thermostat extends AsynchronousDevice
 		
 		this.modeChangeDelay = modeChangeDelay;
 		
-		createTask(INTERVAL, INTERVAL, TimeUnit.SECONDS);
+		start(INTERVAL, INTERVAL, TimeUnit.SECONDS);
 	}
 
 	/**
@@ -137,26 +137,29 @@ public class Thermostat extends AsynchronousDevice
 	@Override
 	protected void performAction(DeviceState state)
 	{
-		Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE, false);
-		ThermostatMode mode = ThermostatMode.valueOf(((String) state.getParamNonNull(Params.TARGET_MODE)).toUpperCase());
-		
-		if (targetTemp == null || targetTemp < MAX_TEMP && targetTemp > MIN_TEMP)
+		synchronized (this)
 		{
-			synchronized (this)
+			if(state.contains(Params.TARGET_TEMPATURE))
 			{
-				if(targetTemp != null)
-					targetTempInFehrenheit = targetTemp;
-				targetMode = mode;
+				Integer targetTemp = (Integer) state.getParam(Params.TARGET_TEMPATURE);
+				targetTempInFehrenheit = targetTemp < MAX_TEMP && targetTemp > MIN_TEMP ? targetTemp : targetTempInFehrenheit;
 			}
+			
+			if(state.contains(Params.TARGET_MODE))
+			{
+				targetMode = ThermostatMode.valueOf(((String) state.getParam(Params.TARGET_MODE)).toUpperCase());
+				modeChangeLock.set(false);
+			}
+				
 			try
 			{
 				update();
 			}
 			catch (Exception e)
 			{
-				SystemLogger.LOGGER.severe(e.getMessage());
-			}
-		}
+				throw new RuntimeException(e);
+			}	
+		}	
 	}
 	
 	@Override
@@ -165,7 +168,9 @@ public class Thermostat extends AsynchronousDevice
 		state.setParam(Params.TARGET_TEMPATURE, targetTempInFehrenheit);
 		state.setParam(Params.MODE, currentMode.toString());
 		state.setParam(Params.TARGET_MODE, targetMode.toString());
-
+		state.setParam(Params.TIME, fanTurnOffDelayTask.minutesUntilExecution());
+		state.setParam(Params.ON, !modeChangeLock.get());
+		
 		return state;
 	}
 

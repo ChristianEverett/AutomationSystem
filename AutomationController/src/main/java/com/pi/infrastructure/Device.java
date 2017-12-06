@@ -2,7 +2,7 @@ package com.pi.infrastructure;
 
 import java.io.IOException;
 import java.io.Serializable;
-import java.rmi.Remote;
+import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -11,7 +11,6 @@ import javax.xml.bind.annotation.XmlAttribute;
 
 import com.pi.SystemLogger;
 import com.pi.infrastructure.DeviceType.DeviceTypeMap;
-import com.pi.model.ActionProfile;
 import com.pi.model.DeviceState;
 import com.pi.services.TaskExecutorService;
 import com.pi.services.TaskExecutorService.Task;
@@ -22,7 +21,7 @@ import com.pi4j.io.gpio.GpioFactory;
  * @author Christian Everett
  *
  */
-public abstract class Device implements RepositoryObserver
+public abstract class Device implements RepositoryObserver, DeviceAPI
 {
 	private static TaskExecutorService taskService = new TaskExecutorService(3);
 
@@ -55,7 +54,7 @@ public abstract class Device implements RepositoryObserver
 		return name;
 	}
 	
-	public boolean isAsynchronousDevice()
+	public boolean isAsynchronousDevice() 
 	{
 		return false;
 	}
@@ -97,7 +96,7 @@ public abstract class Device implements RepositoryObserver
 		}
 	}
 	
-	public synchronized final void execute(DeviceState state) throws IOException
+	public synchronized final void execute(DeviceState state)
 	{
 		try
 		{
@@ -105,12 +104,12 @@ public abstract class Device implements RepositoryObserver
 			{
 				performAction(state);
 				if (!(this instanceof RemoteDeviceProxy) && !isAsynchronousDevice())
-					update(getCurrentDeviceState());
+					update(getCurrentDeviceState());//TODO exception thrown?
 			} 
 		}
 		catch (Exception e)
 		{
-			throw new IOException("Could not performAction on " + state.getName() + " Got:" + e.getMessage());
+			throw new RuntimeException("execution failed during " + state.getName() + " Got:" + e.getMessage());
 		}
 	}
 	
@@ -138,7 +137,14 @@ public abstract class Device implements RepositoryObserver
 	{
 		if (state != null)
 		{
-			node.update(state);
+			try
+			{
+				node.update(state);
+			}
+			catch (RemoteException e)
+			{
+				throw new RuntimeException(e);
+			}
 		}
 	}
 
@@ -146,7 +152,14 @@ public abstract class Device implements RepositoryObserver
 	{
 		if (profileName != null)
 		{
-			node.trigger(profileName);
+			try
+			{
+				node.trigger(profileName);
+			}
+			catch (RemoteException e)
+			{
+				throw new RuntimeException(e);
+			}
 		}
 	}
 	
@@ -154,7 +167,14 @@ public abstract class Device implements RepositoryObserver
 	{
 		if (profileName != null)
 		{
-			node.unTrigger(profileName);
+			try
+			{
+				node.unTrigger(profileName);
+			}
+			catch (RemoteException e)
+			{
+				throw new RuntimeException(e);
+			}
 		}
 	}
 	
@@ -182,17 +202,38 @@ public abstract class Device implements RepositoryObserver
 	
 	protected <T extends Serializable> Collection<T> getRepositoryValues(String type)
 	{
-		return node.getRepositoryValues(type);
+		try
+		{
+			return node.getRepositoryValues(type);
+		}
+		catch (RemoteException e)
+		{
+			throw new RuntimeException(e);
+		}
 	}
 	
 	protected <T extends Serializable> T getRepositoryValue(String type, String key)
 	{
-		return node.getRepositoryValue(type, key);	
+		try
+		{
+			return node.getRepositoryValue(type, key);
+		}
+		catch (RemoteException e)
+		{
+			throw new RuntimeException(e);
+		}	
 	}
 	
 	protected <T extends Serializable> void setRepositoryValue(String type, String key, T value)
 	{
-		node.setRepositoryValue(type, key, value);
+		try
+		{
+			node.setRepositoryValue(type, key, value);
+		}
+		catch (RemoteException e)
+		{
+			throw new RuntimeException(e);
+		}
 	}
 	
 	protected Task createTask(Runnable task, Long delay, TimeUnit unit)

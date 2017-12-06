@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
+import org.mockito.internal.matchers.Contains;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.BaseNodeController;
@@ -65,16 +67,14 @@ public class DeviceState implements Serializable
 	}
 	
 	@JsonIgnore
-	public Object getParam(String key, boolean required) 
+	public Object getParam(String key) 
 	{		
 		try
 		{
 			return getParamNonNull(key);
 		}
 		catch (RuntimeException e)
-		{
-			if(required)
-				throw e;			
+		{			
 		}
 		
 		return null;
@@ -109,6 +109,11 @@ public class DeviceState implements Serializable
 		}
 		
 		return defaultValue;
+	}
+	
+	public boolean contains(String key)
+	{
+		return getParam(key) != null;
 	}
 	
 	@Override

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import com.pi.infrastructure.RepositoryObserver;
 import com.pi.model.ActionProfile;
+import com.pi.model.MacAddress;
 
 @Service
 public class RepositoryUpdateNotifierService
@@ -41,5 +42,22 @@ public class RepositoryUpdateNotifierService
 					{
 					}
 				});
+	}
+	
+	public void newMacAddress(Collection<MacAddress> addresses)
+	{
+		primaryNodeControllerImpl.getDeviceSet() 
+		.stream().filter(entry -> entry.getValue() instanceof RepositoryObserver)
+		.map(entry -> (RepositoryObserver)entry.getValue())
+		.forEach(observer -> 
+		{
+			try
+			{
+				observer.newMacAddress(addresses);
+			}
+			catch (Exception e)
+			{
+			}
+		});
 	}
 }

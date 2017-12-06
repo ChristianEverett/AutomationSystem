@@ -9,6 +9,6 @@ public interface DeviceAPI extends RepositoryObserver, Remote
 {
 	public void execute(DeviceState deviceState) throws RemoteException;
 	public DeviceState getCurrentDeviceState() throws RemoteException;
-	public void close() throws RemoteException;
+	public void close() throws RemoteException, Exception;
 	public boolean isAsynchronousDevice() throws RemoteException;
 }

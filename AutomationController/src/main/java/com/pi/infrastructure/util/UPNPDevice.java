@@ -38,6 +38,7 @@ public abstract class UPNPDevice
 
 	abstract protected String handleRequest(InetAddress address, String request) throws IOException;
 	abstract protected boolean isValidSearch(UPNPPacket result);
+	abstract public String getName();
 
 	protected void acceptRequest(ServerSocketChannel serverSocketChannel) throws IOException
 	{

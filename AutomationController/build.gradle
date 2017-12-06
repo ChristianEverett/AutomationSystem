@@ -14,14 +14,15 @@ buildscript {
 apply plugin: 'application'
 apply plugin: 'java'
 apply plugin: 'eclipse'
-apply plugin: 'idea'
+//apply plugin: 'idea'
 apply plugin: 'spring-boot'
-apply plugin: 'war'
+//apply plugin: 'war'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 repositories {
     mavenCentral()
+    maven { url "https://oss.sonatype.org/content/groups/public" }
     maven { url "http://repo.spring.io/libs-snapshot" }
     maven { url "http://maven.springframework.org/milestone" }
     
@@ -32,12 +33,16 @@ repositories {
 
 dependencies {
 	compile 'org.jsoup:jsoup:1.9.2'
-	compile group: 'mysql', name: 'mysql-connector-java', version: '5.1.6'
-	compile group: 'com.pi4j', name: 'pi4j-core', version: '1.0'
-	compile group: 'com.pi4j', name: 'pi4j-device', version: '1.0'
-	compile group: 'com.pi4j', name: 'pi4j-gpio-extension', version: '1.0'
+	compile group: 'org.mariadb.jdbc', name: 'mariadb-java-client', version: '2.2.0'
+	//compile group: 'mysql', name: 'mysql-connector-java', version: '5.1.6'
+
+	compile group: 'com.pi4j', name: 'pi4j-core', version: '1.2-SNAPSHOT'
+	compile group: 'com.pi4j', name: 'pi4j-device', version: '1.2-SNAPSHOT'
+	compile group: 'com.pi4j', name: 'pi4j-gpio-extension', version: '1.2-SNAPSHOT'
 
 	compile group: 'javax.mail', name: 'mail', version: '1.4.1'
+
+    compile group: 'org.springframework', name: 'spring-context-support', version: '3.2.0.RELEASE'
 
     compile("org.springframework.boot:spring-boot-starter-web:${springBootVersion}")
     
@@ -48,6 +53,8 @@ dependencies {
     compile("org.springframework.boot:spring-boot-starter-test:${springBootVersion}")
 
     compile("org.springframework.boot:spring-boot-starter-data-jpa:${springBootVersion}")
+    
+    compile("org.springframework.boot:spring-boot-starter-websocket:${springBootVersion}")
     //compile("org.springframework.data:spring-data-rest-webmvc")
     
     //compile("org.springframework.boot:spring-boot-starter-security:${springBootVersion}")
@@ -69,4 +76,8 @@ dependencies {
 
 task wrapper(type: Wrapper) {
     gradleVersion = '1.11'
+}
+
+task fullJar (dependsOn: ['jar', 'bootRepackage']){
+
 }

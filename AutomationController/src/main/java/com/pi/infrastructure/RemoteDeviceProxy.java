@@ -15,6 +15,7 @@ import com.pi.SystemLogger;
 import com.pi.infrastructure.util.HttpClient;
 import com.pi.infrastructure.util.HttpClient.Response;
 import com.pi.model.DeviceState;
+import com.pi.model.MacAddress;
 
 /**
  * @author Christian Everett
@@ -90,6 +91,12 @@ public class RemoteDeviceProxy extends Device implements RepositoryObserver
 	public void newActionProfile(Collection<String> actionProfileNames) throws RemoteException
 	{
 		device.newActionProfile(actionProfileNames);
+	}
+	
+	@Override
+	public void newMacAddress(Collection<MacAddress> addresses) throws RemoteException
+	{
+		device.newMacAddress(addresses);
 	}
 	
 	@Override

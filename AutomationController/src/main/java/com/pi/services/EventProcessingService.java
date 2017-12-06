@@ -18,7 +18,7 @@ import com.pi.model.EventHandler;
 public class EventProcessingService
 {
 	@Autowired
-	private PrimaryNodeControllerImpl processor;
+	private PrimaryNodeControllerImpl nodeControllerImpl;
 		
 	@Autowired
 	private EventRegistry eventRegistry;
@@ -33,7 +33,7 @@ public class EventProcessingService
 	{
 		Set<EventHandler> events = eventRegistry.getAllEventsThatAreTriggerByDevice(state.getName());
 		
-		if (events != null)
+		if (events != null && nodeControllerImpl.hasStateChanged(state))
 		{
 			for (EventHandler event : events)
 			{
@@ -42,28 +42,31 @@ public class EventProcessingService
 		}
 	}
 
-	public void checkIfTriggered(EventHandler event, DeviceState state)//TODO finish
+	public void checkIfTriggered(EventHandler event, DeviceState stateThatChanged)
 	{
-		Map<String, DeviceState> cachedStates = event.getTriggerStates().stream()
-				.map((range) -> processor.getDeviceState(range.getName()))
+		Map<String, DeviceState> currentStates = event.getTriggerStates().stream()
+				.map((range) -> nodeControllerImpl.getDeviceState(range.getName()))
 				.collect(Collectors.toMap(DeviceState::getName, cacheState -> cacheState));
 		
-		if (event.checkIfTriggered(cachedStates, state) /*&& !activeSet.contains(event)*/)
+		boolean eventTriggered = event.checkIfTriggered(currentStates, stateThatChanged);
+	
+		if (!activeSet.contains(event) && eventTriggered)
 		{
 			try
 			{		
-				processor.trigger(event.getActionProfileName());
-				//activeSet.add(event);
+				nodeControllerImpl.trigger(event.getActionProfileName());
+				activeSet.add(event);
 			}
 			catch (ActionProfileDoesNotExist e)
 			{
 				SystemLogger.getLogger().severe("Removing event can't find action profile: " + event.getActionProfileName());
-				eventRegistry.removeEvent(event.hashCode());
+				eventRegistry.removeEvent(event.getId());
 			}
 		}
-		else
+		else if(!eventTriggered)
 		{
-			//activeSet.remove(event); add untrigger
+			if(activeSet.remove(event) && event.getUnTrigger())
+				nodeControllerImpl.unTrigger(event.getActionProfileName());
 		}
 	}
 }

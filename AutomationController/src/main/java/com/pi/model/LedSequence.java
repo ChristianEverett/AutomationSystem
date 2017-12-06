@@ -5,6 +5,7 @@ import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.persistence.Column;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
 import javax.persistence.Id;
@@ -16,6 +17,7 @@ import com.pi.devices.Led;
 public class LedSequence extends Model
 {
 	@Id
+	@Column(length = 100)
 	private String ledSequenceName;
 	@ElementCollection
 	private List<Color> sequence = new LinkedList<>();

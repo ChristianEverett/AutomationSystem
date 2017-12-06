@@ -130,8 +130,15 @@ public class Led extends Device
 
 		if (feature)
 		{//TODO finish
-			initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
-			setRGBPWM(name.hashCode(), (255 - red), (255 - green), (255 - blue));
+			int i = 0;
+			boolean setrgb = false;
+			if(i == 0)
+			{
+				i++;
+				initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
+			}
+			if(setrgb)
+				setRGBPWM(name.hashCode(), (255 - red), (255 - green), (255 - blue));
 		}
 		else
 		{

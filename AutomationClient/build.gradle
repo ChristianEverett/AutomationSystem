@@ -14,14 +14,15 @@ buildscript {
 apply plugin: 'application'
 apply plugin: 'java'
 apply plugin: 'eclipse'
-apply plugin: 'idea'
+//apply plugin: 'idea'
 apply plugin: 'spring-boot'
-apply plugin: 'war'
+//apply plugin: 'war'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 repositories {
     mavenCentral()
+    maven { url "https://oss.sonatype.org/content/groups/public" }
     maven { url "http://repo.spring.io/libs-snapshot" }
     maven { url "http://maven.springframework.org/milestone" }
     
@@ -35,10 +36,6 @@ dependencies {
     compile group: 'commons-collections', name: 'commons-collections', version: '3.2'
     
     compile 'org.jsoup:jsoup:1.9.2'
-	compile group: 'mysql', name: 'mysql-connector-java', version: '5.1.6'
-	compile group: 'com.pi4j', name: 'pi4j-core', version: '1.0'
-	compile group: 'com.pi4j', name: 'pi4j-device', version: '1.0'
-	compile group: 'com.pi4j', name: 'pi4j-gpio-extension', version: '1.0'
 	
 	compile group: 'org.bouncycastle', name: 'bcprov-jdk16', version: '1.45'
 
@@ -82,4 +79,7 @@ uploadArchives {
            dirs 'repos'
        }
     }
+}
+task fullJar (dependsOn: ['jar', 'bootRepackage']){
+
 }

@@ -51,7 +51,7 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 	public AmazonEcho(String name) throws IOException
 	{
 		super(name);
-		createTask(5L, 1L, TimeUnit.SECONDS);
+		start(5L, 1L, TimeUnit.SECONDS);
 		registerAllCommands();
 	}
 
@@ -214,6 +214,12 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 				    "<UDN>uuid:Socket-1_0-(device_serial)</UDN>\n" +
 				  "</device>\n" +
 				"</root>\n";
+
+		@Override
+		public String getName()
+		{
+			return actionProfileName;
+		}
 	}
 	
 	@XmlRootElement(name = DEVICE)

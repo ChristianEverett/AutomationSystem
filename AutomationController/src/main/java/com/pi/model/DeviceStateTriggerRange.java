@@ -32,9 +32,9 @@ public class DeviceStateTriggerRange extends DeviceState
 	}
 	
 	@JsonIgnore
-	public boolean isTriggered(DeviceState cachedState, DeviceState newState)
+	public boolean isTriggered(DeviceState currentState, DeviceState newState)
 	{		
-		if(cachedState == null || !getName().equals(cachedState.getName()) || !getType().equals(cachedState.getType()))
+		if(currentState == null || !getName().equals(currentState.getName()) || !getType().equals(currentState.getType()))
 			return false;
 	
 		if(triggerOnChange)
@@ -43,15 +43,15 @@ public class DeviceStateTriggerRange extends DeviceState
 		}
 		
 		if(endRange.isEmpty())
-			return cachedState.contains(this);
+			return currentState.contains(this);
 		
 		for (String key : getParams().keySet())
 		{
-			Object value = cachedState.getParam(key, false);
-			Object start = getParam(key, false);
+			Object currentValue = currentState.getParam(key);
+			Object start = getParam(key);
 			Object end = endRange.get(key);
 
-			if (!checkBound(start, value, key) || !checkBound(value, end, key))
+			if (!checkBound(start, currentValue, key) || !checkBound(currentValue, end, key))
 				return false;
 		} 
 			

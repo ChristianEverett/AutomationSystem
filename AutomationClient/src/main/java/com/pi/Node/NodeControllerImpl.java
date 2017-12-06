@@ -6,25 +6,24 @@ package com.pi.Node;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.lang.reflect.Proxy;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.rmi.Naming;
+import java.rmi.Remote;
 import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.Collection;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pi.SystemLogger;
-import com.pi.controllers.ActionController;
-import com.pi.controllers.EventController;
-import com.pi.controllers.DataRepositoryController;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.BaseNodeController;
 import com.pi.infrastructure.RemoteDeviceProxy;
 import com.pi.infrastructure.Device.DeviceConfig;
-import com.pi.infrastructure.util.HttpClient;
-import com.pi.infrastructure.util.HttpClient.ObjectResponse;
-import com.pi.infrastructure.util.HttpClient.Response;
+import com.pi.infrastructure.DeviceAPI;
+import com.pi.infrastructure.NodeControllerAPI;
+import com.pi.infrastructure.util.DeviceDoesNotExist;
 import com.pi.model.DeviceState;
 import com.pi.services.NodeDiscovererService;
 import com.sun.net.httpserver.HttpExchange;
@@ -45,6 +44,8 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 	private static String AUTOMATION_CONTROLLER_HOST = null;
 	private static int AUTOMATION_CONTROLLER_PORT = 8080;
 	
+	private NodeControllerAPI primaryNodeController;
+	
 	public static NodeControllerImpl start(String nodeID)
 	{
 		if(singleton == null)
@@ -61,7 +62,7 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 			
 			Device.registerNodeManger(this);
 			System.setProperty("java.rmi.server.hostname", NodeDiscovererService.getLocalIPv4Address()); 
-			LocateRegistry.createRegistry(1099);
+			LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 			
 			server = HttpServer.create(new InetSocketAddress(8080), QUEUE);
 			server.createContext(RemoteDeviceProxy.REMOTE_CONFIG_PATH, this);
@@ -70,6 +71,9 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 			
 			setAutomationControllerAddress(NodeDiscovererService.broadCastFromNode(nodeID));
 			SystemLogger.getLogger().info("This Node has been registered as: " + nodeID);	
+			
+			SystemLogger.getLogger().info("Looking up primary node rmi");	
+			primaryNodeController = (NodeControllerAPI) Naming.lookup("//" + AUTOMATION_CONTROLLER_HOST + "/" + RMI_NAME);	
 		}
 		catch (Exception e)
 		{
@@ -90,6 +94,8 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 			DeviceConfig config = (DeviceConfig) input.readObject();
 			
 			Device device = createNewDevice(config);
+			
+			//DeviceAPI proxy = (DeviceAPI) Proxy.newProxyInstance(DeviceAPI.class.getClassLoader(), new Class[] { DeviceAPI.class }, new RemoteDeviceHandler(this, device));
 			Naming.rebind(device.getName(), new RemoteDeviceHandler(this, device));
 
 			request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
@@ -113,11 +119,6 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 		boolean result = super.closeDevice(name);
 		server.removeContext(createPathFromName(name));
 		
-		if(deviceMap.isEmpty())
-		{
-			SystemLogger.getLogger().severe("Shutting Down");
-			System.exit(0);
-		}
 		return result;
 	}
 	
@@ -130,16 +131,9 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 			{
 				super.scheduleAction(state);
 			}
-			catch (RuntimeException e)
+			catch (DeviceDoesNotExist e)
 			{
-				ObjectMapper mapper = new ObjectMapper();
-				String json = mapper.writeValueAsString(state);
-				
-				HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_HOST, AUTOMATION_CONTROLLER_PORT);
-				Response response = client.sendPostJson(null, ActionController.PATH + "/" + state.getName(), json);
-				
-				if(!response.isHTTP_OK())
-					throw new IOException("Could not request action from Controller got response: " + response.getStatusCode());
+				primaryNodeController.scheduleAction(state);
 			}
 		}
 		catch (Exception e)
@@ -158,14 +152,7 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 			if(state != null)
 				return state;
 			
-			// Don't pass forDatabase param, automation node should never need device config
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_HOST, AUTOMATION_CONTROLLER_PORT);
-			ObjectResponse response = client.sendGetObject(null, ActionController.PATH + "/AC/" + name);
-			
-			if(!response.isHTTP_OK())
-				throw new IOException("Could not get device state: " + response.getStatusCode());
-			
-			return (DeviceState) response.getResponseObject();
+			return primaryNodeController.getDeviceState(name);
 		}
 		catch (Exception e)
 		{
@@ -180,14 +167,7 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 	{
 		try
 		{
-			ObjectMapper mapper = new ObjectMapper();
-			String json = mapper.writeValueAsString(state);
-			
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_HOST, AUTOMATION_CONTROLLER_PORT);
-			Response response = client.sendPostJson(null, EventController.PATH + "/AC/update", json);
-			
-			if(!response.isHTTP_OK())
-				throw new IOException("Could not update event record on automation controller got: " + response.getStatusCode());
+			primaryNodeController.update(state);
 		}
 		catch (Exception e)
 		{
@@ -200,13 +180,7 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 	{
 		try
 		{
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_HOST, AUTOMATION_CONTROLLER_PORT);
-			ObjectResponse response = client.sendGetObject("key=" + key, DataRepositoryController.PATH + "/" + type);
-			
-			if(!response.isHTTP_OK())
-				throw new IOException("Could not get repository " + type + " : " + response.getStatusCode());
-			
-			return (T) response.getResponseObject();
+			return primaryNodeController.getRepositoryValue(type, key);
 		}
 		catch (Exception e)
 		{
@@ -221,11 +195,7 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 	{
 		try
 		{
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_HOST, AUTOMATION_CONTROLLER_PORT);
-			ObjectResponse response = client.sendPostObject("key=" + key, DataRepositoryController.PATH + "/" + type, value);
-			
-			if(!response.isHTTP_OK())
-				throw new IOException("Could not set repository " + type + " : " + response.getStatusCode());
+			primaryNodeController.setRepositoryValue(type, key, value);
 		}
 		catch (Exception e)
 		{
@@ -238,13 +208,7 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 	{
 		try
 		{
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_HOST, AUTOMATION_CONTROLLER_PORT);
-			ObjectResponse response = client.sendGetObject(null, DataRepositoryController.PATH + "/all" + type);
-			
-			if(!response.isHTTP_OK())
-				throw new IOException("Could not get repository " + type + " : " + response.getStatusCode());
-			
-			return (Collection<T>) response.getResponseObject();
+			return primaryNodeController.getRepositoryValues(type);
 		}
 		catch (Exception e)
 		{
@@ -259,11 +223,7 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 	{
 		try
 		{
-			HttpClient client = new HttpClient(AUTOMATION_CONTROLLER_HOST, AUTOMATION_CONTROLLER_PORT);
-			Response response = client.sendPostJson(null, ActionController.PATH + "/trigger/" + actionProfileName, null);
-			
-			if (!response.isHTTP_OK())
-				throw new IOException("Could not request action from Controller got response: " + response.getStatusCode());
+			primaryNodeController.trigger(actionProfileName);
 		}
 		catch (Exception e)
 		{
@@ -274,7 +234,13 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 	@Override
 	public void unTrigger(String profileName)
 	{
-		// TODO Auto-generated method stub
-		
+		try
+		{
+			primaryNodeController.unTrigger(profileName);
+		}
+		catch (Exception e)
+		{
+			SystemLogger.getLogger().severe("Could not connect to Automation Controller. " + e.getMessage());
+		}		
 	}
 }

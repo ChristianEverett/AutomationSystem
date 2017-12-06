@@ -1,17 +1,12 @@
 package com.pi.model;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.annotation.JsonGetter;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Objects;
-import java.util.function.Function;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.persistence.Column;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
@@ -20,14 +15,12 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import javax.persistence.Transient;
 
 @Entity
 @Table(name = "EventHandler")
 public class EventHandler extends Model
 {
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
 	private int id;
 	// In order for the event to be considered triggered, all device states in
 	// triggerEvents must be met
@@ -38,30 +31,32 @@ public class EventHandler extends Model
 	private String actionProfileName;
 	
 	private Boolean requireAll = true;
+	private Boolean unTrigger = false; 
 	
 	public EventHandler()
 	{
+		
 	}
 
 	@JsonIgnore
-	public boolean checkIfTriggered(Map<String, DeviceState> stateCache, DeviceState newState)
+	public boolean checkIfTriggered(Map<String, DeviceState> currentStates, DeviceState newState)
 	{
 		if (requireAll)
 		{
-			return allStatesMet(stateCache, newState);
+			return allStatesMet(currentStates, newState);
 		}
 		else
 		{
-			return anyStateMet(stateCache, newState);
+			return anyStateMet(currentStates, newState);
 		}
 	}
 
 	@JsonIgnore
-	private boolean allStatesMet(Map<String, DeviceState> stateCache, DeviceState newState)
+	private boolean allStatesMet(Map<String, DeviceState> currentStates, DeviceState newState)
 	{
 		for (DeviceStateTriggerRange triggerState : triggerStates)
 		{
-			if (!triggerState.isTriggered(stateCache.get(triggerState.getName()), newState))
+			if (!triggerState.isTriggered(currentStates.get(triggerState.getName()), newState))
 				return false;
 		}
 
@@ -69,11 +64,11 @@ public class EventHandler extends Model
 	}
 
 	@JsonIgnore
-	private boolean anyStateMet(Map<String, DeviceState> stateCache, DeviceState newState)
+	private boolean anyStateMet(Map<String, DeviceState> currentStates, DeviceState newState)
 	{
 		for (DeviceStateTriggerRange triggerState : triggerStates)
 		{
-			if (triggerState.isTriggered(stateCache.get(triggerState.getName()), newState))
+			if (triggerState.isTriggered(currentStates.get(triggerState.getName()), newState))
 				return true;
 		}
 
@@ -93,12 +88,22 @@ public class EventHandler extends Model
 		return deviceNames;
 	}
 	
-	// Json Fields ------------------------------------
+	@JsonIgnore
 	@Override
-	@JsonGetter
 	public int hashCode()
 	{
-		return Objects.hash(triggerStates.hashCode(), requireAll);
+		return Objects.hash(triggerStates, actionProfileName);
+	}
+	
+	// Json Fields ------------------------------------
+	public int getId()
+	{
+		return id;
+	}
+
+	public void setId(int id)
+	{
+		this.id = id;
 	}
 	
 	public String getActionProfileName()
@@ -129,5 +134,15 @@ public class EventHandler extends Model
 	public Boolean getRequireAll()
 	{
 		return requireAll;
+	}
+
+	public Boolean getUnTrigger()
+	{
+		return unTrigger;
+	}
+
+	public void setUnTrigger(Boolean unTrigger)
+	{
+		this.unTrigger = unTrigger;
 	}
 }

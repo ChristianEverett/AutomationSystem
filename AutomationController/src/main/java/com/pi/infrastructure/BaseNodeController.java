@@ -12,12 +12,15 @@ import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device.DeviceConfig;
+import com.pi.infrastructure.util.DeviceDoesNotExist;
 import com.pi.model.DeviceState;
 
-public abstract class BaseNodeController
+public abstract class BaseNodeController implements NodeControllerAPI
 {
 	protected static BaseNodeController singleton = null;
 	protected HashMap<String, Device> deviceMap = new HashMap<>();
+	
+	protected static final String RMI_NAME = "node_controller";
 	
 	public static BaseNodeController getInstance()
 	{
@@ -26,12 +29,12 @@ public abstract class BaseNodeController
 		return singleton;
 	}
 	
-	public void scheduleAction(DeviceState state) throws IOException
+	public void scheduleAction(DeviceState state)
 	{
 		Device device = deviceMap.get(state.getName());
 		
 		if(device == null)
-			throw new RuntimeException("Device does not exist");
+			throw new DeviceDoesNotExist(state.getName());
 		
 		device.execute(state);
 	}
@@ -138,12 +141,6 @@ public abstract class BaseNodeController
 		
 		return null;
 	}
-	abstract public void update(DeviceState state);	
-	abstract public void trigger(String actionProfileName);	
-	abstract public void unTrigger(String profileName);
-	abstract public <T extends Serializable> Collection<T> getRepositoryValues(String type);
-	abstract public <T extends Serializable, K extends Serializable> T getRepositoryValue(String type, K key);
-	abstract public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, K key, T value);
 	
 	static
 	{

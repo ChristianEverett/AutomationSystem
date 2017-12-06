@@ -1,11 +1,12 @@
  select * from ActionProfile;
  select * from ActionProfile_deviceStates;
  select * from DeviceState;
- select * from action_profile_device_states;
- select * from event_handler;
+ select * from EventHandler;
  select * from LedSequence_sequence;
  select * from SavedDeviceStates;
-
+ 
+ delete from EventHandler;
+ 
  drop table ActionProfile_deviceStates;
  drop table ActionProfile;
  drop table DeviceState;
@@ -15,6 +16,7 @@
  
  DESCRIBE ActionProfile_deviceStates;
  show tables;
+ select User, Host, Password from mysql.user;
  
  CREATE TABLE java_objects ( 
  id INT AUTO_INCREMENT, 
@@ -31,9 +33,4 @@
  b int,
  primary key (a));
  
- insert into test(a, b) values(1, 600) ON DUPLICATE KEY UPDATE b=601;
- select * from test where ts > "2017-03-12 14:41";
- drop table test;
- drop table state_log;
- drop table device_state;
- drop table event;
+select * from test;

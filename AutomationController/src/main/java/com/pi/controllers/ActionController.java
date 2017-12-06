@@ -7,7 +7,6 @@ import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.servlet.http.HttpServletRequest;
@@ -24,14 +23,12 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.util.DeviceLockedException;
 import com.pi.infrastructure.util.EventRegistry;
 import com.pi.model.ActionProfile;
 import com.pi.model.DeviceState;
 import com.pi.model.DeviceStateRecord;
 import com.pi.model.repository.ActionProfileJpaRepository;
 import com.pi.services.DeviceLoggingService;
-import com.pi.services.EventProcessingService;
 import com.pi.services.PrimaryNodeControllerImpl;
 import com.pi.services.RepositoryUpdateNotifierService;
 
@@ -41,10 +38,9 @@ import com.pi.services.RepositoryUpdateNotifierService;
  */
 
 @Controller
+@RequestMapping(value = "/action")
 public class ActionController
 {
-	public static final String PATH = "/action";
-	
 	@Autowired
 	private PrimaryNodeControllerImpl nodeController;
 	
@@ -64,29 +60,20 @@ public class ActionController
 	{
 	}
 	
-	@RequestMapping(value = PATH, method = RequestMethod.GET)
+	@RequestMapping(method = RequestMethod.GET)
 	public @ResponseBody Collection<DeviceState> getAllStates(HttpServletResponse response)
 	{
-		try
-		{
-			return nodeController.getStates();
-		}
-		catch (Exception e)
-		{
-			response.setStatus(503);
-			SystemLogger.getLogger().severe(e.getMessage());
-		}
-		
-		return null;
+		List<DeviceState> states = nodeController.getStates();
+		return states.stream().sorted((state1, state2) -> state1.getName().compareTo(state2.getName())).collect(Collectors.toList());
 	}
 	
-	@RequestMapping(value = (PATH + "/{name}"), method = RequestMethod.GET)
+	@RequestMapping(value = "/{name}", method = RequestMethod.GET)
 	public @ResponseBody DeviceState getState(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String deviceName)
 	{
 		return getState(response, deviceName);
 	}
 	
-	@RequestMapping(value = (PATH + "/AC/{name}"), method = RequestMethod.GET)
+	@RequestMapping(value = "/AC/{name}", method = RequestMethod.GET)
 	public void getStateForAutomationClient(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String deviceName)
 	{
 		try(ObjectOutputStream output = new ObjectOutputStream(response.getOutputStream()))
@@ -101,7 +88,7 @@ public class ActionController
 		}
 	}
 	
-	@RequestMapping(value = (PATH + "/records"), method = RequestMethod.GET)
+	@RequestMapping(value = "/records", method = RequestMethod.GET)
 	public @ResponseBody Collection<DeviceStateRecord> getRecordsFor(HttpServletResponse response, 
 			@RequestParam("start") String start, @RequestParam("end") String end)
 	{
@@ -120,25 +107,25 @@ public class ActionController
 		return null;
 	}
 	
-	@RequestMapping(value = (PATH + "/{device}"), method = RequestMethod.POST)
+	@RequestMapping(value = "/{device}", method = RequestMethod.POST)
 	public void scheduleAction(HttpServletRequest request, HttpServletResponse response, @RequestBody DeviceState state)
 	{		
-		nodeController.scheduleAction(state);
+		nodeController.scheduleAction(state);	
 	}
 	
-	@RequestMapping(value = (PATH + "/getAllActionProfiles"), method = RequestMethod.GET)
+	@RequestMapping(value = "/getAllActionProfiles", method = RequestMethod.GET)
 	public @ResponseBody Collection<ActionProfile> getActionProfile(HttpServletRequest request, HttpServletResponse response)
 	{
 		return actionProfileRepository.findAll();	
 	}
 	
-	@RequestMapping(value = (PATH + "/trigger/{name}"), method = RequestMethod.POST)
+	@RequestMapping(value = "/trigger/{name}", method = RequestMethod.POST)
 	public void triggerActionProfile(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String actionProfileName)
 	{
 		nodeController.trigger(actionProfileName);
 	}
 	
-	@RequestMapping(value = (PATH + "/getActionProfile/{name}"), method = RequestMethod.GET)
+	@RequestMapping(value = "/getActionProfile/{name}", method = RequestMethod.GET)
 	public @ResponseBody ActionProfile getActionProfiles(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String profileName)
 	{
 		ActionProfile profile = actionProfileRepository.findOne(profileName);	
@@ -149,14 +136,16 @@ public class ActionController
 		return profile;
 	}
 	
-	@RequestMapping(value = (PATH + "/createActionProfile/group"), method = RequestMethod.POST)
+	@RequestMapping(value = "/createActionProfile/group", method = RequestMethod.POST)
 	public void createActionProfiles(HttpServletRequest request, HttpServletResponse response, @RequestBody Collection<ActionProfile> profiles)
 	{
 		profiles = profiles.stream().filter(profile -> !actionProfileRepository.exists(profile.getName())).collect(Collectors.toList());
-		repositoryUpdateNotifierService.newActionProfile(actionProfileRepository.save(profiles));
+		
+		if(!profiles.isEmpty())
+			repositoryUpdateNotifierService.newActionProfile(actionProfileRepository.save(profiles));
 	}
 	
-	@RequestMapping(value = (PATH + "/removeActionProfile/{name}"), method = RequestMethod.DELETE)
+	@RequestMapping(value = "/removeActionProfile/{name}", method = RequestMethod.DELETE)
 	public void removeActionProfile(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String profileName)
 	{
 		actionProfileRepository.delete(profileName);

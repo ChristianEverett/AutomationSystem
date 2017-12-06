@@ -17,7 +17,9 @@ import javax.persistence.Table;
 public class ActionProfile extends Model
 {
 	@Id
+	@Column(length = 100)
 	private String name;
+	
 	@ElementCollection(fetch = FetchType.EAGER)
 	@Column(length = 3000) 
 	private Set<DeviceState> deviceStates = new HashSet<>();

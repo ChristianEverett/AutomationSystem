@@ -10,18 +10,17 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import org.springframework.web.socket.config.annotation.AbstractWebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
+import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 
 import com.pi.infrastructure.MySQLHandler;
-import com.pi.infrastructure.util.Email;
 import com.pi.infrastructure.util.PropertyManger;
 import com.pi.services.PrimaryNodeControllerImpl;
 
 import static com.pi.infrastructure.util.PropertyManger.PropertyKeys;
-import static com.pi.infrastructure.util.PropertyManger.loadPropertyNotNull;
-
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
 /**
  * @author Christian Everett
@@ -54,6 +53,8 @@ public class Application extends WebMvcAutoConfiguration
 	{
 		try
 		{
+			long start = System.currentTimeMillis();
+			
 			String dbuser = PropertyManger.loadPropertyNotNull(PropertyKeys.DBUSER);
 			String dbpass = PropertyManger.loadPropertyNotNull(PropertyKeys.DBPASS);
 			String dbname = PropertyManger.loadPropertyNotNull(PropertyKeys.DATABASE_NAME);
@@ -65,7 +66,7 @@ public class Application extends WebMvcAutoConfiguration
 			
 			// Run the Spring Dispatcher
 			ConfigurableApplicationContext context = SpringApplication.run(Application.class, args);
-			PrimaryNodeControllerImpl processor = context.getBean(PrimaryNodeControllerImpl.class);
+			PrimaryNodeControllerImpl nodeController = context.getBean(PrimaryNodeControllerImpl.class);
 			
 			Runtime.getRuntime().addShutdownHook(new Thread()
 			{
@@ -73,18 +74,23 @@ public class Application extends WebMvcAutoConfiguration
 				public void run()
 				{
 					SystemLogger.getLogger().severe("Shutdown Hook Running");
-					processor.shutdown();
+					nodeController.shutdown();
 				}
 			});
 			
-			processor.loadDevices();
-										
-			SystemLogger.getLogger().info("------------Service Running-------------");
+			nodeController.loadDevices();
+				
+			long end = System.currentTimeMillis();
+			SystemLogger.getLogger().info("------Service Running Took " + (end - start)/1000 + " Seconds------");
 
-//			processor.wait();
-//			Email.create(loadPropertyNotNull(PropertyKeys.ADMIN_EMAIL)).setSubject("Automation System Shutting down").setMessageBody(
-//					"Shutting down at: " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())).send();
-//			SystemLogger.getLogger().info("------------Service Stopped-------------");
+			synchronized (nodeController)
+			{
+				nodeController.wait();
+			}
+					
+			//			Email.create(loadPropertyNotNull(PropertyKeys.ADMIN_EMAIL)).setSubject("Automation System Shutting down").setMessageBody(
+			//					"Shutting down at: " + new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(new Date())).send();
+						SystemLogger.getLogger().info("----------Service Stopped----------");
 		}
 		catch (Throwable e)
 		{
@@ -93,7 +99,25 @@ public class Application extends WebMvcAutoConfiguration
 		}
 		finally
 		{
-			//System.exit(1);
+			System.exit(1);
+		}
+	}
+	
+	@Configuration
+	@EnableWebSocketMessageBroker
+	public class SocketConfigure extends AbstractWebSocketMessageBrokerConfigurer
+	{
+		@Override
+		public void registerStompEndpoints(StompEndpointRegistry registry)
+		{
+			registry.addEndpoint("/system").withSockJS();
+		}
+	
+		@Override
+		public void configureMessageBroker(MessageBrokerRegistry registry)
+		{
+			registry.enableSimpleBroker("/topic");
+			registry.setApplicationDestinationPrefixes("/app");
 		}
 	}
 }

@@ -17,10 +17,9 @@ import com.pi.SystemLogger;
 import com.pi.services.PrimaryNodeControllerImpl;
 
 @Controller
+@RequestMapping(value = "/repository")
 public class DataRepositoryController
 {
-	public static final String PATH = "/repository";
-	
 	@Autowired
 	private PrimaryNodeControllerImpl processor;
 
@@ -28,7 +27,7 @@ public class DataRepositoryController
 	{
 	}
 	
-	@RequestMapping(value = PATH + "/{repository}/all", method = RequestMethod.GET)
+	@RequestMapping(value = "/{repository}/all", method = RequestMethod.GET)
 	public void getValues(HttpServletRequest request, HttpServletResponse response, @PathVariable("repository") String repository)
 	{
 		Object object = processor.getRepositoryValues(repository);
@@ -36,7 +35,7 @@ public class DataRepositoryController
 		returnData(response, object);
 	}
 	
-	@RequestMapping(value = PATH + "/{repository}", method = RequestMethod.GET)
+	@RequestMapping(value = "/{repository}", method = RequestMethod.GET)
 	public void getValue(HttpServletRequest request, HttpServletResponse response, @PathVariable("repository") String repository
 			,@RequestParam("key") String key)
 	{
@@ -45,7 +44,7 @@ public class DataRepositoryController
 		returnData(response, object);
 	}
 	
-	@RequestMapping(value = PATH + "/{repository}", method = RequestMethod.POST)
+	@RequestMapping(value = "/{repository}", method = RequestMethod.POST)
 	public void setValue(HttpServletRequest request, HttpServletResponse response, @PathVariable("repository") String repository
 			,@RequestParam("key") String key)
 	{

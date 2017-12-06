@@ -26,10 +26,9 @@ import com.pi.services.PrimaryNodeControllerImpl;
 
 
 @Controller
+@RequestMapping(value = "/event")
 public class EventController
 {
-	public static final String PATH = "/event";
-	
 	@Autowired
 	private EventRegistry eventRegistry;
 	
@@ -43,39 +42,36 @@ public class EventController
 	{
 	}
 	
-	@RequestMapping(value = PATH, method = RequestMethod.GET)
+	@RequestMapping(method = RequestMethod.GET)
 	public @ResponseBody Collection<EventHandler> getEvents(HttpServletRequest request, HttpServletResponse response)
 	{
 		return eventRegistry.getAllEvents();
 	}
 	
-	@RequestMapping(value = PATH + "/group", method = RequestMethod.POST)
+	@RequestMapping(value = "/group", method = RequestMethod.POST)
 	public void createEvents(HttpServletRequest request, HttpServletResponse response, @RequestBody List<EventHandler> events)
 	{
-		eventRegistry.createEvents(events, false);
+		eventRegistry.addEvents(events, false);
 		
 		events.stream().forEach(event -> eventProcessingService.checkIfTriggered(event, null));
 	}
 	
-	@RequestMapping(value = PATH, method = RequestMethod.POST)
-	public @ResponseBody Integer createEvent(HttpServletRequest request, HttpServletResponse response, @RequestBody EventHandler event)
-	{
-		int id = eventRegistry.createEvent(event, false);
-		
-		eventProcessingService.checkIfTriggered(event, null);
-		return id;
-	}
-	
-	@RequestMapping(value = (PATH + "/{hash}"), method = RequestMethod.DELETE)
+	@RequestMapping(value = "/{hash}", method = RequestMethod.DELETE)
 	public void removeEvent(HttpServletRequest request, HttpServletResponse response, @PathVariable("hash") Integer hash)
 	{
 		eventRegistry.removeEvent(hash);
 	}
 	
+	@RequestMapping(method = RequestMethod.DELETE)
+	public void removeEvents(HttpServletRequest request, HttpServletResponse response)
+	{
+		eventRegistry.removeAllEvents();
+	}
+	
 	/*
 	 * Device specific requests 
 	 */
-	@RequestMapping(value = PATH + "/{hash}", method = RequestMethod.GET)
+	@RequestMapping(value = "/{hash}", method = RequestMethod.GET)
 	public @ResponseBody Collection<String> getAllRegisterListeners(HttpServletRequest request, HttpServletResponse response, 
 			@PathVariable("id") Integer hash)
 	{
@@ -85,7 +81,7 @@ public class EventController
 	/*
 	 * Only used by automation clients
 	 */
-	@RequestMapping(value = (PATH + "/AC/update"), method = RequestMethod.POST)
+	@RequestMapping(value = "/AC/update", method = RequestMethod.POST)
 	public void updateState(HttpServletRequest request, HttpServletResponse response, @RequestBody DeviceState state)
 	{	
 		try//(ObjectInputStream input = new ObjectInputStream(request.getInputStream()))

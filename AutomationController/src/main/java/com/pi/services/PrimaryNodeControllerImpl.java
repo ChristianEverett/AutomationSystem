@@ -6,6 +6,10 @@ package com.pi.services;
 import java.io.IOException;
 import java.io.Serializable;
 import java.net.InetAddress;
+import java.rmi.Naming;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,12 +26,12 @@ import javax.annotation.PostConstruct;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.messaging.simp.SimpMessageSendingOperations;
 import org.springframework.stereotype.Service;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.pi.SystemLogger;
-import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.DeviceType.Params;
@@ -55,6 +59,7 @@ import com.pi.services.TaskExecutorService.Task;
 public class PrimaryNodeControllerImpl extends BaseNodeController
 {
 	private AtomicBoolean shutdownProcessor = new AtomicBoolean(false);
+	public static final long upTime = System.currentTimeMillis();
 
 	// NodeController data structures
 	private ConcurrentHashMap<String, InetAddress> nodeMap = new ConcurrentHashMap<>();
@@ -76,6 +81,8 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	private DeviceLoadingService deviceLoader;
 	@Autowired
 	private NodeDiscovererService nodeDiscovererService;
+	@Autowired
+	private SimpMessageSendingOperations messagingTemplate;
 
 	// NodeController tasks
 	private Task databaseTask;
@@ -93,16 +100,9 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 
 		SystemLogger.getLogger().info("Scheduling Database Task");
 		Long interval = Long.parseLong(PropertyManger.loadProperty(PropertyKeys.DATABASE_POLL_FREQUENCY, "30"));
-		databaseTask = taskService.scheduleTask(() ->
+		databaseTask = taskService.scheduleSafeTask(() ->
 		{
-			try
-			{
-				save();
-			}
-			catch (Throwable e)
-			{
-				SystemLogger.getLogger().severe(e.getMessage());
-			}
+			save();
 		}, 1L, interval, TimeUnit.MINUTES);
 		
 		try
@@ -113,7 +113,12 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 			SystemLogger.getLogger().info("Starting Device Logging Service");
 			deviceLoggingService.start();
 			
-			loadDeviceStatesIntoCache();			
+			loadDeviceStatesIntoDatabaseCache();	
+			
+			SystemLogger.getLogger().info("Starting rmi process");
+			System.setProperty("java.rmi.server.hostname", NodeDiscovererService.getLocalIPv4Address()); 
+			LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
+			Naming.rebind(RMI_NAME, UnicastRemoteObject.exportObject(this, 0));
 		}
 		catch (Exception e)
 		{
@@ -169,7 +174,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		return nodeMap.get(node);
 	}
 	
-	private boolean isInCache(DeviceState deviceState)
+	public boolean hasStateChanged(DeviceState deviceState)
 	{
 		DeviceState cacheState = cachedStates.get(deviceState.getName());
 		
@@ -181,11 +186,9 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	{
 		deviceLoggingService.log(state);
 		
-//		if(isInCache(state))
-//			return;
-		
 		cachedStates.put(state.getName(), state);
 		eventProcessingService.update(state);
+		messagingTemplate.convertAndSend("/topic/" + state.getName(), state);
 	}
 	
 	@Override
@@ -204,7 +207,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		if (state.hasData())
 		{
 			if (!isLocked(state.getName()))
-				processAction(state);
+				processAction(state);			
 			else
 				throw new DeviceLockedException(state.getName());
 		}
@@ -233,7 +236,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		{
 			for (DeviceState element : inverted ? profile.getInvertedDeviceStates() : profile.getDeviceStates())
 			{
-				if (!isInCache(element))
+				if (!hasStateChanged(element))
 				{
 					scheduleAction(element);
 				}
@@ -312,7 +315,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		}
 	}
 
-	private void loadDeviceStatesIntoCache() throws SQLException, IOException
+	private void loadDeviceStatesIntoDatabaseCache() throws SQLException, IOException
 	{
 		SystemLogger.getLogger().info("Loading Device States");
 		CurrentDeviceStateJpaRepository repository = (CurrentDeviceStateJpaRepository) repositorys.get(RepositoryType.DeviceState);
@@ -323,7 +326,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		});
 	}
 	
-	private void save() throws SQLException, IOException
+	private void save()
 	{
 		CurrentDeviceStateJpaRepository repository = (CurrentDeviceStateJpaRepository) repositorys.get(RepositoryType.DeviceState);
 		
@@ -338,8 +341,10 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		repository.save(savedStates);
 	}
 
-	private void saveAndCloseAllDevices() throws SQLException, IOException
+	private void saveAndCloseAllDevices()
 	{
+		// Shutdown all devices and save their state
+		SystemLogger.getLogger().info("Saving Device");
 		save();
 		closeAllDevices();
 	}
@@ -347,9 +352,9 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	public boolean deviceNeedsUpdate(Device device, DeviceState state)
 	{
 		if(device == null)
-			throw new RuntimeException("device not found for: " + state.getName());
+			throw new DeviceDoesNotExist(state.getName());
 		
-		return (device.isAsynchronousDevice() || !isInCache(state));
+		return (device.isAsynchronousDevice() || !hasStateChanged(state));
 	}
 	
 	public void shutdown()
@@ -364,16 +369,17 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 				taskService.cancelAllTasks();
 				nodeDiscovererService.stop();
 				deviceLoggingService.stop();
-				
-				// Shutdown all devices and save their state
-				SystemLogger.getLogger().info("Saving Device States and shutting down");
+								
 				saveAndCloseAllDevices();
 				repositorys.forEach((name, repository) -> 
 				{
 					repository.flush();
 				});
 				
-				notify();
+				synchronized (this)
+				{
+					notify();
+				}
 			}
 			catch (Throwable e)
 			{
@@ -394,13 +400,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 			{
 				String deviceToApplyState = state.getName();
 				Device device = lookupDevice(deviceToApplyState);
-				String deviceToConfig = (String) state.getParam(PROCESSOR_ACTIONS.DEVICE, false);
-
-				// ProcessBuilder process = new ProcessBuilder("python", "../echo/fauxmo.py");
-				// process.redirectOutput(ProcessBuilder.Redirect.INHERIT);
-				// process.start();
-				// Process process = rt.exec("sudo ./codesend " + code + " -l " + PULSELENGTH + " -p " + IR_PIN);
-				// process.waitFor();
+				String deviceToConfig = (String) state.getParam(PROCESSOR_ACTIONS.DEVICE);
 
 				switch (deviceToApplyState)
 				{
@@ -412,7 +412,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 				case PROCESSOR_ACTIONS.RELOAD_DEVICE_ALL:
 				{
 					saveAndCloseAllDevices();
-					loadDeviceStatesIntoCache();
+					loadDeviceStatesIntoDatabaseCache();
 					DeviceConfig config = deviceLoader.loadDevice(deviceToConfig);
 					createNewDevice(config);
 					SystemLogger.getLogger().info("Reloaded Devices");
@@ -436,7 +436,9 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 				case PROCESSOR_ACTIONS.SHUTDOWN:
 					shutdown();
 					break;
-					
+				case PROCESSOR_ACTIONS.UPTIME:
+					shutdown();
+					break;	
 				default:					
 					if (deviceNeedsUpdate(device, state))
 					{
@@ -499,6 +501,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		public static final String LOAD_DEVICE = "load_device";
 		public static final String CLOSE_DEVICE = "close_device";
 		public static final String SAVE_DATA = "save_data";
+		public static final String UPTIME = "up_time";//TODO
 		public static final String SHUTDOWN = "shutdown";
 
 		public static final String DEVICE = "device";

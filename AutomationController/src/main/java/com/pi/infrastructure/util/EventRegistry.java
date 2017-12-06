@@ -21,7 +21,7 @@ import com.pi.model.repository.EventJpaRepository;
 @Service
 public class EventRegistry
 {
-	@Autowired
+	@Autowired 
 	private EventJpaRepository eventJpaRepository;
 	
 	@Autowired
@@ -37,7 +37,8 @@ public class EventRegistry
 	{
 		SystemLogger.getLogger().info("Loading Events");
 		List<EventHandler> events = eventJpaRepository.findAll();
-		createEvents(events, true);	
+		for (EventHandler event : events)
+			createEvent(event);	
 	}
 	
 	public synchronized List<EventHandler> getAllEvents()
@@ -50,39 +51,37 @@ public class EventRegistry
 		return mapDevicesToTriggerEvents.get(deviceName);
 	}
 	
-	public synchronized void createEvents(List<EventHandler> events, boolean loadingFromDatabase)
-	{
-		for (EventHandler event : events)
-			createEvent(event, loadingFromDatabase);
-	}
-
 	/**
 	 * Add new event to the event table
 	 * 
 	 * @param event
 	 * @return id
 	 */
-	public synchronized Integer createEvent(EventHandler event, boolean loadingFromDatabase)
+	public synchronized void addEvents(List<EventHandler> events, boolean loadingFromDatabase)
 	{
-		if(!actionProfileRepository.exists(event.getActionProfileName()))
-			throw new ActionProfileDoesNotExist(event.getActionProfileName());
+		validateEvents(events);
 		
-		Integer id = event.hashCode();
+		List<EventHandler> newEvents = events.stream().filter(event -> createEvent(event)).collect(Collectors.toList());
+			
+		eventJpaRepository.save(events);
+	}
 
-		if (events.containsKey(id))
+	private void validateEvents(List<EventHandler> events)
+	{
+		events.stream().forEach(event -> 
 		{
-			eventJpaRepository.delete(events.get(id));
-		}
-
-		events.put(id, event);
-
+			if(!actionProfileRepository.exists(event.getActionProfileName()))
+				throw new ActionProfileDoesNotExist(event.getActionProfileName());
+		});
+	}
+	
+	private synchronized boolean createEvent(EventHandler event)
+	{
+		Integer id = event.getId();		
+		EventHandler old = events.put(id, event);
 		addToDeviceToTriggerEventMap(event);
 
-		if (!loadingFromDatabase)
-		{
-			eventJpaRepository.save(event);
-		}
-		return id;
+		return old == null;
 	}
 
 	public synchronized void removeEvent(Integer id)
@@ -97,6 +96,13 @@ public class EventRegistry
 		eventJpaRepository.delete(event);
 	}
 
+	public synchronized void removeAllEvents()
+	{
+		eventJpaRepository.deleteAll();
+		events.clear();
+		mapDevicesToTriggerEvents.clear();
+	}
+	
 	public synchronized List<String> getAllListenersForEvent(Integer id)
 	{
 		EventHandler event = events.get(id);
@@ -112,7 +118,7 @@ public class EventRegistry
 		List<EventHandler> eventsToRemove = events.values().stream().filter(eventHandler -> eventHandler.getActionProfileName().equals(actionProfileName)).collect(Collectors.toList());
 
 		for (EventHandler eventHandler : eventsToRemove)
-			removeEvent(eventHandler.hashCode());
+			removeEvent(eventHandler.getId());
 	}
 
 	private void addToDeviceToTriggerEventMap(EventHandler event)

@@ -10,6 +10,7 @@ import javax.persistence.Table;
 public class DeviceStateDAO extends Model
 {
 	@Id
+	@Column(length = 100)
 	private String deviceName;
 	
 	@Column(length = 3000) 

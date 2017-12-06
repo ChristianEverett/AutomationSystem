@@ -30,7 +30,7 @@ public class Timer extends AsynchronousDevice
 	private Timer(String name, long second) throws IOException
 	{
 		super(name);
-		createTask(60 - second, 60L, TimeUnit.SECONDS, true);
+		start(60 - second, 60L, TimeUnit.SECONDS, true);
 	}
 	
 	@Override

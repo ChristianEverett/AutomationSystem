@@ -59,6 +59,7 @@ public class UPNPBroadcastResponderService extends BaseService
 			{
 				if (upnpdevice.isValidSearch(result))
 				{
+					SystemLogger.getLogger().info("Responding to discovery for : " + upnpdevice.getName());
 					respond(upnpdevice, result);
 				}
 			}

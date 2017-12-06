@@ -4,7 +4,7 @@
 
 $(document).ready(function ()
 {
-    var lockDevice = "switch2";
+    var lockDevice = "outlet10";
     var led1Device = "led1";
     var led2Device = "led2";
     var temp_sensorDevice = "temp_sensor1";
@@ -18,8 +18,6 @@ $(document).ready(function ()
 
     var outsideTempDiv = $("#comp-irjh302u1inlineContent");
     var roomTempDiv = $("#comp-irjh1z0l1bg");
-
-    var rgbSliderDiv = $("#comp-irkzi7ulinlineContent");
 
     var led1Slider = $("#comp-irkzi7ulinlineContent").spectrum({
         preferredFormat: "hex",
@@ -50,7 +48,6 @@ $(document).ready(function ()
 
     (function()
     {
-        GET_STATES(refreshPage);
         unlockButton.button().click(onLockUnlockButtonClick);
         lockButton.button().click(onLockUnlockButtonClick);
 
@@ -60,8 +57,64 @@ $(document).ready(function ()
             outletSwitchArray[x].OFF.button().click(onOutletButtonClick);
         }
 
-        setInterval(function(){GET_STATES(refreshPage);}, 10000);
+        connect(function()
+        {
+            GET_STATES(refreshPage);
+            register(lockDevice, updateLock);
+            register(led1Device, updateLed);
+            register(led2Device, updateLed);
+            register(temp_sensorDevice, updateTempSensor);
+            register(weatherSensor1, updateWeatherSensor);
+
+            register("outlet1", updateOutlet);
+            register("outlet2", updateOutlet);
+            register("outlet3", updateOutlet);
+            register("outlet4", updateOutlet);
+            register("outlet5", updateOutlet);
+            register("outlet6", updateOutlet);
+            register("outlet7", updateOutlet);
+            register("outlet8", updateOutlet);
+            register("outlet9", updateOutlet);
+            register("outlet10", updateOutlet);
+        });
     })();
+
+    function updateLock(json)
+    {
+        var switchOn = json.params.on;
+        setLockImg(switchOn, unlockButton, lockButton, unlockImg, lockImg);
+    }
+
+    function updateLed(json)
+    {
+        var parsedColorsArray = [];
+
+        parsedColorsArray[0] = json.params.red;
+        parsedColorsArray[1] = json.params.green;
+        parsedColorsArray[2] = json.params.blue;
+
+        if(json.name == led1Device)
+            setRGBSlider(parsedColorsArray, led1Slider);
+        else
+            setRGBSlider(parsedColorsArray, led2Slider);
+    }
+
+    function updateTempSensor(json)
+    {
+        var temperature = json.params.temperature;
+        roomTempDiv.html(temperature + "&#x2109");
+    }
+
+    function updateWeatherSensor(json)
+    {
+        var temperature = json.params.temperature;
+        outsideTempDiv.html(temperature + "&#x2109");
+    }
+
+    function updateOutlet(json)
+    {
+        checkOutlet(json.name, json.params.on, outletSwitchArray);
+    }
 
     function onLockUnlockButtonClick(event)
     {
@@ -109,48 +162,6 @@ $(document).ready(function ()
             }
     }
 
-    function checkOutlet(name, on)
-    {
-        deviceNumber = parseInt(name.substring(6, name.length)) - 1;
-
-        if(on == "true" || on === true)
-        {
-            outletSwitchArray[deviceNumber].ON.css("background-color", "rgba(204, 204, 204, 1)");
-            outletSwitchArray[deviceNumber].OFF.css("background-color", "rgba(114, 114, 114, 1)");
-        }
-        else
-        {
-            outletSwitchArray[deviceNumber].OFF.css("background-color", "rgba(204, 204, 204, 1)");
-            outletSwitchArray[deviceNumber].ON.css("background-color", "rgba(114, 114, 114, 1)");
-        }
-    }
-
-    function setLockImg(setLock)
-    {
-        lockButton.css("background-color", "rgba(114, 114, 114, 1)");
-        unlockButton.css("background-color", "rgba(114, 114, 114, 1)");
-
-        if(setLock)
-        {
-            unlockImg.hide();
-            lockImg.show();
-            lockButton.css("background-color", "rgba(204, 204, 204, 1)");
-        }
-        else
-        {
-            lockImg.hide();
-            unlockImg.show();
-            unlockButton.css("background-color", "rgba(204, 204, 204, 1)");
-        }
-    }
-
-    function setRGBSlider(rgbValues, slider)
-    {
-        var color = {r: rgbValues[0], g: rgbValues[1], b: rgbValues[2]};
-
-        slider.spectrum("set", color);
-    }
-
     function refreshPage(result, status, xhr)
     {
         if(xhr.status == 200)
@@ -160,32 +171,23 @@ $(document).ready(function ()
                 switch (result[x].name)
                 {
                     case temp_sensorDevice:
-                        roomTempDiv.html(result[x].params["temperature"] + "&#x2109");
+                        updateTempSensor(result[x]);
                         break;
                     case weatherSensor1:
-                        outsideTempDiv.html(result[x].params["temperature"] + "&#x2109");
+                        updateWeatherSensor(result[x]);
                         break;
                     case led1Device:
                     case led2Device:
-                        var parsedColorsArray = [];
-
-                        parsedColorsArray[0] = result[x].params["red"];
-                        parsedColorsArray[1] = result[x].params["green"];
-                        parsedColorsArray[2] = result[x].params["blue"];
-
-                        if(result[x].name == led1Device)
-                            setRGBSlider(parsedColorsArray, led1Slider);
-                        else
-                            setRGBSlider(parsedColorsArray, led2Slider);
-
+                        updateLed(result[x]);
                         break;
                     case lockDevice:
-                        setLockImg(result[x].params["on"]);
+                        updateLock(result[x]);
                         break;
                     default:
-                        if(result[x].name.indexOf("outlet") !== -1)
-                            checkOutlet(result[x].name, result[x].params["on"]);
                 }
+
+                if(result[x].type == "outlet")
+                    updateOutlet(result[x]);
             }
         }
         else
@@ -196,29 +198,5 @@ $(document).ready(function ()
 
     function actionCallback(result, status, xhr)
     {
-        if(xhr.status == 200)
-        {
-            var json = jQuery.parseJSON(this.data);
-
-            if (json.name == lockDevice)
-            {
-                if(json.params.on)
-                {
-                    setLockImg(true);
-                }
-                else
-                {
-                    setLockImg(false);
-                }
-            }
-            else if(json.name.indexOf("outlet") !== -1)
-            {
-                checkOutlet(json.name, json.params.on);
-            }
-        }
-        else
-        {
-            alert("Page not working");
-        }
     }
 });
