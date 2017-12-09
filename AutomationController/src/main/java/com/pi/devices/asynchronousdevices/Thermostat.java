@@ -4,21 +4,14 @@
 package com.pi.devices.asynchronousdevices;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.pi.Application;
-import com.pi.SystemLogger;
 import com.pi.infrastructure.AsynchronousDevice;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.util.GPIO_PIN;
 import com.pi.model.DeviceState;

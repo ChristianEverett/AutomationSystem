@@ -33,7 +33,7 @@ public class EventProcessingService
 	{
 		Set<EventHandler> events = eventRegistry.getAllEventsThatAreTriggerByDevice(state.getName());
 		
-		if (events != null && nodeControllerImpl.hasStateChanged(state))
+		if (events != null)
 		{
 			for (EventHandler event : events)
 			{
@@ -44,6 +44,7 @@ public class EventProcessingService
 
 	public void checkIfTriggered(EventHandler event, DeviceState stateThatChanged)
 	{
+		// Get Cache state for each device this event is listening too
 		Map<String, DeviceState> currentStates = event.getTriggerStates().stream()
 				.map((range) -> nodeControllerImpl.getDeviceState(range.getName()))
 				.collect(Collectors.toMap(DeviceState::getName, cacheState -> cacheState));

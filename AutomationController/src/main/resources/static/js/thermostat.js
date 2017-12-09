@@ -202,34 +202,31 @@ $(document).ready(function ()
     }
 
     function update(result, status, xhr)
-    {/*
+    {
         if (xhr.status == 200)
         {
             var json = jQuery.parseJSON(this.data);
 
-            if (json.params.target_mode == fan_mode)
-            {
-                fanButton.css("background-color", "rgba(204, 204, 204, 1)");
-            }
-            else if (json.params.target_mode == cool_mode)
-            {
-                acButton.css("background-color", "rgba(204, 204, 204, 1)");
-            }
-            else if (json.params.target_mode == heat_mode)
-            {
-                heatButton.css("background-color", "rgba(204, 204, 204, 1)");
-            }
-            else if (json.params.target_mode == off_mode)
-            {
-                offButton.css("background-color", "rgba(204, 204, 204, 1)");
-            }
-            else
-            {
-                checkOutlet(json.name, json.params.on);
-            }
+            if(json.name == thermostat_device)
+                switch (json.params.target_mode)
+                {
+                    case off_mode:
+                        offButton.css("background-color", "rgba(204, 204, 204, 1)");
+                        break;
+                    case fan_mode:
+                        fanButton.css("background-color", "rgba(204, 204, 204, 1)");
+                        break;
+                    case cool_mode:
+                        acButton.css("background-color", "rgba(204, 204, 204, 1)");
+                        break;
+                    case heat_mode:
+                        heatButton.css("background-color", "rgba(204, 204, 204, 1)");
+                        break;
+                    default:
+                }
         }
 
-        dontChangeTargetUI = false;*/
+        dontChangeTargetUI = false;
     }
 
     function refreshPage(result, status, xhr)

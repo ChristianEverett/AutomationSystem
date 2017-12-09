@@ -88,11 +88,11 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 		return DeviceTypeMap.getType(this.getClass());
 	}
 	
-	public synchronized final void loadSavedData(DeviceState state) throws IOException
+	public synchronized final void loadSavedData(DeviceState state) throws Exception
 	{
 		if (state != null && !isAsynchronousDevice())
 		{
-			execute(state);
+			performAction(state);
 		}
 	}
 	
@@ -104,7 +104,7 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 			{
 				performAction(state);
 				if (!(this instanceof RemoteDeviceProxy) && !isAsynchronousDevice())
-					update(getCurrentDeviceState());//TODO exception thrown?
+					update(getCurrentDeviceState());
 			} 
 		}
 		catch (Exception e)

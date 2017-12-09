@@ -25,7 +25,7 @@ public class Main
 				SystemLogger.getLogger().severe("Shutdown Hook Running");
 			}
 		});
-		
+			
 		NodeControllerImpl.start(args[0]);
 	}
 }

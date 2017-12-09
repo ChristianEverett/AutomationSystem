@@ -62,6 +62,6 @@ public class RemoteDeviceHandler extends UnicastRemoteObject implements /*Invoca
 //	@Override
 //	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable
 //	{
-//		return method.invoke(device, args);
+//		return method.invoke(device, args); TODO
 //	}
 }

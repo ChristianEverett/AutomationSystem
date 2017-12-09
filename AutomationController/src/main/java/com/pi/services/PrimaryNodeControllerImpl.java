@@ -59,7 +59,7 @@ import com.pi.services.TaskExecutorService.Task;
 public class PrimaryNodeControllerImpl extends BaseNodeController
 {
 	private AtomicBoolean shutdownProcessor = new AtomicBoolean(false);
-	public static final long upTime = System.currentTimeMillis();
+	public static final long UP_TIME = System.currentTimeMillis();
 
 	// NodeController data structures
 	private ConcurrentHashMap<String, InetAddress> nodeMap = new ConcurrentHashMap<>();
@@ -178,17 +178,19 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	{
 		DeviceState cacheState = cachedStates.get(deviceState.getName());
 		
-		return cacheState != null && cacheState.contains(deviceState);
+		return cacheState == null || !cacheState.contains(deviceState);
 	}
 
 	@Override
 	public void update(DeviceState state)
 	{
-		deviceLoggingService.log(state);
-		
-		cachedStates.put(state.getName(), state);
-		eventProcessingService.update(state);
-		messagingTemplate.convertAndSend("/topic/" + state.getName(), state);
+		if(hasStateChanged(state))
+		{
+			messagingTemplate.convertAndSend("/topic/" + state.getName(), state);	
+			cachedStates.put(state.getName(), state);		
+			eventProcessingService.update(state);
+			deviceLoggingService.log(state);
+		}
 	}
 	
 	@Override
@@ -236,7 +238,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		{
 			for (DeviceState element : inverted ? profile.getInvertedDeviceStates() : profile.getDeviceStates())
 			{
-				if (!hasStateChanged(element))
+				if (hasStateChanged(element))
 				{
 					scheduleAction(element);
 				}
@@ -245,7 +247,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	}
 	
 	@Override
-	public synchronized Device createNewDevice(DeviceConfig config) throws IOException
+	public synchronized Device createNewDevice(DeviceConfig config) throws Exception
 	{
 		Device device = super.createNewDevice(config);
 		loadSavedState(device);
@@ -288,7 +290,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		}
 	}
 
-	private void loadSavedState(Device device) throws IOException
+	private void loadSavedState(Device device) throws Exception
 	{
 		if(device != null)
 			device.loadSavedData(databaseSavedStates.remove(device.getName()));
@@ -354,7 +356,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		if(device == null)
 			throw new DeviceDoesNotExist(state.getName());
 		
-		return (device.isAsynchronousDevice() || !hasStateChanged(state));
+		return (device.isAsynchronousDevice() || hasStateChanged(state));
 	}
 	
 	public void shutdown()
@@ -436,9 +438,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 				case PROCESSOR_ACTIONS.SHUTDOWN:
 					shutdown();
 					break;
-				case PROCESSOR_ACTIONS.UPTIME:
-					shutdown();
-					break;	
+
 				default:					
 					if (deviceNeedsUpdate(device, state))
 					{
@@ -454,7 +454,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		}
 	}
 
-	private void reloadDevice(String deviceToConfig) throws IOException
+	private void reloadDevice(String deviceToConfig) throws Exception
 	{
 		Device device = lookupDevice(deviceToConfig);
 
@@ -501,7 +501,6 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		public static final String LOAD_DEVICE = "load_device";
 		public static final String CLOSE_DEVICE = "close_device";
 		public static final String SAVE_DATA = "save_data";
-		public static final String UPTIME = "up_time";//TODO
 		public static final String SHUTDOWN = "shutdown";
 
 		public static final String DEVICE = "device";

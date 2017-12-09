@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <pigpio.h>
 #include <atomic>
+#include <wiringPi.h>
+#include <softPwm.h>
 
 class RGBLed
 {

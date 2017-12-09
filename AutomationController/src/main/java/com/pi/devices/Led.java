@@ -27,6 +27,7 @@ public class Led extends Device
 	private final int RED_PIN;
 	private final int GREEN_PIN;
 	private final int BLUE_PIN;
+	
 	private Color currentColor = new Color(0, 0, 0);
 
 	private LedSequence recordingSequence;
@@ -38,12 +39,13 @@ public class Led extends Device
 	public Led(String name, int red, int green, int blue) throws IOException
 	{
 		super(name);
-		Process pr = rt.exec("sudo pigpiod");
 
-		this.RED_PIN = GPIO_PIN.getBCM_Pin(red);
-		this.GREEN_PIN = GPIO_PIN.getBCM_Pin(green);
-		this.BLUE_PIN = GPIO_PIN.getBCM_Pin(blue);
-
+		this.RED_PIN = GPIO_PIN.getWiringPI_Pin(red).getAddress();
+		this.GREEN_PIN = GPIO_PIN.getWiringPI_Pin(green).getAddress();
+		this.BLUE_PIN = GPIO_PIN.getWiringPI_Pin(blue).getAddress();
+		
+		initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
+		
 		// Make task non-null
 		ledEquencingTask = createTask(() ->
 		{
@@ -128,39 +130,17 @@ public class Led extends Device
 	{
 		currentColor = new Color(red, green, blue);
 
-		if (feature)
-		{//TODO finish
-			int i = 0;
-			boolean setrgb = false;
-			if(i == 0)
-			{
-				i++;
-				initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
-			}
-			if(setrgb)
-				setRGBPWM(name.hashCode(), (255 - red), (255 - green), (255 - blue));
-		}
-		else
-		{
-			rt.exec("pigs p " + RED_PIN + " " + (255 - currentColor.getRed()));
-			rt.exec("pigs p " + GREEN_PIN + " " + (255 - currentColor.getGreen()));
-			rt.exec("pigs p " + BLUE_PIN + " " + (255 - currentColor.getBlue()));
-		}
+		red = (red  * 100) / 255;
+		green = (green  * 100) / 255;
+		blue = (blue  * 100) / 255;
+		
+		setRGBPWM(name.hashCode(), (100 - red), (100 - green), (100 - blue));
 	}
 
 	@Override
 	protected void tearDown()
 	{
-		try
-		{
-			rt.exec("pigs p " + RED_PIN + " " + (255 - 0) + " &");
-			rt.exec("pigs p " + GREEN_PIN + " " + (255 - 0) + " &");
-			rt.exec("pigs p " + BLUE_PIN + " " + (255 - 0) + " &");
-		}
-		catch (IOException e)
-		{
-			SystemLogger.getLogger().severe(e.getMessage());
-		}
+		setRGBPWM(name.hashCode(), 100, 100, 100);
 	}
 
 	@Override

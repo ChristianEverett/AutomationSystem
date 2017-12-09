@@ -1,15 +1,10 @@
 package com.pi.infrastructure;
 
-import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
-import com.google.common.collect.ArrayListMultimap;
-import com.google.common.collect.Multimap;
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.util.DeviceDoesNotExist;
@@ -122,7 +117,7 @@ public abstract class BaseNodeController implements NodeControllerAPI
 		return stateList;
 	}
 	
-	public synchronized Device createNewDevice(DeviceConfig config) throws IOException
+	public synchronized Device createNewDevice(DeviceConfig config) throws Exception
 	{
 		try
 		{
