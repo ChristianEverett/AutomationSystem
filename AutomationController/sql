@@ -2,6 +2,7 @@
  select * from ActionProfile_deviceStates;
  select * from DeviceState;
  select * from EventHandler;
+ select * from LedSequence;
  select * from LedSequence_sequence;
  select * from SavedDeviceStates;
  

@@ -45,7 +45,7 @@ public class Outlet extends Device
 	}
 
 	@Override
-	protected void performAction(DeviceState state) throws IOException, InterruptedException
+	protected void performAction(DeviceState state)
 	{
 		int code = (Boolean) state.getParamNonNull(Params.ON) ? ON : OFF;
 		
@@ -58,7 +58,7 @@ public class Outlet extends Device
 		sendIRSignal(OFF);
 	}
 	
-	private void sendIRSignal(int code) throws IOException, InterruptedException
+	private void sendIRSignal(int code)
 	{
 		isOn.set((code == ON) ? true : false);		
 		

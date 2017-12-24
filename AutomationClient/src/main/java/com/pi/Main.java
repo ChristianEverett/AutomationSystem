@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
 
-import com.pi.Node.NodeControllerImpl;
+import com.pi.node.NodeControllerImpl;
 
 /**
  * @author Christian Everett

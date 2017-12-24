@@ -26,7 +26,7 @@ public class SystemContoller
 	public @ResponseBody Map<String, Object> getSystemStatus(HttpServletResponse response)
 	{
 		Map<String, Object> statusMap = new HashMap<>();
-		statusMap.put(UPTIME, (PrimaryNodeControllerImpl.UP_TIME - System.currentTimeMillis())/1000);
+		statusMap.put(UPTIME, (System.currentTimeMillis() - PrimaryNodeControllerImpl.UP_TIME)/1000);
 		return statusMap;
 	}
 }

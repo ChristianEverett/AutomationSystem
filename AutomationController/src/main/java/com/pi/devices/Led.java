@@ -40,11 +40,17 @@ public class Led extends Device
 	{
 		super(name);
 
-		this.RED_PIN = GPIO_PIN.getWiringPI_Pin(red).getAddress();
-		this.GREEN_PIN = GPIO_PIN.getWiringPI_Pin(green).getAddress();
-		this.BLUE_PIN = GPIO_PIN.getWiringPI_Pin(blue).getAddress();
+//		this.RED_PIN = GPIO_PIN.getWiringPI_Pin(red).getAddress(); TODO finish
+//		this.GREEN_PIN = GPIO_PIN.getWiringPI_Pin(green).getAddress();
+//		this.BLUE_PIN = GPIO_PIN.getWiringPI_Pin(blue).getAddress();
+
+		this.RED_PIN = GPIO_PIN.getBCM_Pin(red);
+		this.GREEN_PIN = GPIO_PIN.getBCM_Pin(green);
+		this.BLUE_PIN = GPIO_PIN.getBCM_Pin(blue);
 		
-		initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
+		rt.exec("sudo pigpiod");
+		
+		//initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
 		
 		// Make task non-null
 		ledEquencingTask = createTask(() ->
@@ -55,35 +61,28 @@ public class Led extends Device
 	@Override
 	protected void performAction(DeviceState state)
 	{
-		try
+		Boolean record = state.getParamTyped(Params.SEQUENCE_RECORD, null);
+		String sequenceName = state.getParamTyped(Params.NAME, null);
+
+		if (!ledEquencingTask.isDone())
+			ledEquencingTask.interruptAndCancel();
+
+		if (record != null)
 		{
-			Boolean record = state.getParamTyped(Params.SEQUENCE_RECORD, null);
-			String sequenceName = state.getParamTyped(Params.NAME, null);
-
-			if (!ledEquencingTask.isDone())
-				ledEquencingTask.interruptAndCancel();
-
-			if (record != null)
-			{
-				startRecording(state, record, sequenceName);
-			}
-			else if (sequenceName != null)
-			{
-				playSequence(sequenceName);
-			}
-			else
-			{
-				Integer red = state.getParamTyped(Params.RED, 0);
-				Integer green = state.getParamTyped(Params.GREEN, 0);
-				Integer blue = state.getParamTyped(Params.BLUE, 0);
-
-				setLedColor(red, green, blue);
-				updateSequenceIfRecording(red, green, blue);
-			}
+			startRecording(state, record, sequenceName);
 		}
-		catch (Throwable e)
+		else if (sequenceName != null)
 		{
-			SystemLogger.getLogger().severe(e.getMessage());
+			playSequence(sequenceName);
+		}
+		else
+		{
+			Integer red = state.getParamTyped(Params.RED, 0);
+			Integer green = state.getParamTyped(Params.GREEN, 0);
+			Integer blue = state.getParamTyped(Params.BLUE, 0);
+
+			setLedColorf(red, green, blue);
+			updateSequenceIfRecording(red, green, blue);
 		}
 	}
 
@@ -93,8 +92,7 @@ public class Led extends Device
 		{
 			Boolean loop = state.getParamTyped(Params.LOOP, false);
 			Integer interval = state.getParamTyped(Params.INTERVAL, 15);
-			setRepositoryValue(RepositoryType.LedSequence, sequenceName, new LedSequence(sequenceName, interval, loop));
-			recordingSequence = getRepositoryValue(RepositoryType.LedSequence, sequenceName);
+			recordingSequence = new LedSequence(sequenceName, interval, loop);
 		}
 		else
 		{
@@ -114,7 +112,24 @@ public class Led extends Device
 
 		ledEquencingTask = createTask(() ->
 		{
-			sequence.play(this);
+			try
+			{
+				do 
+				{
+					for (Color color : sequence.getSequence())
+					{
+						setLedColorf(color.getRed(), color.getGreen(), color.getBlue());
+						Thread.sleep(sequence.getIntervalMiliseconds());
+					} 
+				} while (sequence.getLoopFlag());
+			}
+			catch (InterruptedException e)
+			{	
+			}
+			catch (Exception e)
+			{
+				SystemLogger.getLogger().severe(e.getMessage());
+			}	
 		}, 0L, TimeUnit.MILLISECONDS);
 	}
 
@@ -126,17 +141,32 @@ public class Led extends Device
 		}
 	}
 
-	public void setLedColor(int red, int green, int blue) throws IOException
+	private void setLedColor(int red, int green, int blue)
 	{
-		currentColor = new Color(red, green, blue);
-
 		red = (red  * 100) / 255;
 		green = (green  * 100) / 255;
 		blue = (blue  * 100) / 255;
 		
 		setRGBPWM(name.hashCode(), (100 - red), (100 - green), (100 - blue));
+		currentColor = new Color(red, green, blue);
 	}
 
+	private void setLedColorf(int red, int green, int blue)
+	{
+		try
+		{
+			rt.exec("pigs p " + RED_PIN + " " + (255 - red));
+			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green));
+			rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue));
+			
+			currentColor = new Color(red, green, blue);
+		}
+		catch (Exception e)
+		{
+			throw new RuntimeException(e);
+		}
+	}
+	
 	@Override
 	protected void tearDown()
 	{

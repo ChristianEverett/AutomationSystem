@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.util.DeviceDoesNotExist;
@@ -13,7 +15,7 @@ import com.pi.model.DeviceState;
 public abstract class BaseNodeController implements NodeControllerAPI
 {
 	protected static BaseNodeController singleton = null;
-	protected HashMap<String, Device> deviceMap = new HashMap<>();
+	private ConcurrentHashMap<String, Device> deviceMap = new ConcurrentHashMap<>();
 	
 	protected static final String RMI_NAME = "node_controller";
 	
@@ -22,6 +24,11 @@ public abstract class BaseNodeController implements NodeControllerAPI
 		if (singleton == null)
 			throw new RuntimeException("Node has not been created");
 		return singleton;
+	}
+	
+	protected void addDevice(Device device)
+	{
+		deviceMap.put(device.getName(), device);
 	}
 	
 	public void scheduleAction(DeviceState state)
@@ -93,7 +100,7 @@ public abstract class BaseNodeController implements NodeControllerAPI
 	{
 		try
 		{
-			Device device = deviceMap.get(name);
+			Device device = lookupDevice(name);
 			return (device != null) ? device.getCurrentDeviceState() : null;
 		}
 		catch (Exception e)
@@ -125,7 +132,7 @@ public abstract class BaseNodeController implements NodeControllerAPI
 				return null;		
 
 			Device device = config.buildDevice();
-			deviceMap.put(config.getName(), device);
+			addDevice(device);
 			SystemLogger.getLogger().info("Loaded: " + config.getName());
 			return device;
 		}

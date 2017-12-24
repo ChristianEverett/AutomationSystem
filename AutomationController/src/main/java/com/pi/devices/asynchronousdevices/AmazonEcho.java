@@ -101,7 +101,7 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 	}
 
 	@Override
-	protected void performAction(DeviceState state) throws Exception
+	protected void performAction(DeviceState state) 
 	{
 		Set<String> actionProfileNames = state.getParamTypedNonNull(DeviceType.Params.ACTION_PROFILE_NAMES);
 		
@@ -110,7 +110,7 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 	}
 
 	@Override
-	public DeviceState getState(DeviceState state) throws IOException
+	public DeviceState getState(DeviceState state)
 	{	
 		state.setParam(Params.ACTION_PROFILE_NAMES, registeredEchoCommands);
 		return state;

@@ -1,11 +1,12 @@
 /**
  * 
  */
-package com.pi.Node;
+package com.pi.node;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
@@ -14,6 +15,7 @@ import java.rmi.Naming;
 import java.rmi.Remote;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.Collection;
 
 import com.pi.SystemLogger;
@@ -95,8 +97,9 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 			
 			Device device = createNewDevice(config);
 			
-			//DeviceAPI proxy = (DeviceAPI) Proxy.newProxyInstance(DeviceAPI.class.getClassLoader(), new Class[] { DeviceAPI.class }, new RemoteDeviceHandler(this, device));
-			Naming.rebind(device.getName(), new RemoteDeviceHandler(this, device));
+			InvocationHandler handler = new RemoteDeviceHandler(this, device);
+			DeviceAPI proxy = (DeviceAPI) Proxy.newProxyInstance(DeviceAPI.class.getClassLoader(), new Class[] { DeviceAPI.class }, handler);
+			Naming.rebind(device.getName(), UnicastRemoteObject.exportObject(proxy, 0));
 
 			request.sendResponseHeaders(HttpURLConnection.HTTP_OK, 0);
 			request.close();

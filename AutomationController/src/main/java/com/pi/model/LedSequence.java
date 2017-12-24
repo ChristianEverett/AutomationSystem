@@ -8,6 +8,7 @@ import java.util.List;
 import javax.persistence.Column;
 import javax.persistence.ElementCollection;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 
 import com.pi.SystemLogger;
@@ -19,9 +20,9 @@ public class LedSequence extends Model
 	@Id
 	@Column(length = 100)
 	private String ledSequenceName;
-	@ElementCollection
+	@ElementCollection(fetch = FetchType.EAGER)
 	private List<Color> sequence = new LinkedList<>();
-	private Integer intervalMiliseconds = 15;
+	private Integer intervalMiliseconds = 30;
 	private Boolean loopFlag = false;
 	
 	public LedSequence()
@@ -31,6 +32,7 @@ public class LedSequence extends Model
 	
 	public LedSequence(String name, Integer interval, Boolean loop)
 	{
+		this.ledSequenceName = name;
 		this.intervalMiliseconds = interval;
 		this.loopFlag = loop;
 	}
@@ -38,28 +40,6 @@ public class LedSequence extends Model
 	public void addToSequence(int red, int green, int blue)
 	{
 		sequence.add(new Color(red, green, blue));
-	}
-	
-	public void play(Led led)
-	{
-		try
-		{
-			do 
-			{
-				for (Color color : sequence)
-				{
-					led.setLedColor(color.getRed(), color.getGreen(), color.getBlue());
-					Thread.sleep(intervalMiliseconds);
-				} 
-			} while (loopFlag);
-		}
-		catch (InterruptedException e)
-		{	
-		}
-		catch (Exception e)
-		{
-			SystemLogger.getLogger().severe(e.getMessage());
-		}
 	}
 
 	public void setLedSequenceName(String ledSequenceName)
@@ -80,5 +60,25 @@ public class LedSequence extends Model
 	public void setLoop(Boolean loop)
 	{
 		this.loopFlag = loop;
+	}
+
+	public String getLedSequenceName()
+	{
+		return ledSequenceName;
+	}
+
+	public List<Color> getSequence()
+	{
+		return sequence;
+	}
+
+	public Integer getIntervalMiliseconds()
+	{
+		return intervalMiliseconds;
+	}
+
+	public Boolean getLoopFlag()
+	{
+		return loopFlag;
 	}
 }

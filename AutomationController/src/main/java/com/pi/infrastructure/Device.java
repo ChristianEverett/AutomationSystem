@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.xml.bind.annotation.XmlAttribute;
 
-import com.pi.SystemLogger;
 import com.pi.infrastructure.DeviceType.DeviceTypeMap;
 import com.pi.model.DeviceState;
 import com.pi.services.TaskExecutorService;
@@ -72,7 +71,7 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 	 *         closed returns null
 	 * @throws IOException
 	 */
-	public abstract DeviceState getState(DeviceState state) throws IOException;
+	public abstract DeviceState getState(DeviceState state);
 
 	/**
 	 * Shutdown device and release resources. All future calls to performAction
@@ -109,7 +108,7 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 		}
 		catch (Exception e)
 		{
-			throw new RuntimeException("execution failed during " + state.getName() + " Got:" + e.getMessage());
+			throw new RuntimeException(e);
 		}
 	}
 	
@@ -121,11 +120,10 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 			
 			return getState(state);
 		}
-		catch (IOException e)
+		catch (Exception e)
 		{
-			SystemLogger.getLogger().severe(e.getMessage());
+			throw new RuntimeException(e);
 		}
-		return null;
 	}
 	
 	public void close() throws Exception

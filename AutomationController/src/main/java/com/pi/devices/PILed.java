@@ -28,26 +28,38 @@ public class PILed extends Device
 	}
 
 	@Override
-	protected void performAction(DeviceState state) throws IOException
+	protected void performAction(DeviceState state)
 	{
 		Boolean isOn = (Boolean) state.getParamNonNull(Params.ON);
 		
-		if(isOn)
+		SetLedState(isOn);
+	}
+
+	private void SetLedState(Boolean isOn) 
+	{
+		try
 		{
-			writer.write(ON);
-			writer.flush();
-			ledOn = true;
+			if (isOn)
+			{
+				writer.write(ON);
+				writer.flush();
+				ledOn = true;
+			}
+			else
+			{
+				writer.write(OFF);
+				writer.flush();
+				ledOn = false;
+			} 
 		}
-		else 
+		catch (Exception e)
 		{
-			writer.write(OFF);
-			writer.flush();
-			ledOn = false;
+			throw new RuntimeException(e);
 		}
 	}
 
 	@Override
-	public DeviceState getState(DeviceState state) throws IOException
+	public DeviceState getState(DeviceState state) 
 	{
 		state.setParam(Params.ON, ledOn);
 		

@@ -62,7 +62,7 @@ public class WeatherSensor extends AsynchronousDevice
 	}
 
 	@Override
-	protected void update() throws IOException, ParseException
+	protected void update() throws Exception
 	{
 		Document document = weatherHttpConnection.get();
 		Element element = document.getElementById("wob_tm");

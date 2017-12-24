@@ -41,7 +41,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 	}
 
 	@Override
-	public void update() throws InterruptedException, IOException
+	public void update() throws Exception 
 	{
 		Set<MacAddress> keys = macToLastPing.keySet();
 		
@@ -86,7 +86,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 	}
 
 	@Override
-	public DeviceState getState(DeviceState state) throws IOException
+	public DeviceState getState(DeviceState state)
 	{
 		for (Entry<MacAddress, Boolean> entry : macToLastPing.entrySet())
 		{

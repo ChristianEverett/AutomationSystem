@@ -202,49 +202,6 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 			
 		return super.getDeviceState(name);
 	}
-
-	@Override
-	public void scheduleAction(DeviceState state)
-	{
-		if (state.hasData())
-		{
-			if (!isLocked(state.getName()))
-				processAction(state);			
-			else
-				throw new DeviceLockedException(state.getName());
-		}
-		
-		checkIfLockShouldBeSet(state);
-	}
-
-	@Override
-	public void trigger(String profileName)
-	{
-		scheduleAll(profileName, false);
-	}
-	
-	@Override
-	public void unTrigger(String profileName)
-	{
-		scheduleAll(profileName, true);
-	}
-	
-	private void scheduleAll(String profileName, boolean inverted)
-	{
-		ActionProfileJpaRepository actionProfileRepository = (ActionProfileJpaRepository) repositorys.get(RepositoryType.ActionProfile);
-		ActionProfile profile = actionProfileRepository.findOne(profileName);
-		
-		if (profile != null)
-		{
-			for (DeviceState element : inverted ? profile.getInvertedDeviceStates() : profile.getDeviceStates())
-			{
-				if (hasStateChanged(element))
-				{
-					scheduleAction(element);
-				}
-			} 
-		}
-	}
 	
 	@Override
 	public synchronized Device createNewDevice(DeviceConfig config) throws Exception
@@ -257,7 +214,6 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	
 	public synchronized void createNewRemoteDevice(DeviceConfig config)
 	{
-		deviceMap.put(config.getName(), null);
 		RemoteDeviceConfig remoteDeviceConfig = (RemoteDeviceConfig) config;
 		uninitializedRemoteDevices.put(remoteDeviceConfig.getNodeID(), remoteDeviceConfig);
 		createRemoteDevicesForNode(remoteDeviceConfig.getNodeID());
@@ -281,7 +237,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 
 				loadSavedState(device);
 				
-				deviceMap.put(device.getName(), device);
+				addDevice(device);
 			}
 			catch (Exception e)
 			{
@@ -358,42 +314,50 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		
 		return (device.isAsynchronousDevice() || hasStateChanged(state));
 	}
-	
-	public void shutdown()
+
+	@Override
+	public void scheduleAction(DeviceState state)
 	{
-		if (!shutdownProcessor.get())
+		if (state.hasData())
 		{
-			try
+			if (!isLocked(state.getName()))
+				processAction(state);			
+			else
+				throw new DeviceLockedException(state.getName());
+		}
+		
+		checkIfLockShouldBeSet(state);
+	}
+
+	@Override
+	public void trigger(String profileName)
+	{
+		scheduleAll(profileName, false);
+	}
+	
+	@Override
+	public void unTrigger(String profileName)
+	{
+		scheduleAll(profileName, true);
+	}
+	
+	private void scheduleAll(String profileName, boolean inverted)
+	{
+		ActionProfileJpaRepository actionProfileRepository = (ActionProfileJpaRepository) repositorys.get(RepositoryType.ActionProfile);
+		ActionProfile profile = actionProfileRepository.findOne(profileName);
+		
+		if (profile != null)
+		{
+			for (DeviceState element : inverted ? profile.getInvertedDeviceStates() : profile.getDeviceStates())
 			{
-				shutdownProcessor.set(true);
-				
-				SystemLogger.getLogger().info("Stopping all background tasks");
-				taskService.cancelAllTasks();
-				nodeDiscovererService.stop();
-				deviceLoggingService.stop();
-								
-				saveAndCloseAllDevices();
-				repositorys.forEach((name, repository) -> 
+				if (hasStateChanged(element))
 				{
-					repository.flush();
-				});
-				
-				synchronized (this)
-				{
-					notify();
+					scheduleAction(element);
 				}
-			}
-			catch (Throwable e)
-			{
-				SystemLogger.getLogger().severe(e.getMessage());
-			}
-			finally
-			{
-				SystemLogger.getLogger().info("Primary Node has been shutdown.");
 			} 
 		}
 	}
-
+	
 	private synchronized void processAction(DeviceState state)
 	{
 		try
@@ -407,9 +371,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 				switch (deviceToApplyState)
 				{
 				case PROCESSOR_ACTIONS.RELOAD_DEVICE:
-
 					reloadDevice(deviceToConfig);
-
 					break;
 				case PROCESSOR_ACTIONS.RELOAD_DEVICE_ALL:
 				{
@@ -451,6 +413,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		catch (Exception e)
 		{
 			SystemLogger.getLogger().severe(e.getMessage());
+			throw new RuntimeException(e);
 		}
 	}
 
@@ -492,6 +455,41 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	public synchronized boolean isLocked(String deviceName)
 	{
 		return lockedDevices.contains(deviceName);
+	}
+	
+	public void shutdown()
+	{
+		if (!shutdownProcessor.get())
+		{
+			try
+			{
+				shutdownProcessor.set(true);
+				
+				SystemLogger.getLogger().info("Stopping all background tasks");
+				taskService.cancelAllTasks();
+				nodeDiscovererService.stop();
+				deviceLoggingService.stop();
+								
+				saveAndCloseAllDevices();
+				repositorys.forEach((name, repository) -> 
+				{
+					repository.flush();
+				});
+				
+				synchronized (this)
+				{
+					notify();
+				}
+			}
+			catch (Throwable e)
+			{
+				SystemLogger.getLogger().severe(e.getMessage());
+			}
+			finally
+			{
+				SystemLogger.getLogger().info("Primary Node has been shutdown.");
+			} 
+		}
 	}
 	
 	private interface PROCESSOR_ACTIONS
