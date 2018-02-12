@@ -1,16 +1,18 @@
 package com.pi.services;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.pi.SystemLogger;
+import com.pi.infrastructure.EventRegistry;
 import com.pi.infrastructure.util.ActionProfileDoesNotExist;
-import com.pi.infrastructure.util.EventRegistry;
 import com.pi.model.DeviceState;
 import com.pi.model.EventHandler;
 
@@ -23,7 +25,7 @@ public class EventProcessingService
 	@Autowired
 	private EventRegistry eventRegistry;
 	
-	private Set<EventHandler> activeSet = new HashSet<>();
+	private Set<Integer> activeSet = ConcurrentHashMap.newKeySet();
 	
 	private EventProcessingService()
 	{	
@@ -44,30 +46,48 @@ public class EventProcessingService
 
 	public void checkIfTriggered(EventHandler event, DeviceState stateThatChanged)
 	{
-		// Get Cache state for each device this event is listening too
-		Map<String, DeviceState> currentStates = event.getTriggerStates().stream()
-				.map((range) -> nodeControllerImpl.getDeviceState(range.getName()))
-				.collect(Collectors.toMap(DeviceState::getName, cacheState -> cacheState));
+		synchronized (event)
+		{
+			// Get Cache state for each device this event is listening too
+			Map<String, DeviceState> currentStates = event.getTriggerStates().stream()
+					.map((range) -> nodeControllerImpl.getDeviceState(range.getName()))
+					.collect(Collectors.toMap(DeviceState::getName, cacheState -> cacheState));
+			
+			boolean eventTriggered = event.checkIfTriggered(currentStates, stateThatChanged);
 		
-		boolean eventTriggered = event.checkIfTriggered(currentStates, stateThatChanged);
-	
-		if (!activeSet.contains(event) && eventTriggered)
-		{
-			try
-			{		
-				nodeControllerImpl.trigger(event.getActionProfileName());
-				activeSet.add(event);
-			}
-			catch (ActionProfileDoesNotExist e)
+			if (!activeSet.contains(event.getId()) && eventTriggered)
 			{
-				SystemLogger.getLogger().severe("Removing event can't find action profile: " + event.getActionProfileName());
-				eventRegistry.removeEvent(event.getId());
+				try
+				{		
+					nodeControllerImpl.trigger(event.getActionProfileName());
+					activeSet.add(event.getId());
+				}
+				catch (ActionProfileDoesNotExist e)
+				{
+					SystemLogger.getLogger().severe("Removing event can't find action profile: " + event.getActionProfileName());
+					eventRegistry.removeEvent(event.getId());
+				}
 			}
-		}
-		else if(!eventTriggered)
+			else if(!eventTriggered)
+			{
+				if(activeSet.remove(event.getId()) && event.getUnTrigger())
+					nodeControllerImpl.unTrigger(event.getActionProfileName());
+			}
+		}	
+	}
+	
+	public void checkAllIfTriggered(List<EventHandler> events)
+	{
+		for(EventHandler event : events)
 		{
-			if(activeSet.remove(event) && event.getUnTrigger())
-				nodeControllerImpl.unTrigger(event.getActionProfileName());
+			if(activeSet.contains(event.getId()))
+				activeSet.remove(event.getId());
+			checkIfTriggered(event, null);
 		}
+	}
+	
+	public synchronized boolean isActive(EventHandler event)
+	{
+		return activeSet.contains(event.getId());
 	}
 }

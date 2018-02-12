@@ -194,11 +194,11 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 	}
 
 	@Override
-	public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, K key, T value)
+	public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, T value)
 	{
 		try
 		{
-			primaryNodeController.setRepositoryValue(type, key, value);
+			primaryNodeController.setRepositoryValue(type, value);
 		}
 		catch (Exception e)
 		{

@@ -35,7 +35,7 @@ public class UPNPBroadcastResponderService extends BaseService
 	private Map<Integer, UPNPDevice> upnpDevices = new ConcurrentHashMap<Integer, UPNPDevice>();
 	private Selector selector = Selector.open();
 	private AtomicBoolean selectorLock = new AtomicBoolean(false);
-
+	
 	public UPNPBroadcastResponderService() throws IOException
 	{
 		multiCastServer = new MulticastSocket(PORT);
@@ -118,7 +118,7 @@ public class UPNPBroadcastResponderService extends BaseService
 
 		DatagramPacket msgPacket = new DatagramPacket(buf, buf.length);
 		multiCastServer.receive(msgPacket);
-
+		
 		return new UPNPPacket(msgPacket.getAddress(), msgPacket.getPort(), new String(buf, 0, buf.length));
 	}
 

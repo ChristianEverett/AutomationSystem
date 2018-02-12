@@ -29,8 +29,9 @@ import com.pi.model.repository.RepositoryType;
 public class DeviceDetector extends AsynchronousDevice
 {
 	private HashSet<MacAddress> registeredMACs = new HashSet<>();
-	private String timeStamp = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss").format(new Date());
+
 	private String lastMAC = "";
+	private long lastTimeStamp;
 	
 	public DeviceDetector(String name) throws IOException
 	{
@@ -49,14 +50,18 @@ public class DeviceDetector extends AsynchronousDevice
 		MacAddress macAddress = new MacAddress(address);
 		registerAddress(address);
 		registeredMACs.add(macAddress);
-		setRepositoryValue(RepositoryType.MACAddress, macAddress.getAddressString(), macAddress);
+		setRepositoryValue(RepositoryType.MACAddress, macAddress);
 	}
 
 	@Override
 	protected void update() throws Exception
 	{
 		String MAC = scan();
-		lastMAC = MAC;
+		synchronized (this)
+		{
+			lastMAC = MAC;
+			lastTimeStamp = System.currentTimeMillis();
+		}
 	}
 
 	@Override
@@ -74,8 +79,11 @@ public class DeviceDetector extends AsynchronousDevice
 	@Override
 	public DeviceState getState(DeviceState state)
 	{
-		state.setParam(Params.MAC, lastMAC);
-	
+		synchronized (this)
+		{
+			state.setParam(Params.MAC, lastMAC);
+			state.setParam(Params.TIME, lastTimeStamp);
+		}
 		return state;
 	}
 

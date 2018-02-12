@@ -81,7 +81,7 @@ public class Application extends WebMvcAutoConfiguration
 			nodeController.loadDevices();
 				
 			long end = System.currentTimeMillis();
-			SystemLogger.getLogger().info("------Service Running Took " + (end - start)/1000 + " Seconds------");
+			SystemLogger.getLogger().info("-----Service Running Took " + (end - start)/1000 + " Seconds-----");
 
 			synchronized (nodeController)
 			{

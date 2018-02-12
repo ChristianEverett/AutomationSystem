@@ -33,25 +33,17 @@ public class Led extends Device
 	private LedSequence recordingSequence;
 	
 	private Task ledEquencingTask = null;
-
-	private boolean feature = false;
 	
 	public Led(String name, int red, int green, int blue) throws IOException
 	{
 		super(name);
-
-//		this.RED_PIN = GPIO_PIN.getWiringPI_Pin(red).getAddress(); TODO finish
-//		this.GREEN_PIN = GPIO_PIN.getWiringPI_Pin(green).getAddress();
-//		this.BLUE_PIN = GPIO_PIN.getWiringPI_Pin(blue).getAddress();
 
 		this.RED_PIN = GPIO_PIN.getBCM_Pin(red);
 		this.GREEN_PIN = GPIO_PIN.getBCM_Pin(green);
 		this.BLUE_PIN = GPIO_PIN.getBCM_Pin(blue);
 		
 		rt.exec("sudo pigpiod");
-		
-		//initializeRGB(name.hashCode(), RED_PIN, GREEN_PIN, BLUE_PIN);
-		
+	
 		// Make task non-null
 		ledEquencingTask = createTask(() ->
 		{
@@ -61,46 +53,64 @@ public class Led extends Device
 	@Override
 	protected void performAction(DeviceState state)
 	{
-		Boolean record = state.getParamTyped(Params.SEQUENCE_RECORD, null);
-		String sequenceName = state.getParamTyped(Params.NAME, null);
-
-		if (!ledEquencingTask.isDone())
-			ledEquencingTask.interruptAndCancel();
-
-		if (record != null)
+		if(state.contains(Params.RESTART))
 		{
-			startRecording(state, record, sequenceName);
+			restartDemon();
+			return;
 		}
-		else if (sequenceName != null)
+		
+		synchronized (this)
 		{
-			playSequence(sequenceName);
-		}
-		else
-		{
-			Integer red = state.getParamTyped(Params.RED, 0);
-			Integer green = state.getParamTyped(Params.GREEN, 0);
-			Integer blue = state.getParamTyped(Params.BLUE, 0);
+			if (!ledEquencingTask.isDone())
+				ledEquencingTask.interruptAndCancel();
+			
+			if (shouldStartRecording(state))
+			{
+				Boolean loop = state.getParamTyped(Params.LOOP, false);
+				Integer interval = state.getParamTyped(Params.INTERVAL, 30);
+				String sequenceName = (String) state.getParamNonNull(Params.NAME);
+				recordingSequence = new LedSequence(sequenceName, interval, loop);
+			}
+			else if(shouldStopRecording(state))
+			{
+				String sequenceName = (String) state.getParamNonNull(Params.NAME);
+				
+				if(recordingSequence != null)
+					setRepositoryValue(RepositoryType.LedSequence, recordingSequence);
+				
+				recordingSequence = null;
+			}
+			else if (shouldPlaySequence(state))
+			{
+				playSequence((String) state.getParamNonNull(Params.NAME));
+			}
+			else
+			{
+				Integer red = state.getParamTyped(Params.RED, 0);
+				Integer green = state.getParamTyped(Params.GREEN, 0);
+				Integer blue = state.getParamTyped(Params.BLUE, 0);
 
-			setLedColorf(red, green, blue);
-			updateSequenceIfRecording(red, green, blue);
+				setLedColor(red, green, blue);
+				
+				currentColor = new Color(red, green, blue);
+				updateSequenceIfRecording(red, green, blue);
+			}
 		}
 	}
 
-	private synchronized void startRecording(DeviceState state, Boolean record, String sequenceName)
+	private boolean shouldStartRecording(DeviceState state)
 	{
-		if (record)
-		{
-			Boolean loop = state.getParamTyped(Params.LOOP, false);
-			Integer interval = state.getParamTyped(Params.INTERVAL, 15);
-			recordingSequence = new LedSequence(sequenceName, interval, loop);
-		}
-		else
-		{
-			if(recordingSequence != null)
-				setRepositoryValue(RepositoryType.LedSequence, sequenceName, recordingSequence);
-			
-			recordingSequence = null;
-		}
+		return state.contains(Params.RECORD) && (Boolean)state.getParam(Params.RECORD);
+	}
+	
+	private boolean shouldStopRecording(DeviceState state)
+	{
+		return state.contains(Params.RECORD) && !(Boolean)state.getParam(Params.RECORD);
+	}
+	
+	private boolean shouldPlaySequence(DeviceState state)
+	{
+		return !state.contains(Params.RECORD) && state.contains(Params.NAME);
 	}
 
 	private void playSequence(String sequenceName)
@@ -118,7 +128,7 @@ public class Led extends Device
 				{
 					for (Color color : sequence.getSequence())
 					{
-						setLedColorf(color.getRed(), color.getGreen(), color.getBlue());
+						setLedColor(color.getRed(), color.getGreen(), color.getBlue());
 						Thread.sleep(sequence.getIntervalMiliseconds());
 					} 
 				} while (sequence.getLoopFlag());
@@ -131,9 +141,11 @@ public class Led extends Device
 				SystemLogger.getLogger().severe(e.getMessage());
 			}	
 		}, 0L, TimeUnit.MILLISECONDS);
+		
+		setLedColor(currentColor.getRed(), currentColor.getGreen(), currentColor.getBlue());
 	}
 
-	private synchronized void updateSequenceIfRecording(int red, int green, int blue)
+	private  void updateSequenceIfRecording(int red, int green, int blue)
 	{
 		if (recordingSequence != null)
 		{
@@ -143,23 +155,11 @@ public class Led extends Device
 
 	private void setLedColor(int red, int green, int blue)
 	{
-		red = (red  * 100) / 255;
-		green = (green  * 100) / 255;
-		blue = (blue  * 100) / 255;
-		
-		setRGBPWM(name.hashCode(), (100 - red), (100 - green), (100 - blue));
-		currentColor = new Color(red, green, blue);
-	}
-
-	private void setLedColorf(int red, int green, int blue)
-	{
 		try
 		{
 			rt.exec("pigs p " + RED_PIN + " " + (255 - red));
 			rt.exec("pigs p " + GREEN_PIN + " " + (255 - green));
 			rt.exec("pigs p " + BLUE_PIN + " " + (255 - blue));
-			
-			currentColor = new Color(red, green, blue);
 		}
 		catch (Exception e)
 		{
@@ -183,6 +183,19 @@ public class Led extends Device
 		return state;
 	}
 
+	private void restartDemon()
+	{	
+		try
+		{
+			rt.exec("sudo pkill pigpiod");
+			rt.exec("sudo pigpiod");
+		}
+		catch (IOException e)
+		{
+			throw new RuntimeException("Could not restart pigpiod");
+		}
+	}
+	
 	private native void initializeRGB(int id, int redPin, int greenPin, int bluePin);
 
 	private native void setRGBPWM(int id, int red, int green, int blue);

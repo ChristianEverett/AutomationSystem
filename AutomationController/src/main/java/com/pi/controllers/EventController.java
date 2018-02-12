@@ -16,11 +16,9 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.SystemLogger;
-import com.pi.infrastructure.util.ActionProfileDoesNotExist;
-import com.pi.infrastructure.util.EventRegistry;
+import com.pi.infrastructure.EventRegistry;
 import com.pi.model.DeviceState;
 import com.pi.model.EventHandler;
-import com.pi.model.repository.ActionProfileJpaRepository;
 import com.pi.services.EventProcessingService;
 import com.pi.services.PrimaryNodeControllerImpl;
 
@@ -48,12 +46,18 @@ public class EventController
 		return eventRegistry.getAllEvents();
 	}
 	
+	@RequestMapping(value = "/active", method = RequestMethod.GET)
+	public @ResponseBody Collection<EventHandler> getActiveEvents(HttpServletRequest request, HttpServletResponse response)
+	{
+		return eventRegistry.getAllEvents().stream().filter(eventProcessingService::isActive).collect(Collectors.toList());
+	}
+	
 	@RequestMapping(value = "/group", method = RequestMethod.POST)
 	public void createEvents(HttpServletRequest request, HttpServletResponse response, @RequestBody List<EventHandler> events)
 	{
 		eventRegistry.addEvents(events, false);
 		
-		events.stream().forEach(event -> eventProcessingService.checkIfTriggered(event, null));
+		eventProcessingService.checkAllIfTriggered(events);
 	}
 	
 	@RequestMapping(value = "/{hash}", method = RequestMethod.DELETE)

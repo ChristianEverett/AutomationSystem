@@ -73,7 +73,7 @@
 			<fan>36</fan>
 			<compressor>38</compressor>
 			<heat>40</heat>
-			<modeChangeDelay>20</modeChangeDelay>
+			<modeChangeDelay>25</modeChangeDelay>
 		</device>
 	</device>
 	

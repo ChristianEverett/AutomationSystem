@@ -35,20 +35,20 @@ std::atomic<int> RGBLed::references(0);
 RGBLed::RGBLed(int redPin, int greenPin, int bluePin)
 {
 //	signal(SIGILL, handler);
-	wiringPiSetup();
-
-	if (softPwmCreate(redPin, 0, 100) != 0)
-		perror("Failed to initialize gpio");
-	if (softPwmCreate(greenPin, 0, 100) != 0)
-		perror("Failed to initialize gpio");
-	if (softPwmCreate(bluePin, 0, 100) != 0)
-		perror("Failed to initialize gpio");
-
-//	if (RGBLed::references == 0 && gpioInitialise() < 0)
-//	{
-//	   perror("Failed to initialize gpio");
-//	}
+//	wiringPiSetup();
 //
+//	if (softPwmCreate(redPin, 0, 100) != 0)
+//		perror("Failed to initialize gpio");
+//	if (softPwmCreate(greenPin, 0, 100) != 0)
+//		perror("Failed to initialize gpio");
+//	if (softPwmCreate(bluePin, 0, 100) != 0)
+//		perror("Failed to initialize gpio");
+
+	if (RGBLed::references == 0 && gpioInitialise() < 0)
+	{
+	   perror("Failed to initialize gpio");
+	}
+
 	RGBLed::references++;
 
 	_redPin = redPin;
@@ -62,7 +62,7 @@ RGBLed::RGBLed(int redPin, int greenPin, int bluePin)
 
 RGBLed::~RGBLed()
 {
-	RGBLed::references--;
+//	RGBLed::references--;
 
 //	if(RGBLed::references == 0)
 //		gpioTerminate();
@@ -70,10 +70,10 @@ RGBLed::~RGBLed()
 
 void RGBLed::setPWM(int red, int green, int blue)
 {
-//	gpioPWM(_redPin, red);
-//	gpioPWM(_greenPin, green);
-//	gpioPWM(_bluePin, blue);
-	softPwmWrite(_redPin, red);
-	softPwmWrite(_greenPin, green);
-	softPwmWrite(_bluePin, blue);
+	gpioPWM(_redPin, red);
+	gpioPWM(_greenPin, green);
+	gpioPWM(_bluePin, blue);
+//	softPwmWrite(_redPin, red);
+//	softPwmWrite(_greenPin, green);
+//	softPwmWrite(_bluePin, blue);
 }

@@ -1,5 +1,7 @@
 package com.pi.controllers;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -17,6 +19,7 @@ import com.pi.services.PrimaryNodeControllerImpl;
 @RequestMapping("/system")
 public class SystemContoller
 {
+	private SimpleDateFormat formatter = new SimpleDateFormat("dd:HH:mm:ss");
 	public static final String UPTIME = "up_time";
 	
 	@Autowired
@@ -26,7 +29,7 @@ public class SystemContoller
 	public @ResponseBody Map<String, Object> getSystemStatus(HttpServletResponse response)
 	{
 		Map<String, Object> statusMap = new HashMap<>();
-		statusMap.put(UPTIME, (System.currentTimeMillis() - PrimaryNodeControllerImpl.UP_TIME)/1000);
+		statusMap.put(UPTIME, formatter.format(new Date((System.currentTimeMillis() - PrimaryNodeControllerImpl.UP_TIME)/1000)));
 		return statusMap;
 	}
 }

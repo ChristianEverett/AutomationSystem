@@ -79,7 +79,7 @@ public class BluetoothAdapter extends AsynchronousDevice
 				{
 					MacAddress macAddress = new MacAddress(item);
 					macToLastPing.put(macAddress, true);
-					setRepositoryValue(RepositoryType.MACAddress, result, macAddress);
+					setRepositoryValue(RepositoryType.MACAddress, macAddress);
 				}
 			}
 		}

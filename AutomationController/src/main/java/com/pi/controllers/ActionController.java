@@ -3,7 +3,6 @@
  */
 package com.pi.controllers;
 
-import java.io.ObjectOutputStream;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -23,7 +22,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.pi.SystemLogger;
 import com.pi.infrastructure.Device;
-import com.pi.infrastructure.util.EventRegistry;
+import com.pi.infrastructure.EventRegistry;
 import com.pi.model.ActionProfile;
 import com.pi.model.DeviceState;
 import com.pi.model.DeviceStateRecord;
@@ -73,20 +72,20 @@ public class ActionController
 		return getState(response, deviceName);
 	}
 	
-	@RequestMapping(value = "/AC/{name}", method = RequestMethod.GET)
-	public void getStateForAutomationClient(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String deviceName)
-	{
-		try(ObjectOutputStream output = new ObjectOutputStream(response.getOutputStream()))
-		{
-			output.writeObject(getState(response, deviceName));
-			output.flush();
-		}
-		catch (Exception e)
-		{
-			response.setStatus(503);
-			SystemLogger.getLogger().severe(e.getMessage());
-		}
-	}
+//	@RequestMapping(value = "/AC/{name}", method = RequestMethod.GET)
+//	public void getStateForAutomationClient(HttpServletRequest request, HttpServletResponse response, @PathVariable("name") String deviceName)
+//	{
+//		try(ObjectOutputStream output = new ObjectOutputStream(response.getOutputStream()))
+//		{
+//			output.writeObject(getState(response, deviceName));
+//			output.flush();
+//		}
+//		catch (Exception e)
+//		{
+//			response.setStatus(503);
+//			SystemLogger.getLogger().severe(e.getMessage());
+//		}
+//	}
 	
 	@RequestMapping(value = "/records", method = RequestMethod.GET)
 	public @ResponseBody Collection<DeviceStateRecord> getRecordsFor(HttpServletResponse response, 
@@ -139,10 +138,11 @@ public class ActionController
 	@RequestMapping(value = "/createActionProfile/group", method = RequestMethod.POST)
 	public void createActionProfiles(HttpServletRequest request, HttpServletResponse response, @RequestBody Collection<ActionProfile> profiles)
 	{
-		profiles = profiles.stream().filter(profile -> !actionProfileRepository.exists(profile.getName())).collect(Collectors.toList());
+		Collection<ActionProfile> newProfiles = profiles.stream().filter(profile -> !actionProfileRepository.exists(profile.getName())).collect(Collectors.toList());
 		
-		if(!profiles.isEmpty())
-			repositoryUpdateNotifierService.newActionProfile(actionProfileRepository.save(profiles));
+		actionProfileRepository.save(profiles);
+		
+		repositoryUpdateNotifierService.newActionProfile(newProfiles);
 	}
 	
 	@RequestMapping(value = "/removeActionProfile/{name}", method = RequestMethod.DELETE)

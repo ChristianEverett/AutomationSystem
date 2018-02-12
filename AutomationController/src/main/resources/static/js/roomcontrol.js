@@ -10,8 +10,8 @@ $(document).ready(function ()
     var temp_sensorDevice = "temp_sensor1";
     var weatherSensor1 = "weather_sensor1";
 
-    var lockButton = $("#comp-iqsu3ucu");
-    var unlockButton = $("#comp-ip1tqeyl");
+    var lockButton = $("#comp-iqsu3uculink");
+    var unlockButton = $("#comp-ip1tqeyllink");
 
     var unlockImg = $("#comp-irjh4j8timgimage");
     var lockImg = $("#comp-iro86zrvimgimage");

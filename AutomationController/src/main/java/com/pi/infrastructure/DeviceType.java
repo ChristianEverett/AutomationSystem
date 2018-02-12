@@ -68,11 +68,12 @@ public abstract class DeviceType
 		public final static String RED = "red";
 		public final static String GREEN = "green";
 		public final static String BLUE = "blue";
-		public final static String SEQUENCE_RECORD = "sequence_record";
+		public final static String RECORD = "record";
 		public final static String NAME = "name";
 		public final static String SEQUENCES = "sequences";
 		public final static String LOOP = "loop";
 		public final static String INTERVAL = "interval";
+		public final static String RESTART = "restart";
 
 		public final static String ON = "on";
 
@@ -104,7 +105,7 @@ public abstract class DeviceType
 			paramTypes.put(Params.RED, Integer.class);
 			paramTypes.put(Params.GREEN, Integer.class);
 			paramTypes.put(Params.BLUE, Integer.class);
-			paramTypes.put(Params.SEQUENCE_RECORD, Boolean.class);
+			paramTypes.put(Params.RECORD, Boolean.class);
 			paramTypes.put(Params.NAME, String.class);
 			paramTypes.put(Params.SEQUENCES, List.class);
 			paramTypes.put(Params.LOOP, Boolean.class);

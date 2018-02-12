@@ -2,9 +2,13 @@ package com.pi.model;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+
+import org.springframework.util.CollectionUtils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.SystemLogger;
@@ -31,6 +35,11 @@ public class DeviceStateTriggerRange extends DeviceState
 		this.triggerOnChange = triggerOnChange;
 	}
 	
+	public Boolean getTriggerOnChange()
+	{
+		return triggerOnChange;
+	}
+	
 	@JsonIgnore
 	public boolean isTriggered(DeviceState currentState, DeviceState newState)
 	{		
@@ -41,8 +50,8 @@ public class DeviceStateTriggerRange extends DeviceState
 		{
 			return newState != null && newState.getName().equals(getName());
 		}
-		
-		if(endRange.isEmpty())
+
+		if(CollectionUtils.isEmpty(endRange))
 			return currentState.contains(this);
 		
 		for (String key : getParams().keySet())

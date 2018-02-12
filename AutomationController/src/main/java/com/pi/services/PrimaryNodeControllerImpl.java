@@ -37,6 +37,7 @@ import com.pi.infrastructure.Device.DeviceConfig;
 import com.pi.infrastructure.DeviceType.Params;
 import com.pi.infrastructure.BaseNodeController;
 import com.pi.infrastructure.RemoteDeviceProxy.RemoteDeviceConfig;
+import com.pi.infrastructure.RepoistoryManager;
 import com.pi.infrastructure.util.DeviceDoesNotExist;
 import com.pi.infrastructure.util.DeviceLockedException;
 import com.pi.infrastructure.util.PropertyManger;
@@ -67,8 +68,9 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	private Map<String, DeviceState> databaseSavedStates = new HashMap<>();
 	private Set<String> lockedDevices = new HashSet<>();
 	protected Multimap<String, RemoteDeviceConfig> uninitializedRemoteDevices = ArrayListMultimap.create();	
+	
 	@Autowired
-	private Map<String, JpaRepository<?, ?>> repositorys;
+	private RepoistoryManager repositoryManager;
 	
 	// NodeController services
 	private TaskExecutorService taskService = new TaskExecutorService(2);
@@ -129,34 +131,19 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	@Override
 	public <T extends Serializable> Collection<T> getRepositoryValues(String type)
 	{
-		JpaRepository<?, ?> repository = repositorys.get(type);
-		
-		if(repository == null)
-			throw new RepositoryDoesNotExistException(type);
-		
-		return (Collection<T>) repository.findAll();
+		return repositoryManager.getRepositoryValues(type);
 	}
 	
 	@Override
 	public <T extends Serializable, K extends Serializable> T getRepositoryValue(String type, K key)
 	{
-		JpaRepository<?, K> repository = (JpaRepository<?, K>) repositorys.get(type);
-		
-		if(repository == null)
-			throw new RepositoryDoesNotExistException(type);
-		
-		return (T) repository.findOne(key);
+		return repositoryManager.getRepositoryValue(type, key);
 	}
 
 	@Override
-	public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, K key, T value)
+	public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, T value)
 	{
-		JpaRepository<T, K> repository = (JpaRepository<T, K>) repositorys.get(type);
-		
-		if(repository == null)
-			throw new RuntimeException("Repository does not exist");
-		
-		repository.save(value);
+		repositoryManager.setRepositoryValue(type, value);
 	}
 	
 	public synchronized void registerNode(String node, InetAddress address)
@@ -276,18 +263,16 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	private void loadDeviceStatesIntoDatabaseCache() throws SQLException, IOException
 	{
 		SystemLogger.getLogger().info("Loading Device States");
-		CurrentDeviceStateJpaRepository repository = (CurrentDeviceStateJpaRepository) repositorys.get(RepositoryType.DeviceState);
+		Collection<DeviceStateDAO> savedStates = repositoryManager.getRepositoryValues(RepositoryType.DeviceState);
 		
-		repository.findAll().forEach((state) ->
+		savedStates.forEach((state) ->
 		{
 			databaseSavedStates.put(state.getDeviceName(), state.getDeviceState());
 		});
 	}
 	
 	private void save()
-	{
-		CurrentDeviceStateJpaRepository repository = (CurrentDeviceStateJpaRepository) repositorys.get(RepositoryType.DeviceState);
-		
+	{	
 		List<DeviceState> states = getStates();
 		List<DeviceStateDAO> savedStates = new ArrayList<>(states.size());
 		
@@ -296,7 +281,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 			savedStates.add(new DeviceStateDAO(state));
 		});
 		
-		repository.save(savedStates);
+		repositoryManager.setRepositoryValues(RepositoryType.DeviceState,  savedStates);
 	}
 
 	private void saveAndCloseAllDevices()
@@ -343,8 +328,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 	
 	private void scheduleAll(String profileName, boolean inverted)
 	{
-		ActionProfileJpaRepository actionProfileRepository = (ActionProfileJpaRepository) repositorys.get(RepositoryType.ActionProfile);
-		ActionProfile profile = actionProfileRepository.findOne(profileName);
+		ActionProfile profile = repositoryManager.getRepositoryValue(RepositoryType.ActionProfile, profileName);
 		
 		if (profile != null)
 		{
@@ -358,7 +342,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 		}
 	}
 	
-	private synchronized void processAction(DeviceState state)
+	private void processAction(DeviceState state)
 	{
 		try
 		{
@@ -471,10 +455,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 				deviceLoggingService.stop();
 								
 				saveAndCloseAllDevices();
-				repositorys.forEach((name, repository) -> 
-				{
-					repository.flush();
-				});
+				repositoryManager.flushAll();
 				
 				synchronized (this)
 				{

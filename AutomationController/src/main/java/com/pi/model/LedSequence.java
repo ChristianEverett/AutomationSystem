@@ -11,6 +11,7 @@ import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.Id;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.SystemLogger;
 import com.pi.devices.Led;
 
@@ -22,8 +23,8 @@ public class LedSequence extends Model
 	private String ledSequenceName;
 	@ElementCollection(fetch = FetchType.EAGER)
 	private List<Color> sequence = new LinkedList<>();
-	private Integer intervalMiliseconds = 30;
-	private Boolean loopFlag = false;
+	private Integer intervalMiliseconds;
+	private Boolean loopFlag;
 	
 	public LedSequence()
 	{
@@ -67,6 +68,7 @@ public class LedSequence extends Model
 		return ledSequenceName;
 	}
 
+	@JsonIgnore
 	public List<Color> getSequence()
 	{
 		return sequence;

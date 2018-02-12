@@ -32,7 +32,7 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 
 	// Device Name
 	protected final String name;
-
+	private boolean deviceClosed = false;
 	protected static final String DEVICE = "device";
 	
 	public static final void registerNodeManger(BaseNodeController node)
@@ -99,6 +99,9 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 	{
 		try
 		{
+			if(deviceClosed)
+				throw new RuntimeException("Can't execute closed device");
+			
 			if (state != null)
 			{
 				performAction(state);
@@ -126,8 +129,9 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 		}
 	}
 	
-	public void close() throws Exception
+	public synchronized void close() throws Exception
 	{
+		deviceClosed = true;
 		tearDown();
 	}
 
@@ -222,11 +226,11 @@ public abstract class Device implements RepositoryObserver, DeviceAPI
 		}	
 	}
 	
-	protected <T extends Serializable> void setRepositoryValue(String type, String key, T value)
+	protected <T extends Serializable> void setRepositoryValue(String type, T value)
 	{
 		try
 		{
-			node.setRepositoryValue(type, key, value);
+			node.setRepositoryValue(type, value);
 		}
 		catch (RemoteException e)
 		{

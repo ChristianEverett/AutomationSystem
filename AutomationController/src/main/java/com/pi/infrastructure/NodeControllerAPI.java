@@ -16,5 +16,5 @@ public interface NodeControllerAPI extends Remote
 	abstract public void unTrigger(String profileName) throws RemoteException;
 	abstract public <T extends Serializable> Collection<T> getRepositoryValues(String type) throws RemoteException;
 	abstract public <T extends Serializable, K extends Serializable> T getRepositoryValue(String type, K key) throws RemoteException;
-	abstract public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, K key, T value) throws RemoteException;
+	abstract public <T extends Serializable, K extends Serializable> void setRepositoryValue(String type, T value) throws RemoteException;
 }
