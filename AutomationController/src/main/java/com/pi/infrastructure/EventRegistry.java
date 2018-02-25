@@ -80,6 +80,10 @@ public class EventRegistry
 	{
 		Integer id = event.getId();		
 		EventHandler old = events.put(id, event);
+		
+		if(old != null)
+			remoteFromDeviceToTriggerEventMap(event);
+		
 		addToDeviceToTriggerEventMap(event);
 
 		return old == null;

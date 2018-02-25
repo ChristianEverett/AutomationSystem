@@ -67,7 +67,7 @@ public class Led extends Device
 			if (shouldStartRecording(state))
 			{
 				Boolean loop = state.getParamTyped(Params.LOOP, false);
-				Integer interval = state.getParamTyped(Params.INTERVAL, 30);
+				Integer interval = state.getParamTyped(Params.INTERVAL, 40);
 				String sequenceName = (String) state.getParamNonNull(Params.NAME);
 				recordingSequence = new LedSequence(sequenceName, interval, loop);
 			}

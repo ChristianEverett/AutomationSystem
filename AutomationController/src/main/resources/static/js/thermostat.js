@@ -7,6 +7,11 @@ $(document).ready(function ()
     var temperature_device = "temp_sensor2";
     var weather_sensor = "weather_sensor1";
 
+    var off_mode = "off";
+    var fan_mode = "fan";
+    var cool_mode = "cool";
+    var heat_mode = "heat";
+
     var thermostatTempDiv = $("#comp-irhyydxlinlineContent");
     var thermostatHumidityDiv = $("#comp-irpookur1inlineContent");
     var thermostatModeDiv = $("#comp-irhyyw5iinlineContent");
@@ -264,9 +269,4 @@ $(document).ready(function ()
 
         dontChangeTargetUI = false;
     }
-
-    var off_mode = "off_mode";
-    var fan_mode = "fan_mode";
-    var cool_mode = "cool_mode";
-    var heat_mode = "heat_mode";
 });

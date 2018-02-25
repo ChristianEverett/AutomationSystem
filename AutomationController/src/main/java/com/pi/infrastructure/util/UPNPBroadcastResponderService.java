@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.pi.SystemLogger;
 import com.pi.infrastructure.BaseService;
+import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 
 public class UPNPBroadcastResponderService extends BaseService
 {
@@ -120,27 +121,6 @@ public class UPNPBroadcastResponderService extends BaseService
 		multiCastServer.receive(msgPacket);
 		
 		return new UPNPPacket(msgPacket.getAddress(), msgPacket.getPort(), new String(buf, 0, buf.length));
-	}
-
-	public static InetAddress getLocalIpAddress() throws IOException
-	{
-		for (Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces(); interfaces.hasMoreElements();)
-		{
-			NetworkInterface networkInterface = interfaces.nextElement();
-
-			if (networkInterface.getDisplayName().equals("eth0"))
-			{
-				for (Enumeration<InetAddress> addresses = networkInterface.getInetAddresses(); addresses.hasMoreElements();)
-				{
-					InetAddress address = addresses.nextElement();
-
-					if (address instanceof Inet4Address)
-						return address;
-				}
-			}
-		}
-
-		throw new IOException("Could not find local IP address");
 	}
 
 	public void addDevice(UPNPDevice device) throws ClosedChannelException

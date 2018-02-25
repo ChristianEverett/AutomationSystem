@@ -118,7 +118,7 @@ public class PrimaryNodeControllerImpl extends BaseNodeController
 			loadDeviceStatesIntoDatabaseCache();	
 			
 			SystemLogger.getLogger().info("Starting rmi process");
-			System.setProperty("java.rmi.server.hostname", NodeDiscovererService.getLocalIPv4Address()); 
+			System.setProperty("java.rmi.server.hostname", NodeDiscovererService.getLocalIpAddressAsString()); 
 			LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 			Naming.rebind(RMI_NAME, UnicastRemoteObject.exportObject(this, 0));
 		}

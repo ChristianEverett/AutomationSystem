@@ -79,5 +79,6 @@ public class PropertyManger
 		public static final String DEVICE_CONFIG = "device.config";
 		public static final String DATABASE_POLL_FREQUENCY = "database.poll_frequency";
 		public static final String DEVICE_STATE_LOG_FREQUENCY = "device.log_frequency";
+		public static final String NETWORK_INTERFACE = "network.interface";
 	}
 }

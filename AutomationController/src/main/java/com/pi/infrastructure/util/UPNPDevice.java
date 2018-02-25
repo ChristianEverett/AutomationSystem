@@ -18,6 +18,7 @@ import java.util.Date;
 import java.util.UUID;
 
 import com.pi.SystemLogger;
+import com.pi.services.NodeDiscovererService;
 
 public abstract class UPNPDevice
 {
@@ -36,7 +37,7 @@ public abstract class UPNPDevice
 		serverSocketChannel.configureBlocking(false);
 	}
 
-	abstract protected String handleRequest(InetAddress address, String request) throws IOException;
+	abstract protected String handleRequest(InetAddress address, String request);
 	abstract protected boolean isValidSearch(UPNPPacket result);
 	abstract public String getName();
 
@@ -87,7 +88,7 @@ public abstract class UPNPDevice
 		message.append("CACHE-CONTROL: max-age=86400\r\n");
 		message.append("DATE: " + new Date().toString() + "\r\n");
 		message.append("EXT:\r\n");
-		message.append("LOCATION: http://" + UPNPBroadcastResponderService.getLocalIpAddress().getHostAddress() + ":" + serverSocketChannel.socket().getLocalPort() + "/setup.xml\r\n");
+		message.append("LOCATION: http://" + NodeDiscovererService.getLocalIpAddressAsString() + ":" + serverSocketChannel.socket().getLocalPort() + "/setup.xml\r\n");
 		message.append("OPT: \"http://schemas.upnp.org/upnp/1/0/\"; ns=01\r\n");
 		message.append("01-NLS:" + uuid + "\r\n");
 		message.append("SERVER: " + version + "\r\n");

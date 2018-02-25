@@ -138,7 +138,7 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 		}
 
 		@Override
-		protected String handleRequest(InetAddress address, String request) throws IOException
+		protected String handleRequest(InetAddress address, String request) 
 		{
 			if(request.contains("GET /setup.xml HTTP/1.1"))
 			{
@@ -162,7 +162,7 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 			return response.toString();
 		}
 		
-		private String handleStateChange(String request) throws IOException
+		private String handleStateChange(String request)
 		{
 			//SOAPACTION: "urn:Belkin:service:basicevent:1#SetBinaryState"
 			recognized.set(true);
@@ -171,15 +171,17 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 			{
 				isOn.set(true);
 				handler.accept(actionProfileName, true);
+				SystemLogger.getLogger().info(actionProfileName + " - Triggered On From Echo");
 			}
 			else if(request.contains("<BinaryState>0</BinaryState>"))
 			{
 				isOn.set(false);
 				handler.accept(actionProfileName, false);
+				SystemLogger.getLogger().info(actionProfileName + " - Triggered Off From Echo");
 			}
 			else
 			{
-				throw new IOException("Did not get a valid state back from the echo");
+				throw new RuntimeException("Did not get a valid state back from the echo");
 			}
 			
 			StringBuilder response = new StringBuilder();

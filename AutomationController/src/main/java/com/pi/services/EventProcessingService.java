@@ -1,6 +1,5 @@
 package com.pi.services;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -61,11 +60,13 @@ public class EventProcessingService
 				{		
 					nodeControllerImpl.trigger(event.getActionProfileName());
 					activeSet.add(event.getId());
+					SystemLogger.getLogger().info("Event: " + event.getId() + " Active. Triggered: " + event.getActionProfileName());
 				}
 				catch (ActionProfileDoesNotExist e)
 				{
 					SystemLogger.getLogger().severe("Removing event can't find action profile: " + event.getActionProfileName());
 					eventRegistry.removeEvent(event.getId());
+					SystemLogger.getLogger().info("Event: " + event.getId() + " Inactive. unTriggered: " + event.getActionProfileName());
 				}
 			}
 			else if(!eventTriggered)
@@ -86,8 +87,13 @@ public class EventProcessingService
 		}
 	}
 	
-	public synchronized boolean isActive(EventHandler event)
+	public boolean isActive(EventHandler event)
 	{
 		return activeSet.contains(event.getId());
+	}
+	
+	public boolean clearActiveStatus(int id)
+	{
+		return activeSet.remove(id);
 	}
 }

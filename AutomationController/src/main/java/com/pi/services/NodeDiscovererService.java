@@ -22,6 +22,8 @@ import org.springframework.stereotype.Service;
 
 import com.pi.SystemLogger;
 import com.pi.infrastructure.BaseService;
+import com.pi.infrastructure.util.PropertyManger;
+import com.pi.infrastructure.util.PropertyManger.PropertyKeys;
 
 @Service
 public class NodeDiscovererService extends BaseService
@@ -154,26 +156,37 @@ public class NodeDiscovererService extends BaseService
 		}	
 	}
 
-	public static String getLocalIPv4Address() throws SocketException, UnknownHostException
+	public static String getLocalIpAddressAsString() 
+	{	
+		return NodeDiscovererService.getLocalIpAddress().getHostAddress();
+	}
+	
+	public static InetAddress getLocalIpAddress()
 	{
-		Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-		
-		while(interfaces.hasMoreElements())
+		try
 		{
-			NetworkInterface networkInterface = interfaces.nextElement();
-			
-			Enumeration<InetAddress> addresses = networkInterface.getInetAddresses();
-			
-			while(addresses.hasMoreElements())
+			for (Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces(); interfaces.hasMoreElements();)
 			{
-				InetAddress address = addresses.nextElement();
-				
-				if(!address.isLoopbackAddress() && address instanceof Inet4Address)
-					return address.getHostAddress();
+				NetworkInterface networkInterface = interfaces.nextElement();
+
+				if (networkInterface.getDisplayName().equals(PropertyManger.loadProperty(PropertyKeys.NETWORK_INTERFACE, "wlan0")))
+				{
+					for (Enumeration<InetAddress> addresses = networkInterface.getInetAddresses(); addresses.hasMoreElements();)
+					{
+						InetAddress address = addresses.nextElement();
+
+						if (address instanceof Inet4Address && !address.isLoopbackAddress())
+							return address;
+					}
+				}
 			}
 		}
+		catch (Exception e)
+		{
+			throw new RuntimeException(e);
+		}
 		
-		return InetAddress.getLocalHost().getHostName();
+		throw new RuntimeException("Could not find local IP address");
 	}
 	
 	private static class Probe implements Serializable

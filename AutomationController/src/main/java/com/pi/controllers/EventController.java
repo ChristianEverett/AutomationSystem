@@ -61,9 +61,10 @@ public class EventController
 	}
 	
 	@RequestMapping(value = "/{hash}", method = RequestMethod.DELETE)
-	public void removeEvent(HttpServletRequest request, HttpServletResponse response, @PathVariable("hash") Integer hash)
+	public void removeEvent(HttpServletRequest request, HttpServletResponse response, @PathVariable("hash") Integer id)
 	{
-		eventRegistry.removeEvent(hash);
+		eventRegistry.removeEvent(id);
+		eventProcessingService.clearActiveStatus(id);
 	}
 	
 	@RequestMapping(method = RequestMethod.DELETE)

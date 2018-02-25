@@ -63,7 +63,7 @@ public class NodeControllerImpl extends BaseNodeController implements HttpHandle
 			this.nodeID = nodeID;
 			
 			Device.registerNodeManger(this);
-			System.setProperty("java.rmi.server.hostname", NodeDiscovererService.getLocalIPv4Address()); 
+			System.setProperty("java.rmi.server.hostname", NodeDiscovererService.getLocalIpAddressAsString()); 
 			LocateRegistry.createRegistry(Registry.REGISTRY_PORT);
 			
 			server = HttpServer.create(new InetSocketAddress(8080), QUEUE);

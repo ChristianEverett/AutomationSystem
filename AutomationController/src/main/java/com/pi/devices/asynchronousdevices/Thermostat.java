@@ -44,8 +44,8 @@ public class Thermostat extends AsynchronousDevice
 	private final PinState ON = PinState.LOW;
 	private final PinState OFF = PinState.HIGH;
 	
-	private ThermostatMode currentMode = ThermostatMode.OFF_MODE;
-	private ThermostatMode targetMode = ThermostatMode.OFF_MODE;
+	private ThermostatMode currentMode = ThermostatMode.OFF;
+	private ThermostatMode targetMode = ThermostatMode.OFF;
 	
 	private int targetTempInFehrenheit = 68;
 	
@@ -73,7 +73,7 @@ public class Thermostat extends AsynchronousDevice
 	@Override
 	protected synchronized void update() throws Exception
 	{
-		if (targetTempatureReached() && !modeChangeLock.get() && targetMode != ThermostatMode.FAN_MODE)
+		if (targetTempatureReached() && !modeChangeLock.get() && targetMode != ThermostatMode.FAN)
 		{
 			turnOff();
 			lockThermostat();
@@ -84,10 +84,10 @@ public class Thermostat extends AsynchronousDevice
 			{
 				switch (targetMode)
 				{
-				case OFF_MODE:
+				case OFF:
 					turnOff();
 					break;
-				case FAN_MODE:
+				case FAN:
 
 					if ((COMPRESSOR.isState(ON) || HEAT.isState(ON)) && !fanLock.get())
 					{
@@ -98,25 +98,25 @@ public class Thermostat extends AsynchronousDevice
 					FAN.setState(ON);
 					COMPRESSOR.setState(OFF);
 					HEAT.setState(OFF);
-					currentMode = ThermostatMode.FAN_MODE;
+					currentMode = ThermostatMode.FAN;
 					break;
-				case COOL_MODE:
+				case COOL:
 					if (!modeChangeLock.get())
 					{
 						FAN.setState(ON);
 						COMPRESSOR.setState(ON);
 						HEAT.setState(OFF);
-						currentMode = ThermostatMode.COOL_MODE;
+						currentMode = ThermostatMode.COOL;
 						//lockThermostat();
 					}
 					break;
-				case HEAT_MODE:
+				case HEAT:
 					if (!modeChangeLock.get())
 					{
 						FAN.setState(ON);
 						COMPRESSOR.setState(OFF);
 						HEAT.setState(ON);
-						currentMode = ThermostatMode.HEAT_MODE;
+						currentMode = ThermostatMode.HEAT;
 						//lockThermostat();
 					}
 					break;
@@ -185,7 +185,7 @@ public class Thermostat extends AsynchronousDevice
 	
 	private synchronized void turnOff()
 	{
-		if (currentMode != ThermostatMode.OFF_MODE)
+		if (currentMode != ThermostatMode.OFF)
 		{
 			if (COMPRESSOR.isState(ON) || HEAT.isState(ON))
 			{
@@ -198,7 +198,7 @@ public class Thermostat extends AsynchronousDevice
 				
 				fanTurnOffDelayTask = createTask(() ->
 				{
-					if (COMPRESSOR.isState(OFF) && HEAT.isState(OFF) && !targetMode.equals(ThermostatMode.FAN_MODE)) 
+					if (COMPRESSOR.isState(OFF) && HEAT.isState(OFF) && !targetMode.equals(ThermostatMode.FAN)) 
 						FAN.setState(OFF);
 					fanLock.set(false);
 				}, fanTurnOffDelay, TimeUnit.SECONDS);
@@ -208,7 +208,7 @@ public class Thermostat extends AsynchronousDevice
 				FAN.setState(OFF);
 			}
 
-			currentMode = ThermostatMode.OFF_MODE;
+			currentMode = ThermostatMode.OFF;
 		}
 	}
 	
@@ -237,8 +237,8 @@ public class Thermostat extends AsynchronousDevice
 	
 	private boolean compareTemperatures(int temperature)
 	{
-		return (targetMode.equals(ThermostatMode.COOL_MODE) && temperature <= targetTempInFehrenheit)
-				|| (targetMode.equals(ThermostatMode.HEAT_MODE) && temperature >= targetTempInFehrenheit);
+		return (targetMode.equals(ThermostatMode.COOL) && temperature <= targetTempInFehrenheit)
+				|| (targetMode.equals(ThermostatMode.HEAT) && temperature >= targetTempInFehrenheit);
 	}
 
 	@Override
@@ -327,7 +327,7 @@ public class Thermostat extends AsynchronousDevice
 	
 	public enum ThermostatMode
 	{
-		OFF_MODE("off_mode"), HEAT_MODE("heat_mode"), COOL_MODE("cool_mode"), FAN_MODE("fan_mode");
+		OFF("off"), HEAT("heat"), COOL("cool"), FAN("fan");
 		
 		private String name;
 		
