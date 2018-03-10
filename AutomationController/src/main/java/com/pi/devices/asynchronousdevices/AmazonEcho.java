@@ -159,13 +159,13 @@ public class AmazonEcho extends AsynchronousDevice implements BiConsumer<String,
 			xml = xml.replace("(device_serial)", persistent_uuid);
 			createOkResponse(response, xml.length());
 			response.append(xml);
+			recognized.set(true);
 			return response.toString();
 		}
 		
 		private String handleStateChange(String request)
 		{
-			//SOAPACTION: "urn:Belkin:service:basicevent:1#SetBinaryState"
-			recognized.set(true);
+			//SOAPACTION: "urn:Belkin:service:basicevent:1#SetBinaryState"			
 			
 			if(request.contains("<BinaryState>1</BinaryState>"))
 			{

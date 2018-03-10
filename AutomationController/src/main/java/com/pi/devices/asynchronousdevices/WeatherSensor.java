@@ -51,7 +51,7 @@ public class WeatherSensor extends AsynchronousDevice
 		super(name);
 		this.location = URLEncoder.encode(location, "UTF-8");
 		
-		weatherHttpConnection = Jsoup.connect("http://www.google.com/search?q=weahther+" + this.location).userAgent(
+		weatherHttpConnection = Jsoup.connect("http://www.google.com/search?q=weather+" + this.location).userAgent(
 				"Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36")
 				.validateTLSCertificates(false).timeout(TIMEOUT);;
 

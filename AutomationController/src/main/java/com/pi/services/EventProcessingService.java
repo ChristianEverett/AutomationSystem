@@ -66,13 +66,16 @@ public class EventProcessingService
 				{
 					SystemLogger.getLogger().severe("Removing event can't find action profile: " + event.getActionProfileName());
 					eventRegistry.removeEvent(event.getId());
-					SystemLogger.getLogger().info("Event: " + event.getId() + " Inactive. unTriggered: " + event.getActionProfileName());
+					
 				}
 			}
 			else if(!eventTriggered)
 			{
 				if(activeSet.remove(event.getId()) && event.getUnTrigger())
+				{
 					nodeControllerImpl.unTrigger(event.getActionProfileName());
+					SystemLogger.getLogger().info("Event: " + event.getId() + " Inactive. unTriggered: " + event.getActionProfileName());
+				}
 			}
 		}	
 	}

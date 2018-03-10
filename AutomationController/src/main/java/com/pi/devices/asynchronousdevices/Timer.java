@@ -19,7 +19,7 @@ import com.pi.services.TaskExecutorService.Task;
 
 public class Timer extends AsynchronousDevice
 {
-	private static final SimpleDateFormat formatter = new SimpleDateFormat("a hh:mm");
+	public static final SimpleDateFormat formatter = new SimpleDateFormat("a hh:mm");
 	private Task timer = null;
 
 	public Timer(String name) throws IOException

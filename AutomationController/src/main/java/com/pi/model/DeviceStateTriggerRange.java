@@ -2,8 +2,10 @@ package com.pi.model;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.text.ParseException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -12,7 +14,10 @@ import org.springframework.util.CollectionUtils;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.pi.SystemLogger;
+import com.pi.devices.asynchronousdevices.Timer;
+import com.pi.infrastructure.DeviceType;
 import com.pi.infrastructure.DeviceType.DeviceTypeMap;
+import com.pi.infrastructure.DeviceType.Params;
 
 public class DeviceStateTriggerRange extends DeviceState
 {
@@ -76,6 +81,21 @@ public class DeviceStateTriggerRange extends DeviceState
 		
 		try
 		{
+			if(Params.TIME.equals(key))
+			{
+				try
+				{
+					Date time1 = Timer.formatter.parse((String) lower);
+					Date time2 = Timer.formatter.parse((String) greater);
+					
+					return time1.before(time2);
+				}
+				catch (ParseException e)
+				{
+					SystemLogger.LOGGER.severe(e.getMessage());
+				}
+			}
+			
 			Method method = lower.getClass().getMethod(COMPARE_TO, DeviceTypeMap.getParamType(key));
 			Integer compare = (Integer) method.invoke(lower, greater);
 			return (compare < 1) ? true : false;
